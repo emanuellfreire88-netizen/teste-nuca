@@ -6,8 +6,9 @@ import { logAction } from '@/lib/logger';
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const rawLimit = parseInt(searchParams.get('limit') || '10');
+    const limit = Math.min(Math.max(1, rawLimit), 100); // Cap at 100 to prevent DoS
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
     const school_id = searchParams.get('school_id') || '';
@@ -93,6 +94,25 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         { error: 'Nome e escola são obrigatórios' },
         { status: 400 }
       );
+    }
+
+    // Validate field lengths
+    if (full_name.length > 255) {
+      return NextResponse.json(
+        { error: 'Nome deve ter no máximo 255 caracteres' },
+        { status: 400 }
+      );
+    }
+
+    // Validate CPF format if provided (XXX.XXX.XXX-XX or just digits)
+    if (cpf) {
+      const cpfClean = cpf.replace(/[^0-9]/g, '');
+      if (cpfClean.length !== 11) {
+        return NextResponse.json(
+          { error: 'CPF deve conter 11 dígitos' },
+          { status: 400 }
+        );
+      }
     }
 
     // Verify school exists

@@ -6,6 +6,18 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const user = await db.user.findUnique({
       where: { id: req.user!.userId },
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true,
+        status: true,
+        profile_photo: true,
+        two_factor_enabled: true,
+        last_login: true,
+        created_at: true,
+        updated_at: true,
+      },
     });
 
     if (!user) {
@@ -15,9 +27,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-
-    return NextResponse.json({ user: userWithoutPassword });
+    return NextResponse.json({ user });
   } catch (error) {
     console.error('Get current user error:', error);
     return NextResponse.json(

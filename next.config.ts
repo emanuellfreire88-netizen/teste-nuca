@@ -34,12 +34,10 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Apply cache-control and nosniff to API routes, but NOT Content-Type
+        // since upload/download endpoints need different content types
         source: "/api/(.*)",
         headers: [
-          {
-            key: "Content-Type",
-            value: "application/json",
-          },
           {
             key: "X-Content-Type-Options",
             value: "nosniff",

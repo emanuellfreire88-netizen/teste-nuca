@@ -51,6 +51,14 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       );
     }
 
+    // Validate field length
+    if (name.length > 255) {
+      return NextResponse.json(
+        { error: 'Nome da escola deve ter no máximo 255 caracteres' },
+        { status: 400 }
+      );
+    }
+
     const school = await db.school.create({
       data: {
         name,

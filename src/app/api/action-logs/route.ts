@@ -9,8 +9,9 @@ export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
     const action_type = searchParams.get('action_type') || '';
     const date_from = searchParams.get('date_from') || '';
     const date_to = searchParams.get('date_to') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const rawLimit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(Math.max(1, rawLimit), 100); // Cap at 100 to prevent DoS
 
     const where: Record<string, unknown> = {};
 

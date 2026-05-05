@@ -48,6 +48,23 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       );
     }
 
+    // Validate field lengths
+    if (full_name.length > 255 || email.length > 255) {
+      return NextResponse.json(
+        { error: 'Nome e email devem ter no máximo 255 caracteres' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Formato de email inválido' },
+        { status: 400 }
+      );
+    }
+
     // Validate password strength
     const passwordCheck = validatePasswordStrength(password);
     if (!passwordCheck.valid) {

@@ -65,9 +65,12 @@ export function withAuth(handler: HandlerFunction): HandlerFunction {
     const dbUser = await verifyUserInDB(payload.userId);
 
     if (dbUser === null) {
-      // DB lookup failed - use token data as fallback
-      (req as AuthenticatedRequest).user = payload;
-      return handler(req as AuthenticatedRequest, context);
+      // DB lookup failed - fail closed for security (block access)
+      // This prevents unauthorized access when DB is unavailable
+      return NextResponse.json(
+        { error: 'Erro ao verificar credenciais. Tente novamente.' },
+        { status: 503 }
+      );
     }
 
     if (dbUser.status === 'inactive') {
