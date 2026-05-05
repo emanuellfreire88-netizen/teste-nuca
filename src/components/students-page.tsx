@@ -65,6 +65,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Loader2,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1504,6 +1505,7 @@ export function StudentsPage() {
   const [loadingStudent, setLoadingStudent] = useState(false);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
 
@@ -1568,9 +1570,11 @@ export function StudentsPage() {
     if (editDialogOpen) fetchSchools();
   }, [editDialogOpen, fetchSchools]);
 
-  const handleDelete = async () => {
+  const handleDelete = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
     if (!selectedStudentId) return;
     try {
+      setDeleteLoading(true);
       await api.delete(`/students/${selectedStudentId}`);
       toast.success("Aluno excluído com sucesso!");
       setDeleteDialogOpen(false);
@@ -1583,6 +1587,8 @@ export function StudentsPage() {
       } else {
         toast.error("Erro ao excluir aluno");
       }
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -1666,12 +1672,20 @@ export function StudentsPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel disabled={deleteLoading}>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDelete}
+                disabled={deleteLoading}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Excluir
+                {deleteLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  "Excluir"
+                )}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

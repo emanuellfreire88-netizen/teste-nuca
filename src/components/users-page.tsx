@@ -253,7 +253,8 @@ export function UsersPage() {
     setDeleteOpen(true);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
     if (!selectedUser) return;
     try {
       setDeleting(true);
