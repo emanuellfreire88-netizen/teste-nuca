@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { GraduationCap, Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -60,12 +61,16 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo / Branding */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center mb-4 border border-white/20">
-            <GraduationCap className="w-9 h-9 text-white" />
+          <div className="w-48 h-auto mb-4">
+            <Image
+              src="/uploads/nuca-logo.png"
+              alt="Nuca Plataforma"
+              width={1922}
+              height={1080}
+              className="w-full h-auto object-contain drop-shadow-lg"
+              priority
+            />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Nuca Plataforma
-          </h1>
           <p className="text-navy-200 text-sm mt-1">
             Sistema de Gestão Escolar
           </p>

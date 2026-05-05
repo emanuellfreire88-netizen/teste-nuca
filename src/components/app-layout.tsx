@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useAuthStore } from "@/lib/auth-store";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -96,15 +97,16 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5">
-        <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
-          <GraduationCap className="w-5 h-5 text-white" />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-bold text-white tracking-tight">
-            Nuca Plataforma
-          </span>
-          <span className="text-[11px] text-white/50">Gestão Escolar</span>
+      <div className="flex items-center gap-3 px-4 py-4">
+        <div className="w-36 h-auto">
+          <Image
+            src="/uploads/nuca-logo.png"
+            alt="Nuca Plataforma"
+            width={1922}
+            height={1080}
+            className="w-full h-auto object-contain"
+            priority
+          />
         </div>
       </div>
 
