@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -652,7 +651,7 @@ export function UsersPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-white hover:bg-destructive/90"
@@ -665,7 +664,7 @@ export function UsersPage() {
               ) : (
                 "Excluir"
               )}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

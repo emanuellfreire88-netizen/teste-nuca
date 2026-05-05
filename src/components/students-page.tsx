@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/select";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -1673,10 +1672,10 @@ export function StudentsPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={deleteLoading}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
+              <Button
                 onClick={handleDelete}
                 disabled={deleteLoading}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="bg-destructive text-white hover:bg-destructive/90"
               >
                 {deleteLoading ? (
                   <>
@@ -1686,7 +1685,7 @@ export function StudentsPage() {
                 ) : (
                   "Excluir"
                 )}
-              </AlertDialogAction>
+              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
