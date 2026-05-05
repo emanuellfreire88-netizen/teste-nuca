@@ -1,16 +1,19 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import dynamic from "next/dynamic";
 import { useAuthStore } from "@/lib/auth-store";
 import { LoginPage } from "@/components/login-page";
 import { AppLayout, type PageKey } from "@/components/app-layout";
-import { DashboardPage } from "@/components/dashboard-page";
-import { SchoolsPage } from "@/components/schools-page";
-import { AttendancePage } from "@/components/attendance-page";
-import { StudentsPage } from "@/components/students-page";
-import { UsersPage } from "@/components/users-page";
-import { LogsPage } from "@/components/logs-page";
-import { ReportsPage } from "@/components/reports-page";
+
+// Dynamic imports to reduce initial compilation memory usage
+const DashboardPage = dynamic(() => import("@/components/dashboard-page").then(m => ({ default: m.DashboardPage })), { ssr: false });
+const SchoolsPage = dynamic(() => import("@/components/schools-page").then(m => ({ default: m.SchoolsPage })), { ssr: false });
+const StudentsPage = dynamic(() => import("@/components/students-page").then(m => ({ default: m.StudentsPage })), { ssr: false });
+const AttendancePage = dynamic(() => import("@/components/attendance-page").then(m => ({ default: m.AttendancePage })), { ssr: false });
+const UsersPage = dynamic(() => import("@/components/users-page").then(m => ({ default: m.UsersPage })), { ssr: false });
+const LogsPage = dynamic(() => import("@/components/logs-page").then(m => ({ default: m.LogsPage })), { ssr: false });
+const ReportsPage = dynamic(() => import("@/components/reports-page").then(m => ({ default: m.ReportsPage })), { ssr: false });
 
 // Hydration-safe check: returns false on server, then true on client
 const emptySubscribe = () => () => {};

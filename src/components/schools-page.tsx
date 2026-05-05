@@ -34,15 +34,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   School,
   Plus,
   Search,
@@ -541,24 +532,28 @@ export function SchoolsPage() {
       />
 
       {/* Delete Confirmation */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+            <DialogDescription>
               Tem certeza que deseja excluir a escola{" "}
               <strong>{deletingSchool?.name}</strong>? Esta ação não pode ser
               desfeita. Escolas com alunos vinculados não podem ser excluídas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteLoading}>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleteLoading}
+            >
               Cancelar
-            </AlertDialogCancel>
+            </Button>
             <Button
               onClick={handleDelete}
               disabled={deleteLoading}
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
             >
               {deleteLoading ? (
                 <>
@@ -569,9 +564,9 @@ export function SchoolsPage() {
                 "Excluir"
               )}
             </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

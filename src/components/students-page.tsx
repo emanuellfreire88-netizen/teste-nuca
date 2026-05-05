@@ -21,6 +21,8 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -31,15 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -1657,25 +1650,31 @@ export function StudentsPage() {
         />
 
         {/* Delete Confirmation */}
-        <AlertDialog
+        <Dialog
           open={deleteDialogOpen}
           onOpenChange={setDeleteDialogOpen}
         >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-              <AlertDialogDescription>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Exclusão</DialogTitle>
+              <DialogDescription>
                 Tem certeza que deseja excluir o aluno{" "}
                 <strong>{selectedStudent.full_name}</strong>? Esta ação não pode
                 ser desfeita.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleteLoading}>Cancelar</AlertDialogCancel>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={deleteLoading}
+              >
+                Cancelar
+              </Button>
               <Button
                 onClick={handleDelete}
                 disabled={deleteLoading}
-                className="bg-destructive text-white hover:bg-destructive/90"
+                variant="destructive"
               >
                 {deleteLoading ? (
                   <>
@@ -1686,9 +1685,9 @@ export function StudentsPage() {
                   "Excluir"
                 )}
               </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
