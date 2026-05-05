@@ -15,7 +15,8 @@ async function main() {
     return;
   }
 
-  const hashedPassword = await bcrypt.hash('Admin@123', 10);
+  // Use bcrypt salt rounds of 12 for stronger hashing
+  const hashedPassword = await bcrypt.hash('Admin@123', 12);
 
   const admin = await prisma.user.create({
     data: {
@@ -34,6 +35,7 @@ async function main() {
   });
 
   console.log('Seeding complete!');
+  console.log('⚠️  IMPORTANT: Change the default admin password after first login!');
 }
 
 main()

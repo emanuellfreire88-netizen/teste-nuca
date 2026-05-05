@@ -1,15 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { comparePassword, generateToken } from '@/lib/auth';
+import { comparePassword, generateToken, validatePasswordStrength } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
+
+// In-memory rate limiter for login attempts
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const MAX_ATTEMPTS_PER_IP = 10; // Max 10 attempts per IP per window
+
+function isRateLimited(ip: string): boolean {
+  const entry = loginAttempts.get(ip);
+  if (!entry) return false;
+
+  // Clean up old entries
+  if (Date.now() - entry.lastAttempt > RATE_LIMIT_WINDOW) {
+    loginAttempts.delete(ip);
+    return false;
+  }
+
+  return entry.count >= MAX_ATTEMPTS_PER_IP;
+}
+
+function recordAttempt(ip: string): void {
+  const entry = loginAttempts.get(ip);
+  if (!entry || Date.now() - entry.lastAttempt > RATE_LIMIT_WINDOW) {
+    loginAttempts.set(ip, { count: 1, lastAttempt: Date.now() });
+  } else {
+    entry.count++;
+    entry.lastAttempt = Date.now();
+  }
+}
+
+function clearAttempt(ip: string): void {
+  loginAttempts.delete(ip);
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    // Rate limiting by IP
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown';
+
+    if (isRateLimited(clientIp)) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
+        { status: 429 }
+      );
+    }
+
+    const body = await req.json();
+    const { email, password } = body;
 
     if (!email || !password) {
+      recordAttempt(clientIp);
       return NextResponse.json(
         { error: 'Email e senha são obrigatórios' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      recordAttempt(clientIp);
+      return NextResponse.json(
+        { error: 'Formato de email inválido' },
         { status: 400 }
       );
     }
@@ -17,9 +74,20 @@ export async function POST(req: NextRequest) {
     const user = await db.user.findUnique({ where: { email } });
 
     if (!user) {
+      recordAttempt(clientIp);
+      // Use generic error message to prevent user enumeration
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
         { status: 401 }
+      );
+    }
+
+    // Check if user is inactive
+    if (user.status === 'inactive') {
+      recordAttempt(clientIp);
+      return NextResponse.json(
+        { error: 'Conta desativada. Contate o administrador.' },
+        { status: 403 }
       );
     }
 
@@ -29,8 +97,12 @@ export async function POST(req: NextRequest) {
       user.locked_until &&
       new Date(user.locked_until) > new Date()
     ) {
+      recordAttempt(clientIp);
+      const remainingMinutes = Math.ceil(
+        (new Date(user.locked_until).getTime() - Date.now()) / (60 * 1000)
+      );
       return NextResponse.json(
-        { error: 'Conta bloqueada. Tente novamente mais tarde.' },
+        { error: `Conta bloqueada. Tente novamente em ${remainingMinutes} minuto(s).` },
         { status: 423 }
       );
     }
@@ -38,6 +110,8 @@ export async function POST(req: NextRequest) {
     const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
+      recordAttempt(clientIp);
+
       // Increment failed login attempts
       const newAttempts = user.failed_login_attempts + 1;
       const lockUntil =
@@ -51,13 +125,26 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      return NextResponse.json(
-        { error: 'Credenciais inválidas' },
-        { status: 401 }
-      );
+      // Log failed attempt
+      await logAction(null, 'login_failed', `Tentativa de login falhou: ${email}`, req);
+
+      const remainingAttempts = 5 - newAttempts;
+      if (remainingAttempts > 0) {
+        return NextResponse.json(
+          { error: `Credenciais inválidas. ${remainingAttempts} tentativa(s) restante(s).` },
+          { status: 401 }
+        );
+      } else {
+        return NextResponse.json(
+          { error: 'Conta bloqueada por 30 minutos devido a múltiplas tentativas falhas.' },
+          { status: 423 }
+        );
+      }
     }
 
-    // Reset failed login attempts and update last login
+    // Successful login - clear rate limit and reset failed attempts
+    clearAttempt(clientIp);
+
     await db.user.update({
       where: { id: user.id },
       data: {
@@ -74,16 +161,16 @@ export async function POST(req: NextRequest) {
       role: user.role,
     });
 
-    // Log action
+    // Log successful login
     await logAction(user.id, 'login', `Login realizado: ${user.email}`, req);
 
-    // Return user info without password
-    const { password: _, ...userWithoutPassword } = user;
+    // Return user info without password or sensitive fields
+    const { password: _, two_factor_secret: __, ...userWithoutSensitive } = user;
 
     return NextResponse.json({
       token,
       user: {
-        ...userWithoutPassword,
+        ...userWithoutSensitive,
         last_login: new Date(),
       },
     });

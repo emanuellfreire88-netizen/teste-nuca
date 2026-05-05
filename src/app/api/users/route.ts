@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, validatePasswordStrength, sanitizeInput } from '@/lib/auth';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 
@@ -44,6 +44,15 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
     if (!full_name || !email || !password) {
       return NextResponse.json(
         { error: 'Nome, email e senha são obrigatórios' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password strength
+    const passwordCheck = validatePasswordStrength(password);
+    if (!passwordCheck.valid) {
+      return NextResponse.json(
+        { error: `Senha fraca. Requisitos: ${passwordCheck.errors.join(', ')}` },
         { status: 400 }
       );
     }

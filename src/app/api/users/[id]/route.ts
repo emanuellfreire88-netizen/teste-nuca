@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, validatePasswordStrength } from '@/lib/auth';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 
@@ -91,6 +91,14 @@ export async function PUT(
       if (status !== undefined) updateData.status = status;
       if (profile_photo !== undefined) updateData.profile_photo = profile_photo;
       if (password) {
+        // Validate password strength on update too
+        const passwordCheck = validatePasswordStrength(password);
+        if (!passwordCheck.valid) {
+          return NextResponse.json(
+            { error: `Senha fraca. Requisitos: ${passwordCheck.errors.join(', ')}` },
+            { status: 400 }
+          );
+        }
         updateData.password = await hashPassword(password);
       }
 
