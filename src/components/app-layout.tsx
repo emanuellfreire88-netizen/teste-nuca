@@ -98,7 +98,7 @@ function SidebarContent({
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex justify-center px-4 py-5">
-        <div className="w-56 h-auto">
+        <div className="w-[90%] h-auto">
           <Image
             src="/uploads/nuca-logo.png"
             alt="Nuca Plataforma"
