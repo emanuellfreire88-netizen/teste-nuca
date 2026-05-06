@@ -344,13 +344,66 @@ export function SchoolsPage() {
 
   if (view === "detail" && selectedSchoolId) {
     return (
-      <SchoolDetailView
-        school={schoolDetail}
-        loading={detailLoading}
-        onBack={handleBackToList}
-        onEdit={canEdit ? handleOpenEdit : undefined}
-        onDelete={isAdmin ? (s) => { setDeletingSchool(s as SchoolData); setDeleteDialogOpen(true); } : undefined}
-      />
+      <>
+        <SchoolDetailView
+          school={schoolDetail}
+          loading={detailLoading}
+          onBack={handleBackToList}
+          onEdit={canEdit ? handleOpenEdit : undefined}
+          onDelete={isAdmin ? (s) => { setDeletingSchool(s as SchoolData); setDeleteDialogOpen(true); } : undefined}
+        />
+
+        {/* Create / Edit Dialog (also needed in detail view) */}
+        <SchoolFormDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          editingSchool={editingSchool}
+          formData={formData}
+          onFormDataChange={setFormData}
+          onSubmit={handleSubmitForm}
+          submitting={formSubmitting}
+          uploading={uploading}
+          onPhotoUpload={handlePhotoUpload}
+          fileInputRef={fileInputRef}
+        />
+
+        {/* Delete Confirmation */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar exclusão</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja excluir a escola{" "}
+                <strong>{deletingSchool?.name}</strong>? Todos os alunos e registros de frequência vinculados também serão excluídos. Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={deleteLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                variant="destructive"
+              >
+                {deleteLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  "Excluir"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
