@@ -101,10 +101,20 @@ export async function DELETE(
       }
 
       if (existingSchool._count.students > 0) {
-        return NextResponse.json(
-          { error: 'Não é possível excluir escola com alunos vinculados' },
-          { status: 400 }
-        );
+        // Cascade: delete attendance records for all students, then students, then school
+        const studentIds = (await db.student.findMany({
+          where: { school_id: id },
+          select: { id: true },
+        })).map(s => s.id);
+
+        if (studentIds.length > 0) {
+          await db.attendanceRecord.deleteMany({
+            where: { student_id: { in: studentIds } },
+          });
+          await db.student.deleteMany({
+            where: { school_id: id },
+          });
+        }
       }
 
       await db.school.delete({ where: { id } });

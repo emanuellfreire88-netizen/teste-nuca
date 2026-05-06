@@ -551,6 +551,7 @@ export function SchoolsPage() {
               Cancelar
             </Button>
             <Button
+              type="button"
               onClick={handleDelete}
               disabled={deleteLoading}
               variant="destructive"

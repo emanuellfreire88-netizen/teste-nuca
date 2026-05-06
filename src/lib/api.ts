@@ -62,10 +62,14 @@ async function request<T>(
     } catch {
       errorData = await response.text();
     }
-    const message =
-      typeof errorData === "object" && errorData !== null && "message" in errorData
-        ? (errorData as { message: string }).message
-        : `Erro ${response.status}`;
+    let message = `Erro ${response.status}`;
+    if (typeof errorData === "object" && errorData !== null) {
+      if ("error" in errorData) {
+        message = (errorData as { error: string }).error;
+      } else if ("message" in errorData) {
+        message = (errorData as { message: string }).message;
+      }
+    }
     throw new ApiError(message, response.status, errorData);
   }
 

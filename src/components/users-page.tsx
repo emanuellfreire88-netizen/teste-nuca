@@ -649,6 +649,7 @@ export function UsersPage() {
               Cancelar
             </Button>
             <Button
+              type="button"
               onClick={handleDelete}
               disabled={deleting}
               variant="destructive"
