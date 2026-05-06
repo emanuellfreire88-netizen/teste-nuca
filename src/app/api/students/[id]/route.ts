@@ -125,10 +125,12 @@ export async function DELETE(
         );
       }
 
-      // Delete attendance records first (cascade manually since Prisma doesn't auto-cascade)
-      await db.attendanceRecord.deleteMany({ where: { student_id: id } });
-
-      await db.student.delete({ where: { id } });
+      // Use transaction for cascade delete to ensure data consistency
+      await db.$transaction(async (tx) => {
+        // Delete attendance records first (cascade manually since Prisma doesn't auto-cascade)
+        await tx.attendanceRecord.deleteMany({ where: { student_id: id } });
+        await tx.student.delete({ where: { id } });
+      });
 
       await logAction(_req.user!.userId, 'delete_student', `Aluno excluído: ${existingStudent.full_name}`, _req);
 

@@ -591,8 +591,7 @@ export function SchoolsPage() {
             <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>
               Tem certeza que deseja excluir a escola{" "}
-              <strong>{deletingSchool?.name}</strong>? Esta ação não pode ser
-              desfeita. Escolas com alunos vinculados não podem ser excluídas.
+              <strong>{deletingSchool?.name}</strong>? Todos os alunos e registros de frequência vinculados também serão excluídos. Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -823,6 +822,7 @@ function SchoolDetailView({
                 loading="lazy"
                 allowFullScreen
                 referrerPolicy="no-referrer-when-downgrade"
+                sandbox="allow-scripts allow-same-origin"
                 src={`https://www.openstreetmap.org/export/embed.html?bbox=${school.longitude! - 0.01}%2C${school.latitude! - 0.01}%2C${school.longitude! + 0.01}%2C${school.latitude! + 0.01}&layer=mapnik&marker=${school.latitude}%2C${school.longitude}`}
               />
             ) : (

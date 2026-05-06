@@ -46,6 +46,39 @@ export async function PUT(
       const { id } = await context.params;
       const body = await _req.json();
 
+      // Validate field lengths on update
+      if (body.name !== undefined && (typeof body.name !== 'string' || body.name.trim().length === 0 || body.name.length > 255)) {
+        return NextResponse.json(
+          { error: 'Nome da escola deve ter entre 1 e 255 caracteres' },
+          { status: 400 }
+        );
+      }
+      if (body.email !== undefined && body.email && body.email.length > 255) {
+        return NextResponse.json(
+          { error: 'E-mail deve ter no máximo 255 caracteres' },
+          { status: 400 }
+        );
+      }
+      // Validate latitude/longitude ranges
+      if (body.latitude !== undefined && body.latitude !== null) {
+        const lat = Number(body.latitude);
+        if (isNaN(lat) || lat < -90 || lat > 90) {
+          return NextResponse.json(
+            { error: 'Latitude deve estar entre -90 e 90' },
+            { status: 400 }
+          );
+        }
+      }
+      if (body.longitude !== undefined && body.longitude !== null) {
+        const lng = Number(body.longitude);
+        if (isNaN(lng) || lng < -180 || lng > 180) {
+          return NextResponse.json(
+            { error: 'Longitude deve estar entre -180 e 180' },
+            { status: 400 }
+          );
+        }
+      }
+
       const existingSchool = await db.school.findUnique({ where: { id } });
       if (!existingSchool) {
         return NextResponse.json(
@@ -100,24 +133,27 @@ export async function DELETE(
         );
       }
 
-      if (existingSchool._count.students > 0) {
-        // Cascade: delete attendance records for all students, then students, then school
-        const studentIds = (await db.student.findMany({
-          where: { school_id: id },
-          select: { id: true },
-        })).map(s => s.id);
-
-        if (studentIds.length > 0) {
-          await db.attendanceRecord.deleteMany({
-            where: { student_id: { in: studentIds } },
-          });
-          await db.student.deleteMany({
+      // Use transaction for cascade delete to ensure data consistency
+      await db.$transaction(async (tx) => {
+        if (existingSchool._count.students > 0) {
+          // Cascade: delete attendance records for all students, then students, then school
+          const studentIds = (await tx.student.findMany({
             where: { school_id: id },
-          });
-        }
-      }
+            select: { id: true },
+          })).map(s => s.id);
 
-      await db.school.delete({ where: { id } });
+          if (studentIds.length > 0) {
+            await tx.attendanceRecord.deleteMany({
+              where: { student_id: { in: studentIds } },
+            });
+            await tx.student.deleteMany({
+              where: { school_id: id },
+            });
+          }
+        }
+
+        await tx.school.delete({ where: { id } });
+      });
 
       await logAction(_req.user!.userId, 'delete_school', `Escola excluída: ${existingSchool.name}`, _req);
 

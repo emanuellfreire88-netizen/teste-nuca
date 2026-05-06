@@ -17,8 +17,6 @@ export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
         status: true,
         profile_photo: true,
         two_factor_enabled: true,
-        failed_login_attempts: true,
-        locked_until: true,
         last_login: true,
         created_at: true,
         updated_at: true,

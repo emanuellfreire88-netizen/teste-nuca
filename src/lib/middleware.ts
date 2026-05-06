@@ -14,12 +14,31 @@ type HandlerFunction = (
 // Cache verified user roles in memory with TTL to reduce DB queries
 const userRoleCache = new Map<string, { role: string; status: string; cachedAt: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_MAX_SIZE = 1000; // Prevent unbounded memory growth
+
+// Periodic cleanup of expired cache entries (every 10 minutes)
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of userRoleCache.entries()) {
+      if (now - value.cachedAt > CACHE_TTL) {
+        userRoleCache.delete(key);
+      }
+    }
+  }, 10 * 60 * 1000).unref?.(); // Don't prevent process exit
+}
 
 async function verifyUserInDB(userId: string): Promise<{ role: string; status: string } | null> {
   // Check cache first
   const cached = userRoleCache.get(userId);
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL) {
     return { role: cached.role, status: cached.status };
+  }
+
+  // Evict oldest entries if cache is too large
+  if (userRoleCache.size >= CACHE_MAX_SIZE) {
+    const oldestKey = userRoleCache.keys().next().value;
+    if (oldestKey) userRoleCache.delete(oldestKey);
   }
 
   try {

@@ -59,6 +59,26 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       );
     }
 
+    // Validate latitude/longitude ranges
+    if (latitude !== undefined && latitude !== null) {
+      const lat = Number(latitude);
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        return NextResponse.json(
+          { error: 'Latitude deve estar entre -90 e 90' },
+          { status: 400 }
+        );
+      }
+    }
+    if (longitude !== undefined && longitude !== null) {
+      const lng = Number(longitude);
+      if (isNaN(lng) || lng < -180 || lng > 180) {
+        return NextResponse.json(
+          { error: 'Longitude deve estar entre -180 e 180' },
+          { status: 400 }
+        );
+      }
+    }
+
     const school = await db.school.create({
       data: {
         name,

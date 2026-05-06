@@ -7,6 +7,19 @@ import { logAction } from '@/lib/logger';
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 const MAX_ATTEMPTS_PER_IP = 10; // Max 10 attempts per IP per window
+const MAX_ENTRIES = 5000; // Prevent unbounded memory growth
+
+// Periodic cleanup of expired login attempt entries (every 15 minutes)
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of loginAttempts.entries()) {
+      if (now - value.lastAttempt > RATE_LIMIT_WINDOW) {
+        loginAttempts.delete(key);
+      }
+    }
+  }, 15 * 60 * 1000).unref?.();
+}
 
 function isRateLimited(ip: string): boolean {
   const entry = loginAttempts.get(ip);
@@ -22,6 +35,12 @@ function isRateLimited(ip: string): boolean {
 }
 
 function recordAttempt(ip: string): void {
+  // Evict oldest entries if map is too large
+  if (loginAttempts.size >= MAX_ENTRIES) {
+    const oldestKey = loginAttempts.keys().next().value;
+    if (oldestKey) loginAttempts.delete(oldestKey);
+  }
+
   const entry = loginAttempts.get(ip);
   if (!entry || Date.now() - entry.lastAttempt > RATE_LIMIT_WINDOW) {
     loginAttempts.set(ip, { count: 1, lastAttempt: Date.now() });
@@ -82,12 +101,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if user is inactive
+    // Check if user is inactive - use generic message to prevent user enumeration
     if (user.status === 'inactive') {
       recordAttempt(clientIp);
       return NextResponse.json(
-        { error: 'Conta desativada. Contate o administrador.' },
-        { status: 403 }
+        { error: 'Credenciais inválidas' },
+        { status: 401 }
       );
     }
 

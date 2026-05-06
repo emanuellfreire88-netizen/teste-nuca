@@ -21,8 +21,6 @@ export async function GET(
           status: true,
           profile_photo: true,
           two_factor_enabled: true,
-          failed_login_attempts: true,
-          locked_until: true,
           last_login: true,
           created_at: true,
           updated_at: true,
@@ -156,7 +154,33 @@ export async function DELETE(
         );
       }
 
-      await db.user.delete({ where: { id } });
+      // Use transaction to cascade delete related records
+      await db.$transaction(async (tx) => {
+        // Find all student IDs from attendance records created by this user
+        const attendanceRecords = await tx.attendanceRecord.findMany({
+          where: { created_by: id },
+          select: { student_id: true },
+        });
+        const studentIds = [...new Set(attendanceRecords.map((r) => r.student_id))];
+
+        // Delete attendance records created by this user
+        await tx.attendanceRecord.deleteMany({
+          where: { created_by: id },
+        });
+
+        // For students whose only attendance records were from this user,
+        // we need to check if they still have records from other users
+        // (No action needed - already deleted above)
+
+        // Set action_logs user_id to null (keep the log history)
+        await tx.actionLog.updateMany({
+          where: { user_id: id },
+          data: { user_id: null },
+        });
+
+        // Delete the user
+        await tx.user.delete({ where: { id } });
+      });
 
       await logAction(_req.user!.userId, 'delete_user', `Usuário excluído: ${existingUser.email}`, _req);
 

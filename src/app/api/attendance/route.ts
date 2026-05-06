@@ -43,26 +43,45 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       where.student = { school_id };
     }
 
-    const records = await db.attendanceRecord.findMany({
-      where,
-      include: {
-        student: {
-          select: {
-            id: true,
-            full_name: true,
-            class: true,
-            grade: true,
-            school: { select: { id: true, name: true } },
+    // Pagination to prevent loading all records at once
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const rawLimit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(Math.max(1, rawLimit), 100);
+    const skip = (page - 1) * limit;
+
+    const [records, total] = await Promise.all([
+      db.attendanceRecord.findMany({
+        where,
+        include: {
+          student: {
+            select: {
+              id: true,
+              full_name: true,
+              class: true,
+              grade: true,
+              school: { select: { id: true, name: true } },
+            },
+          },
+          user: {
+            select: { id: true, full_name: true },
           },
         },
-        user: {
-          select: { id: true, full_name: true },
-        },
-      },
-      orderBy: { date: 'desc' },
-    });
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.attendanceRecord.count({ where }),
+    ]);
 
-    return NextResponse.json({ records });
+    return NextResponse.json({
+      records,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('List attendance error:', error);
     return NextResponse.json(
