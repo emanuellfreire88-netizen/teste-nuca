@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useAuthStore } from "@/lib/auth-store";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
@@ -147,7 +148,7 @@ export function SchoolsPage() {
   const fetchSchools = useCallback(async () => {
     try {
       setSchoolsLoading(true);
-      const data = await api.get<{ schools: SchoolData[] }>("/schools");
+      const data = await api.get<{ schools: SchoolData[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>("/schools?limit=100");
       setSchools(data.schools);
     } catch (err) {
       if (err instanceof ApiError && err.status !== 401) {
@@ -336,15 +337,17 @@ export function SchoolsPage() {
 
   // ── Filtering ──────────────────────────────────────────────────────────
 
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   const filteredSchools = schools.filter((s) =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase())
+    s.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
   );
 
   // ── Render ─────────────────────────────────────────────────────────────
 
-  if (view === "detail" && selectedSchoolId) {
-    return (
-      <>
+  return (
+    <div className="space-y-6">
+      {view === "detail" && selectedSchoolId ? (
         <SchoolDetailView
           school={schoolDetail}
           loading={detailLoading}
@@ -352,225 +355,172 @@ export function SchoolsPage() {
           onEdit={canEdit ? handleOpenEdit : undefined}
           onDelete={isAdmin ? (s) => { setDeletingSchool(s as SchoolData); setDeleteDialogOpen(true); } : undefined}
         />
-
-        {/* Create / Edit Dialog (also needed in detail view) */}
-        <SchoolFormDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          editingSchool={editingSchool}
-          formData={formData}
-          onFormDataChange={setFormData}
-          onSubmit={handleSubmitForm}
-          submitting={formSubmitting}
-          uploading={uploading}
-          onPhotoUpload={handlePhotoUpload}
-          fileInputRef={fileInputRef}
-        />
-
-        {/* Delete Confirmation */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirmar exclusão</DialogTitle>
-              <DialogDescription>
-                Tem certeza que deseja excluir a escola{" "}
-                <strong>{deletingSchool?.name}</strong>? Todos os alunos e registros de frequência vinculados também serão excluídos. Esta ação não pode ser desfeita.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setDeleteDialogOpen(false)}
-                disabled={deleteLoading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleteLoading}
-                variant="destructive"
-              >
-                {deleteLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  "Excluir"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Escolas</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie as escolas cadastradas na plataforma
-          </p>
-        </div>
-        {canEdit && (
-          <Button onClick={handleOpenCreate} className="shrink-0">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Escola
-          </Button>
-        )}
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar escola pelo nome..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-
-      {/* Loading skeleton */}
-      {schoolsLoading ? (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="pb-3">
-                  <Skeleton className="h-5 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      ) : filteredSchools.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground text-sm">
-              {searchQuery
-                ? "Nenhuma escola encontrada com esse nome"
-                : "Nenhuma escola cadastrada"}
-            </p>
-            {canEdit && !searchQuery && (
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={handleOpenCreate}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Cadastrar primeira escola
-              </Button>
-            )}
-          </CardContent>
-        </Card>
       ) : (
         <>
-          {/* Mobile: Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
-            {filteredSchools.map((school) => (
-              <Card
-                key={school.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => handleViewDetail(school)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base line-clamp-1">
-                      {school.name}
-                    </CardTitle>
-                    <Badge variant="secondary" className="shrink-0">
-                      <GraduationCap className="h-3 w-3 mr-1" />
-                      {school.student_count ?? 0}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {school.address && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
-                      <span className="line-clamp-1">{school.address}</span>
-                    </div>
-                  )}
-                  {school.phone && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5 shrink-0" />
-                      <span>{school.phone}</span>
-                    </div>
-                  )}
-                  {school.director_name && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <User className="h-3.5 w-3.5 shrink-0" />
-                      <span>{school.director_name}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+          {/* Header */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Escolas</h1>
+              <p className="text-muted-foreground mt-1">
+                Gerencie as escolas cadastradas na plataforma
+              </p>
+            </div>
+            {canEdit && (
+              <Button onClick={handleOpenCreate} className="shrink-0">
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Escola
+              </Button>
+            )}
           </div>
 
-          {/* Desktop: Table */}
-          <div className="hidden lg:block">
+          {/* Search */}
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar escola pelo nome..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          {/* Loading skeleton */}
+          {schoolsLoading ? (
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-3">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-2/3" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ) : filteredSchools.length === 0 ? (
             <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Endereço</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>Diretor(a)</TableHead>
-                      <TableHead className="text-center">Alunos</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSchools.map((school) => (
-                      <TableRow
-                        key={school.id}
-                        className="cursor-pointer"
-                        onClick={() => handleViewDetail(school)}
-                      >
-                        <TableCell className="font-medium">
-                          {school.name}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {school.address || "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {school.phone || "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {school.director_name || "—"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="secondary">
-                            {school.student_count ?? 0}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground text-sm">
+                  {searchQuery
+                    ? "Nenhuma escola encontrada com esse nome"
+                    : "Nenhuma escola cadastrada"}
+                </p>
+                {canEdit && !searchQuery && (
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={handleOpenCreate}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Cadastrar primeira escola
+                  </Button>
+                )}
               </CardContent>
             </Card>
-          </div>
+          ) : (
+            <>
+              {/* Mobile: Cards */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
+                {filteredSchools.map((school) => (
+                  <Card
+                    key={school.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => handleViewDetail(school)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-base line-clamp-1">
+                          {school.name}
+                        </CardTitle>
+                        <Badge variant="secondary" className="shrink-0">
+                          <GraduationCap className="h-3 w-3 mr-1" />
+                          {school.student_count ?? 0}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      {school.address && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <span className="line-clamp-1">{school.address}</span>
+                        </div>
+                      )}
+                      {school.phone && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Phone className="h-3.5 w-3.5 shrink-0" />
+                          <span>{school.phone}</span>
+                        </div>
+                      )}
+                      {school.director_name && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <User className="h-3.5 w-3.5 shrink-0" />
+                          <span>{school.director_name}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop: Table */}
+              <div className="hidden lg:block">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Endereço</TableHead>
+                          <TableHead>Telefone</TableHead>
+                          <TableHead>Diretor(a)</TableHead>
+                          <TableHead className="text-center">Alunos</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSchools.map((school) => (
+                          <TableRow
+                            key={school.id}
+                            className="cursor-pointer"
+                            onClick={() => handleViewDetail(school)}
+                          >
+                            <TableCell className="font-medium">
+                              {school.name}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {school.address || "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {school.phone || "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {school.director_name || "—"}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="secondary">
+                                {school.student_count ?? 0}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
         </>
       )}
 
-      {/* Create / Edit Dialog */}
+      {/* Create / Edit Dialog (shared by both views) */}
       <SchoolFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -584,7 +534,7 @@ export function SchoolsPage() {
         fileInputRef={fileInputRef}
       />
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation (shared by both views) */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

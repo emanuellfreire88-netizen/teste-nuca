@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       recordAttempt(clientIp);
       // Use generic error message to prevent user enumeration
+      await logAction(null, 'login_failed', 'Tentativa de login falhou para email não registrado', req);
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
         { status: 401 }
@@ -110,19 +111,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if account is locked
+    // Check if account is locked — use generic message to prevent user enumeration
     if (
       user.failed_login_attempts >= 5 &&
       user.locked_until &&
       new Date(user.locked_until) > new Date()
     ) {
       recordAttempt(clientIp);
-      const remainingMinutes = Math.ceil(
-        (new Date(user.locked_until).getTime() - Date.now()) / (60 * 1000)
-      );
       return NextResponse.json(
-        { error: `Conta bloqueada. Tente novamente em ${remainingMinutes} minuto(s).` },
-        { status: 423 }
+        { error: 'Credenciais inválidas' },
+        { status: 401 }
       );
     }
 
@@ -144,21 +142,14 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Log failed attempt
-      await logAction(null, 'login_failed', `Tentativa de login falhou: ${email}`, req);
+      // Log failed attempt — do not reveal whether user exists
+      await logAction(null, 'login_failed', 'Tentativa de login falhou: credenciais inválidas', req);
 
-      const remainingAttempts = 5 - newAttempts;
-      if (remainingAttempts > 0) {
-        return NextResponse.json(
-          { error: `Credenciais inválidas. ${remainingAttempts} tentativa(s) restante(s).` },
-          { status: 401 }
-        );
-      } else {
-        return NextResponse.json(
-          { error: 'Conta bloqueada por 30 minutos devido a múltiplas tentativas falhas.' },
-          { status: 423 }
-        );
-      }
+      // Always return the same generic message regardless of remaining attempts
+      return NextResponse.json(
+        { error: 'Credenciais inválidas' },
+        { status: 401 }
+      );
     }
 
     // Successful login - clear rate limit and reset failed attempts

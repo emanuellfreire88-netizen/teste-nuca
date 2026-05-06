@@ -94,6 +94,13 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
+
+    // Batch request: body.records is an array of { student_id, date, status }
+    if (Array.isArray(body.records)) {
+      return await handleBatchAttendance(body.records, req.user!.userId);
+    }
+
+    // Single record request (backward compatible)
     const { student_id, date, status } = body;
 
     if (!student_id || !date || !status) {
@@ -156,3 +163,105 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     );
   }
 });
+
+async function handleBatchAttendance(
+  records: { student_id: string; date: string; status: string }[],
+  userId: string
+) {
+  if (records.length === 0) {
+    return NextResponse.json(
+      { error: 'Array de registros não pode estar vazio' },
+      { status: 400 }
+    );
+  }
+
+  if (records.length > 500) {
+    return NextResponse.json(
+      { error: 'Máximo de 500 registros por requisição batch' },
+      { status: 400 }
+    );
+  }
+
+  // Validate all records before processing
+  for (let i = 0; i < records.length; i++) {
+    const rec = records[i];
+    if (!rec.student_id || !rec.date || !rec.status) {
+      return NextResponse.json(
+        { error: `Registro ${i}: student_id, date e status são obrigatórios` },
+        { status: 400 }
+      );
+    }
+    if (!['present', 'absent'].includes(rec.status)) {
+      return NextResponse.json(
+        { error: `Registro ${i}: status inválido. Use: present ou absent` },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Verify all students exist in a single query
+  const studentIds = [...new Set(records.map((r) => r.student_id))];
+  const existingStudents = await db.student.findMany({
+    where: { id: { in: studentIds } },
+    select: { id: true },
+  });
+  const existingIds = new Set(existingStudents.map((s) => s.id));
+
+  for (const rec of records) {
+    if (!existingIds.has(rec.student_id)) {
+      return NextResponse.json(
+        { error: `Aluno não encontrado: ${rec.student_id}` },
+        { status: 404 }
+      );
+    }
+  }
+
+  // Use transaction to upsert all records
+  const result = await db.$transaction(
+    records.map((rec) => {
+      const dateObj = new Date(rec.date);
+      dateObj.setHours(0, 0, 0, 0);
+
+      return db.attendanceRecord.upsert({
+        where: {
+          student_id_date: {
+            student_id: rec.student_id,
+            date: dateObj,
+          },
+        },
+        create: {
+          student_id: rec.student_id,
+          date: dateObj,
+          status: rec.status,
+          created_by: userId,
+        },
+        update: {
+          status: rec.status,
+          created_by: userId,
+        },
+      });
+    })
+  );
+
+  // Calculate summary: created vs updated
+  // For upsert, we check createdAt vs updatedAt to determine if it was created or updated
+  let created = 0;
+  let updated = 0;
+  for (const record of result) {
+    if (
+      record.created_at &&
+      record.updated_at &&
+      record.created_at.getTime() === record.updated_at.getTime()
+    ) {
+      created++;
+    } else {
+      updated++;
+    }
+  }
+
+  return NextResponse.json({
+    created,
+    updated,
+    total: result.length,
+  });
+}

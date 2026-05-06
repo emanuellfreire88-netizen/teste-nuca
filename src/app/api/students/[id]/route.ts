@@ -65,21 +65,30 @@ export async function PUT(
         }
       }
 
-      // Verify school exists if changing
-      if (body.school_id && body.school_id !== existingStudent.school_id) {
-        const school = await db.school.findUnique({ where: { id: body.school_id } });
-        if (!school) {
-          return NextResponse.json(
-            { error: 'Escola não encontrada' },
-            { status: 404 }
-          );
-        }
-      }
-
       const updateData: Record<string, unknown> = {};
-      const stringFields = ['full_name', 'cpf', 'rg', 'blood_type', 'special_needs', 'medications', 'class', 'grade', 'phone', 'address', 'guardian_name', 'guardian_phone', 'guardian_email', 'emergency_contact', 'school_id', 'status', 'photo'];
+      const stringFields = ['full_name', 'cpf', 'rg', 'blood_type', 'special_needs', 'medications', 'class', 'grade', 'phone', 'address', 'guardian_name', 'guardian_phone', 'guardian_email', 'emergency_contact', 'status', 'photo'];
       for (const field of stringFields) {
         if (body[field] !== undefined) updateData[field] = body[field] || null;
+      }
+
+      // Handle school_id separately — don't allow setting it to null/empty
+      if (body.school_id !== undefined) {
+        if (!body.school_id || body.school_id.trim() === '') {
+          return NextResponse.json(
+            { error: 'Escola é obrigatória' },
+            { status: 400 }
+          );
+        }
+        if (body.school_id !== existingStudent.school_id) {
+          const school = await db.school.findUnique({ where: { id: body.school_id } });
+          if (!school) {
+            return NextResponse.json(
+              { error: 'Escola não encontrada' },
+              { status: 404 }
+            );
+          }
+        }
+        updateData.school_id = body.school_id;
       }
 
       if (body.date_of_birth !== undefined) {

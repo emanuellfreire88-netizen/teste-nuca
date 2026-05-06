@@ -8,23 +8,54 @@ const validRoles = ['Admin', 'Operator', 'Viewer'];
 
 export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
   try {
-    const users = await db.user.findMany({
-      select: {
-        id: true,
-        full_name: true,
-        email: true,
-        role: true,
-        status: true,
-        profile_photo: true,
-        two_factor_enabled: true,
-        last_login: true,
-        created_at: true,
-        updated_at: true,
-      },
-      orderBy: { created_at: 'desc' },
-    });
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const rawLimit = parseInt(searchParams.get('limit') || '10');
+    const limit = Math.min(Math.max(1, rawLimit), 100); // Cap at 100
+    const search = searchParams.get('search') || '';
 
-    return NextResponse.json({ users });
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = {};
+
+    if (search) {
+      where.OR = [
+        { full_name: { contains: search } },
+        { email: { contains: search } },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      db.user.findMany({
+        where,
+        select: {
+          id: true,
+          full_name: true,
+          email: true,
+          role: true,
+          status: true,
+          profile_photo: true,
+          two_factor_enabled: true,
+          last_login: true,
+          created_at: true,
+          updated_at: true,
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.user.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('List users error:', error);
     return NextResponse.json(
@@ -92,8 +123,8 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
 
     const user = await db.user.create({
       data: {
-        full_name,
-        email,
+        full_name: sanitizeInput(full_name),
+        email: sanitizeInput(email),
         password: hashedPassword,
         role: role || 'Viewer',
         status: status || 'active',

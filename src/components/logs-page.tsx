@@ -43,13 +43,13 @@ interface LogUser {
 
 interface ActionLog {
   id: string;
-  user_id: string;
+  user_id: string | null;
   action_type: string;
   description: string;
   ip_address: string;
   device: string;
   created_at: string;
-  user: LogUser;
+  user: LogUser | null;
 }
 
 interface LogsResponse {
@@ -163,7 +163,7 @@ export function LogsPage() {
   useEffect(() => {
     async function fetchFilterUsers() {
       try {
-        const data = await api.get<{ users: { id: string; full_name: string }[] }>("/users");
+        const data = await api.get<{ users: { id: string; full_name: string }[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>("/users?limit=100");
         setFilterUsers(data.users);
       } catch {
         // silently ignore
@@ -392,8 +392,8 @@ export function LogsPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-sm">{log.user.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{log.user.email}</p>
+                        <p className="font-medium text-sm">{log.user?.full_name || 'Sistema'}</p>
+                        <p className="text-xs text-muted-foreground">{log.user?.email || '—'}</p>
                       </div>
                     </TableCell>
                     <TableCell>

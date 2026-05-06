@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useAuthStore } from "@/lib/auth-store";
 import { api, ApiError } from "@/lib/api";
 import { toast } from "sonner";
@@ -1044,6 +1045,7 @@ function StudentsList({
 
   // Filters
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState("all");
   const [schoolFilter, setSchoolFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
@@ -1059,7 +1061,7 @@ function StudentsList({
       const params = new URLSearchParams();
       params.set("page", String(pagination.page));
       params.set("limit", String(pagination.limit));
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (statusFilter && statusFilter !== "all")
         params.set("status", statusFilter);
       if (schoolFilter && schoolFilter !== "all")
@@ -1080,7 +1082,7 @@ function StudentsList({
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, search, statusFilter, schoolFilter, gradeFilter, classFilter]);
+  }, [pagination.page, pagination.limit, debouncedSearch, statusFilter, schoolFilter, gradeFilter, classFilter]);
 
   const fetchSchools = useCallback(async () => {
     try {

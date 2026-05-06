@@ -1,12 +1,10 @@
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '@/lib/db';
 
 async function main() {
   console.log('Seeding database...');
 
-  const existingAdmin = await prisma.user.findUnique({
+  const existingAdmin = await db.user.findUnique({
     where: { email: 'admin@nuca.com' },
   });
 
@@ -18,7 +16,7 @@ async function main() {
   // Use bcrypt salt rounds of 12 for stronger hashing
   const hashedPassword = await bcrypt.hash('Admin@123', 12);
 
-  const admin = await prisma.user.create({
+  const admin = await db.user.create({
     data: {
       full_name: 'Administrador',
       email: 'admin@nuca.com',
@@ -42,7 +40,4 @@ main()
   .catch((e) => {
     console.error('Seed error:', e);
     process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
   });

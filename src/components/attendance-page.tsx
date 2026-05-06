@@ -50,6 +50,8 @@ import {
   Search,
   CheckCheck,
   XIcon,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -86,6 +88,12 @@ interface AttendanceRecord {
 
 interface AttendanceApiResponse {
   records: AttendanceRecord[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 interface StudentsApiResponse {
@@ -94,6 +102,12 @@ interface StudentsApiResponse {
 
 interface SchoolsApiResponse {
   schools: School[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 // ── Date Picker Component ────────────────────────────────────────────────────
@@ -161,7 +175,7 @@ function AttendanceMarkingView() {
     async function loadSchools() {
       try {
         setLoadingSchools(true);
-        const data = await api.get<SchoolsApiResponse>("/schools");
+        const data = await api.get<SchoolsApiResponse>("/schools?limit=100");
         setSchools(data.schools || []);
       } catch {
         toast.error("Erro ao carregar escolas");
@@ -268,15 +282,13 @@ function AttendanceMarkingView() {
       setSaving(true);
       const dateStr = format(date, "yyyy-MM-dd");
 
-      const promises = students.map((student) =>
-        api.post("/attendance", {
-          student_id: student.id,
-          date: dateStr,
-          status: attendanceMap[student.id],
-        })
-      );
+      const records = students.map((student) => ({
+        student_id: student.id,
+        date: dateStr,
+        status: attendanceMap[student.id],
+      }));
 
-      await Promise.all(promises);
+      await api.post("/attendance", { records });
       toast.success("Frequência salva com sucesso!");
 
       // Refresh existing attendance data
@@ -557,12 +569,18 @@ function AttendanceHistoryView() {
   const [loadingSchools, setLoadingSchools] = useState(true);
   const [exporting, setExporting] = useState(false);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const limit = 20;
+
   // Load schools
   useEffect(() => {
     async function loadSchools() {
       try {
         setLoadingSchools(true);
-        const data = await api.get<SchoolsApiResponse>("/schools");
+        const data = await api.get<SchoolsApiResponse>("/schools?limit=100");
         setSchools(data.schools || []);
       } catch {
         toast.error("Erro ao carregar escolas");
@@ -578,6 +596,8 @@ function AttendanceHistoryView() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
+      params.set("page", page.toString());
+      params.set("limit", limit.toString());
       if (selectedSchoolId && selectedSchoolId !== "all") {
         params.set("school_id", selectedSchoolId);
       }
@@ -595,12 +615,14 @@ function AttendanceHistoryView() {
         `/attendance${qs ? `?${qs}` : ""}`
       );
       setRecords(data.records || []);
+      setTotalPages(data.pagination?.totalPages || 1);
+      setTotal(data.pagination?.total || 0);
     } catch {
       toast.error("Erro ao carregar histórico de frequência");
     } finally {
       setLoading(false);
     }
-  }, [selectedSchoolId, dateFrom, dateTo, statusFilter]);
+  }, [selectedSchoolId, dateFrom, dateTo, statusFilter, page]);
 
   useEffect(() => {
     fetchRecords();
@@ -672,7 +694,7 @@ function AttendanceHistoryView() {
               ) : (
                 <Select
                   value={selectedSchoolId}
-                  onValueChange={setSelectedSchoolId}
+                  onValueChange={(v) => { setSelectedSchoolId(v); setPage(1); }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Todas as escolas" />
@@ -694,7 +716,7 @@ function AttendanceHistoryView() {
               <label className="text-sm font-medium">Data Início</label>
               <DatePicker
                 date={dateFrom}
-                onDateChange={setDateFrom}
+                onDateChange={(d) => { setDateFrom(d); setPage(1); }}
                 placeholder="A partir de..."
               />
             </div>
@@ -704,7 +726,7 @@ function AttendanceHistoryView() {
               <label className="text-sm font-medium">Data Fim</label>
               <DatePicker
                 date={dateTo}
-                onDateChange={setDateTo}
+                onDateChange={(d) => { setDateTo(d); setPage(1); }}
                 placeholder="Até..."
               />
             </div>
@@ -712,7 +734,7 @@ function AttendanceHistoryView() {
             {/* Status filter */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
@@ -768,8 +790,8 @@ function AttendanceHistoryView() {
             Histórico de Frequência
           </CardTitle>
           <CardDescription>
-            {records.length > 0
-              ? `${records.length} registro(s) encontrado(s)`
+            {total > 0
+              ? `${total} registro(s) encontrado(s)`
               : "Nenhum registro encontrado"}
           </CardDescription>
         </CardHeader>
@@ -849,6 +871,35 @@ function AttendanceHistoryView() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Página {page} de {totalPages}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || loading}
+            >
+              Próxima
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

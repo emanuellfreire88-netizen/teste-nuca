@@ -38,6 +38,7 @@ async function exportStudents(format: string) {
       school: { select: { name: true } },
     },
     orderBy: { full_name: 'asc' },
+    take: 10000,
   });
 
   const data = students.map((s) => ({
@@ -112,7 +113,7 @@ async function exportAttendanceReport(format: string) {
       },
     },
     orderBy: { date: 'desc' },
-    take: 5000,
+    take: 10000,
   });
 
   const data = records.map((r) => ({
@@ -174,6 +175,7 @@ async function exportSchools(format: string) {
       _count: { select: { students: true } },
     },
     orderBy: { name: 'asc' },
+    take: 10000,
   });
 
   const data = schools.map((s) => ({

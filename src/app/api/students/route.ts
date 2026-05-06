@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
+import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
@@ -137,21 +138,21 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 
     const student = await db.student.create({
       data: {
-        full_name,
-        cpf: cpf || null,
-        rg: rg || null,
+        full_name: sanitizeInput(full_name),
+        cpf: cpf ? sanitizeInput(cpf) : null,
+        rg: rg ? sanitizeInput(rg) : null,
         date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
-        blood_type: blood_type || null,
-        special_needs: special_needs || null,
-        medications: medications || null,
-        class: studentClass || null,
-        grade: grade || null,
-        phone: phone || null,
-        address: address || null,
-        guardian_name: guardian_name || null,
-        guardian_phone: guardian_phone || null,
-        guardian_email: guardian_email || null,
-        emergency_contact: emergency_contact || null,
+        blood_type: blood_type ? sanitizeInput(blood_type) : null,
+        special_needs: special_needs ? sanitizeInput(special_needs) : null,
+        medications: medications ? sanitizeInput(medications) : null,
+        class: studentClass ? sanitizeInput(studentClass) : null,
+        grade: grade ? sanitizeInput(grade) : null,
+        phone: phone ? sanitizeInput(phone) : null,
+        address: address ? sanitizeInput(address) : null,
+        guardian_name: guardian_name ? sanitizeInput(guardian_name) : null,
+        guardian_phone: guardian_phone ? sanitizeInput(guardian_phone) : null,
+        guardian_email: guardian_email ? sanitizeInput(guardian_email) : null,
+        emergency_contact: emergency_contact ? sanitizeInput(emergency_contact) : null,
         school_id,
         status: status || 'active',
         photo: photo || null,

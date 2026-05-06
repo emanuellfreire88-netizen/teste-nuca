@@ -1,25 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
+import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    const schools = await db.school.findMany({
-      include: {
-        _count: {
-          select: { students: true },
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const rawLimit = parseInt(searchParams.get('limit') || '10');
+    const limit = Math.min(Math.max(1, rawLimit), 100); // Cap at 100
+    const search = searchParams.get('search') || '';
+
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = {};
+
+    if (search) {
+      where.name = { contains: search };
+    }
+
+    const [schools, total] = await Promise.all([
+      db.school.findMany({
+        where,
+        include: {
+          _count: {
+            select: { students: true },
+          },
         },
-      },
-      orderBy: { name: 'asc' },
-    });
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      db.school.count({ where }),
+    ]);
 
     const result = schools.map(({ _count, ...school }) => ({
       ...school,
       student_count: _count.students,
     }));
 
-    return NextResponse.json({ schools: result });
+    return NextResponse.json({
+      schools: result,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error('List schools error:', error);
     return NextResponse.json(
@@ -81,12 +110,12 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 
     const school = await db.school.create({
       data: {
-        name,
-        address: address || null,
-        phone: phone || null,
-        email: email || null,
-        director_name: director_name || null,
-        opening_hours: opening_hours || null,
+        name: sanitizeInput(name),
+        address: address ? sanitizeInput(address) : null,
+        phone: phone ? sanitizeInput(phone) : null,
+        email: email ? sanitizeInput(email) : null,
+        director_name: director_name ? sanitizeInput(director_name) : null,
+        opening_hours: opening_hours ? sanitizeInput(opening_hours) : null,
         school_photo: school_photo || null,
         latitude: latitude ?? null,
         longitude: longitude ?? null,

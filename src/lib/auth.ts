@@ -1,13 +1,25 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 
-// Use a strong secret from env, with a fallback that generates a warning
+// JWT_SECRET: Must be set in production. Stable random fallback only for development.
+// Uses globalThis to persist the secret across Next.js hot reloads.
+const globalForAuth = globalThis as unknown as { __jwtSecret?: string };
+
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  console.warn('⚠️  JWT_SECRET not set in environment. Using fallback secret. Set JWT_SECRET in production!');
-  return 'nuca-plataforma-secret-key-change-in-production-2024';
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable must be set in production');
+  }
+  // Reuse the same secret across hot reloads in development
+  if (!globalForAuth.__jwtSecret) {
+    console.warn('⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!');
+    globalForAuth.__jwtSecret = randomBytes(32).toString('hex');
+  }
+  return globalForAuth.__jwtSecret;
 })();
 
 const JWT_EXPIRES_IN = '24h';
+export const JWT_EXPIRES_IN_SECONDS = 24 * 60 * 60; // 86400 seconds
 const JWT_ISSUER = 'nuca-plataforma';
 const JWT_AUDIENCE = 'nuca-plataforma-users';
 

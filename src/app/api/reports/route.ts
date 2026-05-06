@@ -4,35 +4,7 @@ import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
-    // Total students per school
-    const schoolsWithCounts = await db.school.findMany({
-      include: {
-        _count: {
-          select: { students: true },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
-
-    const studentsPerSchool = schoolsWithCounts.map((s) => ({
-      id: s.id,
-      name: s.name,
-      student_count: s._count.students,
-    }));
-
-    // Active vs inactive students
-    const [activeStudents, inactiveStudents] = await Promise.all([
-      db.student.count({ where: { status: 'active' } }),
-      db.student.count({ where: { status: 'inactive' } }),
-    ]);
-
-    // Total counts
-    const [totalStudents, totalSchools] = await Promise.all([
-      db.student.count(),
-      db.school.count(),
-    ]);
-
-    // Attendance summary
+    // Date ranges
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -49,27 +21,74 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    const [todayPresent, todayAbsent, weekPresent, weekAbsent, monthPresent, monthAbsent] =
+    // Run all independent queries in parallel (5 queries instead of 10)
+    const [schoolsWithCounts, studentStatusCounts, todayAttendance, weekAttendance, monthAttendance] =
       await Promise.all([
-        db.attendanceRecord.count({
-          where: { date: { gte: todayStart, lte: todayEnd }, status: 'present' },
+        // School list with student counts (also gives us totalSchools via .length)
+        db.school.findMany({
+          include: {
+            _count: {
+              select: { students: true },
+            },
+          },
+          orderBy: { name: 'asc' },
         }),
-        db.attendanceRecord.count({
-          where: { date: { gte: todayStart, lte: todayEnd }, status: 'absent' },
+
+        // Single groupBy replaces 3 separate COUNT queries (active, inactive, total)
+        db.student.groupBy({
+          by: ['status'],
+          _count: { status: true },
         }),
-        db.attendanceRecord.count({
-          where: { date: { gte: weekStart, lte: weekEnd }, status: 'present' },
+
+        // Single groupBy per time period replaces 2 COUNT queries (present, absent)
+        db.attendanceRecord.groupBy({
+          by: ['status'],
+          _count: { status: true },
+          where: { date: { gte: todayStart, lte: todayEnd } },
         }),
-        db.attendanceRecord.count({
-          where: { date: { gte: weekStart, lte: weekEnd }, status: 'absent' },
+
+        db.attendanceRecord.groupBy({
+          by: ['status'],
+          _count: { status: true },
+          where: { date: { gte: weekStart, lte: weekEnd } },
         }),
-        db.attendanceRecord.count({
-          where: { date: { gte: monthStart, lte: monthEnd }, status: 'present' },
-        }),
-        db.attendanceRecord.count({
-          where: { date: { gte: monthStart, lte: monthEnd }, status: 'absent' },
+
+        db.attendanceRecord.groupBy({
+          by: ['status'],
+          _count: { status: true },
+          where: { date: { gte: monthStart, lte: monthEnd } },
         }),
       ]);
+
+    // Derive students per school from the single school query
+    const studentsPerSchool = schoolsWithCounts.map((s) => ({
+      id: s.id,
+      name: s.name,
+      student_count: s._count.students,
+    }));
+
+    // Derive student counts from groupBy result
+    let activeStudents = 0;
+    let inactiveStudents = 0;
+    for (const group of studentStatusCounts) {
+      if (group.status === 'active') activeStudents = group._count.status;
+      else if (group.status === 'inactive') inactiveStudents = group._count.status;
+    }
+    const totalStudents = activeStudents + inactiveStudents;
+
+    // Derive totalSchools from school list (no separate query needed)
+    const totalSchools = schoolsWithCounts.length;
+
+    // Helper to extract present/absent counts from groupBy result
+    const extractCounts = (groups: { status: string; _count: { status: number } }[]) => {
+      let present = 0;
+      let absent = 0;
+      for (const group of groups) {
+        if (group.status === 'present') present = group._count.status;
+        else if (group.status === 'absent') absent = group._count.status;
+      }
+      return { present, absent, total: present + absent };
+    };
 
     return NextResponse.json({
       students: {
@@ -82,9 +101,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         total: totalSchools,
       },
       attendance: {
-        today: { present: todayPresent, absent: todayAbsent, total: todayPresent + todayAbsent },
-        this_week: { present: weekPresent, absent: weekAbsent, total: weekPresent + weekAbsent },
-        this_month: { present: monthPresent, absent: monthAbsent, total: monthPresent + monthAbsent },
+        today: extractCounts(todayAttendance),
+        this_week: extractCounts(weekAttendance),
+        this_month: extractCounts(monthAttendance),
       },
     });
   } catch (error) {

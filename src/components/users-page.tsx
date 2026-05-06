@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
 import { toast } from "sonner";
@@ -58,6 +59,12 @@ interface User {
 
 interface UsersResponse {
   users: User[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 interface UserResponse {
@@ -128,6 +135,7 @@ export function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
 
   // Dialog states
   const [createOpen, setCreateOpen] = useState(false);
@@ -143,7 +151,7 @@ export function UsersPage() {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await api.get<UsersResponse>("/users");
+      const data = await api.get<UsersResponse>("/users?limit=100");
       setUsers(data.users);
     } catch {
       toast.error("Erro ao carregar usuários");
@@ -158,8 +166,8 @@ export function UsersPage() {
 
   const filteredUsers = users.filter(
     (u) =>
-      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+      u.full_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   // Create

@@ -53,6 +53,7 @@ export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
         },
       },
       orderBy: { date: 'desc' },
+      take: 10000,
     });
 
     await logAction(req.user!.userId, 'export_report', `Exportação de frequência (${format})`, req);
