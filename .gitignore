@@ -83,3 +83,11 @@ download/
 
 # Worklog
 worklog.md
+
+# z.ai scripts
+run-server.sh
+run.sh
+start-dev.sh
+start.sh
+watchdog.sh
+upload/
