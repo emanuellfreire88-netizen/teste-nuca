@@ -2,21 +2,25 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 
-// JWT_SECRET: Must be set in production. Stable random fallback only for development.
+// JWT_SECRET: Must be set in production. Lazy initialization to avoid build-time crashes.
 // Uses globalThis to persist the secret across Next.js hot reloads.
 const globalForAuth = globalThis as unknown as { __jwtSecret?: string };
 
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
+function getJwtSecret(): string {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+
+  // In production (runtime), JWT_SECRET must be set
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET environment variable must be set in production');
   }
+
   // Reuse the same secret across hot reloads in development
   if (!globalForAuth.__jwtSecret) {
     console.warn('⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!');
     globalForAuth.__jwtSecret = randomBytes(32).toString('hex');
   }
   return globalForAuth.__jwtSecret;
-})();
+}
 
 const JWT_EXPIRES_IN = '24h';
 export const JWT_EXPIRES_IN_SECONDS = 24 * 60 * 60; // 86400 seconds
@@ -30,7 +34,7 @@ export interface JwtPayload {
 }
 
 export function generateToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign(payload, getJwtSecret(), {
     expiresIn: JWT_EXPIRES_IN,
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,
@@ -39,7 +43,7 @@ export function generateToken(payload: JwtPayload): string {
 
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, {
+    const decoded = jwt.verify(token, getJwtSecret(), {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     }) as JwtPayload;
