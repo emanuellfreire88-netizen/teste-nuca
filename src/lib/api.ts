@@ -28,9 +28,17 @@ function getAuthHeaders(method: string): HeadersInit {
 }
 
 function handleUnauthorized() {
-  const { logout } = useAuthStore.getState();
+  const { logout, isAuthenticated } = useAuthStore.getState();
+  if (isAuthenticated) {
+    // Show a brief message before redirecting
+    try {
+      const toast = require('sonner').toast;
+      toast.error('Sessão expirada. Faça login novamente.');
+    } catch {}
+  }
   logout();
-  window.location.reload();
+  // Small delay so the user sees the toast
+  setTimeout(() => window.location.reload(), 500);
 }
 
 async function request<T>(
