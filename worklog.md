@@ -116,3 +116,27 @@ Stage Summary:
 - students-page.tsx: Added debounce to search in fetchStudents dependency array and API params
 - users-page.tsx: Added debounce to search in filteredUsers filter
 - attendance-page.tsx: Replaced N individual POST requests with single batch POST in handleSave
+
+---
+Task ID: 2
+Agent: main
+Task: Migrate database from SQLite to Supabase PostgreSQL
+
+Work Log:
+- Installed pg and @types/pg drivers
+- Updated prisma/schema.prisma: changed provider from sqlite to postgresql, added directUrl for pgbouncer compatibility
+- Configured .env with Supabase connection strings (pooler with pgbouncer=true + direct URL)
+- Created all 6 tables in Supabase manually via pg client (prisma db push was timing out)
+- Migrated existing data from SQLite to Supabase: 2 users, 118 action logs
+- Added JWT_SECRET to .env for production build
+- Updated spawn-server.js to explicitly set DATABASE_URL, DIRECT_URL, and JWT_SECRET env vars
+- Updated lib/db.ts to use datasourceUrl from env
+- Fixed system-level DATABASE_URL override issue
+- Rebuilt and tested full application with Supabase
+- All API endpoints working: login, schools CRUD, users list, cascade delete
+
+Stage Summary:
+- Database migrated from SQLite to Supabase PostgreSQL successfully
+- All tables created and data migrated
+- Application fully functional with Supabase as the database
+- Server running with correct environment variables
