@@ -52,3 +52,16 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Server scripts (only needed in z.ai)
+spawn-server.js
+daemon.sh
+start-server.sh
+eslintignore
+
+# SQLite database (migrated to Supabase)
+db/
+
+# Logs
+*.log
+dev.log
