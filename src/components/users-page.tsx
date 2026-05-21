@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
@@ -194,42 +194,58 @@ export function UsersPage() {
     }
   };
 
-  // Edit
+
+
+  const selectedUserRef = useRef<User | null>(null);
+  const formRef = useRef<UserFormData>(emptyForm);
+
+  // Helper to update both state and ref together
+  const updateForm = (newForm: UserFormData) => {
+    setForm(newForm);
+    formRef.current = newForm;
+  };
+
   const openEdit = (user: User) => {
     setSelectedUser(user);
-    setForm({
+    selectedUserRef.current = user;
+    const newForm: UserFormData = {
       full_name: user.full_name,
       email: user.email,
       password: "",
       role: user.role,
       status: user.status as "active" | "inactive",
-    });
+    };
+    updateForm(newForm);
     setEditOpen(true);
   };
 
-  const handleEdit = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    if (!selectedUser) return;
-    if (!form.full_name || !form.email) {
+  const handleEdit = async () => {
+    const user = selectedUserRef.current;
+    if (!user) {
+      toast.error("Nenhum usuário selecionado");
+      return;
+    }
+    const currentForm = formRef.current;
+    if (!currentForm.full_name || !currentForm.email) {
       toast.error("Nome e e-mail são obrigatórios");
       return;
     }
     try {
       setSaving(true);
       const body: Record<string, string> = {
-        full_name: form.full_name,
-        email: form.email,
-        role: form.role,
-        status: form.status,
+        full_name: currentForm.full_name,
+        email: currentForm.email,
+        role: currentForm.role,
+        status: currentForm.status,
       };
-      if (form.password) {
-        body.password = form.password;
+      if (currentForm.password) {
+        body.password = currentForm.password;
       }
-      await api.put<UserResponse>(`/users/${selectedUser.id}`, body);
+      await api.put<UserResponse>(`/users/${user.id}`, body);
       toast.success("Usuário atualizado com sucesso");
       setEditOpen(false);
       setSelectedUser(null);
+      selectedUserRef.current = null;
       setForm(emptyForm);
       fetchUsers();
     } catch (err) {
@@ -552,7 +568,7 @@ export function UsersPage() {
               <Input
                 id="edit-name"
                 value={form.full_name}
-                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                onChange={(e) => updateForm({ ...formRef.current, full_name: e.target.value })}
                 placeholder="Nome completo do usuário"
               />
             </div>
@@ -562,7 +578,7 @@ export function UsersPage() {
                 id="edit-email"
                 type="email"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => updateForm({ ...formRef.current, email: e.target.value })}
                 placeholder="usuario@email.com"
               />
             </div>
@@ -572,7 +588,7 @@ export function UsersPage() {
                 id="edit-password"
                 type="password"
                 value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                onChange={(e) => updateForm({ ...formRef.current, password: e.target.value })}
                 placeholder="Deixe em branco para manter a atual"
               />
             </div>
@@ -582,7 +598,7 @@ export function UsersPage() {
                 <Select
                   value={form.role}
                   onValueChange={(v) =>
-                    setForm({ ...form, role: v as UserFormData["role"] })
+                    updateForm({ ...formRef.current, role: v as UserFormData["role"] })
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -600,8 +616,8 @@ export function UsersPage() {
                 <Select
                   value={form.status}
                   onValueChange={(v) =>
-                    setForm({
-                      ...form,
+                    updateForm({
+                      ...formRef.current,
                       status: v as UserFormData["status"],
                     })
                   }
@@ -625,7 +641,12 @@ export function UsersPage() {
             >
               Cancelar
             </Button>
-            <Button type="button" onClick={handleEdit} disabled={saving}>
+            <Button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={handleEdit}
+              disabled={saving}
+            >
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
