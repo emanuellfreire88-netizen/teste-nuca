@@ -13,21 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -43,8 +28,10 @@ import {
   Search,
   Loader2,
   ShieldAlert,
+  X,
 } from "lucide-react";
 
+// ─── Types ────────────────────────────────────────────────────────────
 interface User {
   id: string;
   full_name: string;
@@ -59,18 +46,30 @@ interface User {
 
 interface UsersResponse {
   users: User[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
 interface UserResponse {
   user: User;
 }
 
+interface UserFormData {
+  full_name: string;
+  email: string;
+  password: string;
+  role: "Admin" | "Operator" | "Viewer";
+  status: "active" | "inactive";
+}
+
+const emptyForm: UserFormData = {
+  full_name: "",
+  email: "",
+  password: "",
+  role: "Viewer",
+  status: "active",
+};
+
+// ─── Constants ────────────────────────────────────────────────────────
 const roleBadgeClass: Record<string, string> = {
   Admin: "bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800",
   Operator: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800",
@@ -94,42 +93,64 @@ const statusLabels: Record<string, string> = {
 };
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 }
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
   return d.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 }
 
-interface UserFormData {
-  full_name: string;
-  email: string;
-  password: string;
-  role: "Admin" | "Operator" | "Viewer";
-  status: "active" | "inactive";
+// ─── Custom Modal Component (NO Radix) ────────────────────────────────
+function Modal({ open, onClose, children }: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Overlay - clicking closes the modal */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+      />
+      {/* Content - clicks inside do NOT close the modal */}
+      <div
+        className="relative z-10 w-full max-w-md mx-4 bg-background rounded-lg border shadow-lg p-6 animate-in fade-in-0 zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
 }
 
-const emptyForm: UserFormData = {
-  full_name: "",
-  email: "",
-  password: "",
-  role: "Viewer",
-  status: "active",
-};
-
+// ─── Main Component ──────────────────────────────────────────────────
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user);
   const [users, setUsers] = useState<User[]>([]);
@@ -137,15 +158,11 @@ export function UsersPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
-  // Dialog states
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  // Modal states
+  const [modalMode, setModalMode] = useState<"closed" | "create" | "edit" | "delete">("closed");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [createForm, setCreateForm] = useState<UserFormData>(emptyForm);
-  const [editForm, setEditForm] = useState<UserFormData>(emptyForm);
+  const [formData, setFormData] = useState<UserFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const isAdmin = currentUser?.role === "Admin";
 
@@ -171,22 +188,58 @@ export function UsersPage() {
       u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
-  // ─── Create ────────────────────────────────────────────────────────
-  const handleCreate = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // ─── Helpers ──────────────────────────────────────────────────────
+  const updateField = (field: keyof UserFormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
-    if (!createForm.full_name || !createForm.email || !createForm.password) {
+  const closeModal = () => {
+    setModalMode("closed");
+    setSelectedUser(null);
+    setFormData(emptyForm);
+  };
+
+  // ─── Open Create ──────────────────────────────────────────────────
+  const openCreate = () => {
+    setFormData(emptyForm);
+    setSelectedUser(null);
+    setModalMode("create");
+  };
+
+  // ─── Open Edit ────────────────────────────────────────────────────
+  const openEdit = (user: User) => {
+    setSelectedUser(user);
+    setFormData({
+      full_name: user.full_name,
+      email: user.email,
+      password: "",
+      role: user.role,
+      status: user.status as "active" | "inactive",
+    });
+    setModalMode("edit");
+  };
+
+  // ─── Open Delete ──────────────────────────────────────────────────
+  const openDelete = (user: User) => {
+    if (user.id === currentUser?.id) {
+      toast.error("Você não pode excluir seu próprio usuário");
+      return;
+    }
+    setSelectedUser(user);
+    setModalMode("delete");
+  };
+
+  // ─── Handle Create ────────────────────────────────────────────────
+  const handleCreate = async () => {
+    if (!formData.full_name || !formData.email || !formData.password) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
-
     try {
       setSaving(true);
-      await api.post<UserResponse>("/users", createForm);
-      toast.success("Usuário criado com sucesso");
-      setCreateOpen(false);
-      setCreateForm(emptyForm);
+      await api.post<UserResponse>("/users", formData);
+      toast.success("Usuário criado com sucesso!");
+      closeModal();
       fetchUsers();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -199,48 +252,30 @@ export function UsersPage() {
     }
   };
 
-  // ─── Edit ──────────────────────────────────────────────────────────
-  const openEdit = (user: User) => {
-    setSelectedUser(user);
-    setEditForm({
-      full_name: user.full_name,
-      email: user.email,
-      password: "",
-      role: user.role,
-      status: user.status as "active" | "inactive",
-    });
-    setEditOpen(true);
-  };
-
-  const handleEdit = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  // ─── Handle Edit ──────────────────────────────────────────────────
+  const handleEdit = async () => {
     if (!selectedUser) {
       toast.error("Nenhum usuário selecionado");
       return;
     }
-    if (!editForm.full_name || !editForm.email) {
+    if (!formData.full_name || !formData.email) {
       toast.error("Nome e e-mail são obrigatórios");
       return;
     }
-
     try {
       setSaving(true);
       const body: Record<string, string> = {
-        full_name: editForm.full_name,
-        email: editForm.email,
-        role: editForm.role,
-        status: editForm.status,
+        full_name: formData.full_name,
+        email: formData.email,
+        role: formData.role,
+        status: formData.status,
       };
-      if (editForm.password) {
-        body.password = editForm.password;
+      if (formData.password) {
+        body.password = formData.password;
       }
       await api.put<UserResponse>(`/users/${selectedUser.id}`, body);
-      toast.success("Usuário atualizado com sucesso");
-      setEditOpen(false);
-      setSelectedUser(null);
-      setEditForm(emptyForm);
+      toast.success("Usuário atualizado com sucesso!");
+      closeModal();
       fetchUsers();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -253,28 +288,14 @@ export function UsersPage() {
     }
   };
 
-  // ─── Delete ────────────────────────────────────────────────────────
-  const openDelete = (user: User) => {
-    if (user.id === currentUser?.id) {
-      toast.error("Você não pode excluir seu próprio usuário");
-      return;
-    }
-    setSelectedUser(user);
-    setDeleteOpen(true);
-  };
-
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  // ─── Handle Delete ────────────────────────────────────────────────
+  const handleDelete = async () => {
     if (!selectedUser) return;
-
     try {
-      setDeleting(true);
+      setSaving(true);
       await api.delete(`/users/${selectedUser.id}`);
-      toast.success("Usuário excluído com sucesso");
-      setDeleteOpen(false);
-      setSelectedUser(null);
+      toast.success("Usuário excluído com sucesso!");
+      closeModal();
       fetchUsers();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -283,20 +304,11 @@ export function UsersPage() {
         toast.error("Erro ao excluir usuário");
       }
     } finally {
-      setDeleting(false);
+      setSaving(false);
     }
   };
 
-  // Prevent Radix Dialog from closing when interacting with Select portals
-  const preventCloseOnOutside = (e: Event) => {
-    const target = e.target as HTMLElement;
-    // Allow close if it's the overlay (radix dialog overlay)
-    // But prevent if it's a select portal
-    if (target.closest("[data-radix-popper-content-wrapper]")) {
-      e.preventDefault();
-    }
-  };
-
+  // ─── Non-admin guard ──────────────────────────────────────────────
   if (!isAdmin) {
     return (
       <div className="space-y-6">
@@ -316,6 +328,7 @@ export function UsersPage() {
     );
   }
 
+  // ─── Render ────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -326,16 +339,14 @@ export function UsersPage() {
             Gerencie os usuários do sistema
           </p>
         </div>
-        <Button
+        <button
           type="button"
-          onClick={() => {
-            setCreateForm(emptyForm);
-            setCreateOpen(true);
-          }}
+          onClick={openCreate}
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4" />
           Novo Usuário
-        </Button>
+        </button>
       </div>
 
       {/* Search */}
@@ -395,34 +406,21 @@ export function UsersPage() {
                   <TableRow key={user.id}>
                     <TableCell>
                       <Avatar className="h-9 w-9">
-                        <AvatarImage
-                          src={user.profile_photo || undefined}
-                          alt={user.full_name}
-                        />
+                        <AvatarImage src={user.profile_photo || undefined} alt={user.full_name} />
                         <AvatarFallback className="text-xs font-semibold">
                           {getInitials(user.full_name)}
                         </AvatarFallback>
                       </Avatar>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {user.full_name}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {user.email}
-                    </TableCell>
+                    <TableCell className="font-medium">{user.full_name}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={roleBadgeClass[user.role]}
-                      >
+                      <Badge variant="outline" className={roleBadgeClass[user.role]}>
                         {roleLabels[user.role]}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={statusBadgeClass[user.status]}
-                      >
+                      <Badge variant="outline" className={statusBadgeClass[user.status]}>
                         {statusLabels[user.status]}
                       </Badge>
                     </TableCell>
@@ -431,29 +429,23 @@ export function UsersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
                           onClick={() => openEdit(user)}
                           title="Editar"
                         >
                           <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive hover:text-destructive"
                           onClick={() => openDelete(user)}
                           disabled={user.id === currentUser?.id}
-                          title={
-                            user.id === currentUser?.id
-                              ? "Não é possível excluir seu próprio usuário"
-                              : "Excluir"
-                          }
+                          title={user.id === currentUser?.id ? "Não é possível excluir" : "Excluir"}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -464,269 +456,247 @@ export function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* ─── Create Dialog ──────────────────────────────────────────── */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent
-          className="sm:max-w-md"
-          onInteractOutside={preventCloseOnOutside}
-          onPointerDownOutside={preventCloseOnOutside}
-        >
-          <DialogHeader>
-            <DialogTitle>Novo Usuário</DialogTitle>
-            <DialogDescription>
+      {/* ═══ CREATE MODAL ═══════════════════════════════════════════════ */}
+      <Modal open={modalMode === "create"} onClose={closeModal}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold">Novo Usuário</h2>
+            <p className="text-sm text-muted-foreground">
               Preencha os dados para criar um novo usuário no sistema.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
+            </p>
+          </div>
+          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="create-name">Nome Completo *</Label>
+            <Input
+              id="create-name"
+              value={formData.full_name}
+              onChange={(e) => updateField("full_name", e.target.value)}
+              placeholder="Nome completo do usuário"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="create-email">E-mail *</Label>
+            <Input
+              id="create-email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => updateField("email", e.target.value)}
+              placeholder="usuario@email.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="create-password">Senha *</Label>
+            <Input
+              id="create-password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => updateField("password", e.target.value)}
+              placeholder="••••••••"
+            />
+            <p className="text-xs text-muted-foreground">
+              Mínimo 8 caracteres, 1 maiúscula, 1 número, 1 especial
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="create-name">Nome Completo *</Label>
-              <Input
-                id="create-name"
-                value={createForm.full_name}
-                onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
-                placeholder="Nome completo do usuário"
-              />
+              <Label htmlFor="create-role">Papel</Label>
+              <select
+                id="create-role"
+                value={formData.role}
+                onChange={(e) => updateField("role", e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="Admin">Administrador</option>
+                <option value="Operator">Operador</option>
+                <option value="Viewer">Visualizador</option>
+              </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="create-email">E-mail *</Label>
-              <Input
-                id="create-email"
-                type="email"
-                value={createForm.email}
-                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                placeholder="usuario@email.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="create-password">Senha *</Label>
-              <Input
-                id="create-password"
-                type="password"
-                value={createForm.password}
-                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                placeholder="••••••••"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Papel</Label>
-                <Select
-                  value={createForm.role}
-                  onValueChange={(v) =>
-                    setCreateForm({ ...createForm, role: v as UserFormData["role"] })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Admin">Administrador</SelectItem>
-                    <SelectItem value="Operator">Operador</SelectItem>
-                    <SelectItem value="Viewer">Visualizador</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={createForm.status}
-                  onValueChange={(v) =>
-                    setCreateForm({
-                      ...createForm,
-                      status: v as UserFormData["status"],
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label htmlFor="create-status">Status</Label>
+              <select
+                id="create-status"
+                value={formData.status}
+                onChange={(e) => updateField("status", e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
+              </select>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCreateOpen(false)}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleCreate}
-              disabled={saving}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando...
-                </>
-              ) : (
-                "Criar Usuário"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      {/* ─── Edit Dialog ────────────────────────────────────────────── */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent
-          className="sm:max-w-md"
-          onInteractOutside={preventCloseOnOutside}
-          onPointerDownOutside={preventCloseOnOutside}
-        >
-          <DialogHeader>
-            <DialogTitle>Editar Usuário</DialogTitle>
-            <DialogDescription>
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            onClick={closeModal}
+            disabled={saving}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={saving}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Criando...
+              </>
+            ) : (
+              "Criar Usuário"
+            )}
+          </button>
+        </div>
+      </Modal>
+
+      {/* ═══ EDIT MODAL ═════════════════════════════════════════════════ */}
+      <Modal open={modalMode === "edit"} onClose={closeModal}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold">Editar Usuário</h2>
+            <p className="text-sm text-muted-foreground">
               Atualize os dados do usuário. Deixe a senha em branco para manter a atual.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
+            </p>
+          </div>
+          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-name">Nome Completo *</Label>
+            <Input
+              id="edit-name"
+              value={formData.full_name}
+              onChange={(e) => updateField("full_name", e.target.value)}
+              placeholder="Nome completo do usuário"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-email">E-mail *</Label>
+            <Input
+              id="edit-email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => updateField("email", e.target.value)}
+              placeholder="usuario@email.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-password">Senha (opcional)</Label>
+            <Input
+              id="edit-password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => updateField("password", e.target.value)}
+              placeholder="Deixe em branco para manter a atual"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-name">Nome Completo *</Label>
-              <Input
-                id="edit-name"
-                value={editForm.full_name}
-                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                placeholder="Nome completo do usuário"
-              />
+              <Label htmlFor="edit-role">Papel</Label>
+              <select
+                id="edit-role"
+                value={formData.role}
+                onChange={(e) => updateField("role", e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="Admin">Administrador</option>
+                <option value="Operator">Operador</option>
+                <option value="Viewer">Visualizador</option>
+              </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-email">E-mail *</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                placeholder="usuario@email.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-password">Senha (opcional)</Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={editForm.password}
-                onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-                placeholder="Deixe em branco para manter a atual"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Papel</Label>
-                <Select
-                  value={editForm.role}
-                  onValueChange={(v) =>
-                    setEditForm({ ...editForm, role: v as UserFormData["role"] })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Admin">Administrador</SelectItem>
-                    <SelectItem value="Operator">Operador</SelectItem>
-                    <SelectItem value="Viewer">Visualizador</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={editForm.status}
-                  onValueChange={(v) =>
-                    setEditForm({
-                      ...editForm,
-                      status: v as UserFormData["status"],
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label htmlFor="edit-status">Status</Label>
+              <select
+                id="edit-status"
+                value={formData.status}
+                onChange={(e) => updateField("status", e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
+              </select>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditOpen(false)}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleEdit}
-              disabled={saving}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                "Salvar Alterações"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      {/* ─── Delete Confirmation ─────────────────────────────────────── */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Excluir Usuário</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir o usuário{" "}
-              <strong>{selectedUser?.full_name}</strong>? Esta ação não pode ser
-              desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDeleteOpen(false)}
-              disabled={deleting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              variant="destructive"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Excluindo...
-                </>
-              ) : (
-                "Excluir"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            onClick={closeModal}
+            disabled={saving}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleEdit}
+            disabled={saving}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              "Salvar Alterações"
+            )}
+          </button>
+        </div>
+      </Modal>
+
+      {/* ═══ DELETE MODAL ═══════════════════════════════════════════════ */}
+      <Modal open={modalMode === "delete"} onClose={closeModal}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Excluir Usuário</h2>
+          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-6">
+          Tem certeza que deseja excluir o usuário{" "}
+          <strong>{selectedUser?.full_name}</strong>? Esta ação não pode ser desfeita.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeModal}
+            disabled={saving}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 h-9 px-4 py-2"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Excluindo...
+              </>
+            ) : (
+              "Excluir"
+            )}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
