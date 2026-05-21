@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
@@ -142,7 +142,8 @@ export function UsersPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [form, setForm] = useState<UserFormData>(emptyForm);
+  const [createForm, setCreateForm] = useState<UserFormData>(emptyForm);
+  const [editForm, setEditForm] = useState<UserFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -170,18 +171,22 @@ export function UsersPage() {
       u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
-  // Create
-  const handleCreate = async () => {
-    if (!form.full_name || !form.email || !form.password) {
+  // ─── Create ────────────────────────────────────────────────────────
+  const handleCreate = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!createForm.full_name || !createForm.email || !createForm.password) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+
     try {
       setSaving(true);
-      await api.post<UserResponse>("/users", form);
+      await api.post<UserResponse>("/users", createForm);
       toast.success("Usuário criado com sucesso");
       setCreateOpen(false);
-      setForm(emptyForm);
+      setCreateForm(emptyForm);
       fetchUsers();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -194,59 +199,48 @@ export function UsersPage() {
     }
   };
 
-
-
-  const selectedUserRef = useRef<User | null>(null);
-  const formRef = useRef<UserFormData>(emptyForm);
-
-  // Helper to update both state and ref together
-  const updateForm = (newForm: UserFormData) => {
-    setForm(newForm);
-    formRef.current = newForm;
-  };
-
+  // ─── Edit ──────────────────────────────────────────────────────────
   const openEdit = (user: User) => {
     setSelectedUser(user);
-    selectedUserRef.current = user;
-    const newForm: UserFormData = {
+    setEditForm({
       full_name: user.full_name,
       email: user.email,
       password: "",
       role: user.role,
       status: user.status as "active" | "inactive",
-    };
-    updateForm(newForm);
+    });
     setEditOpen(true);
   };
 
-  const handleEdit = async () => {
-    const user = selectedUserRef.current;
-    if (!user) {
+  const handleEdit = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!selectedUser) {
       toast.error("Nenhum usuário selecionado");
       return;
     }
-    const currentForm = formRef.current;
-    if (!currentForm.full_name || !currentForm.email) {
+    if (!editForm.full_name || !editForm.email) {
       toast.error("Nome e e-mail são obrigatórios");
       return;
     }
+
     try {
       setSaving(true);
       const body: Record<string, string> = {
-        full_name: currentForm.full_name,
-        email: currentForm.email,
-        role: currentForm.role,
-        status: currentForm.status,
+        full_name: editForm.full_name,
+        email: editForm.email,
+        role: editForm.role,
+        status: editForm.status,
       };
-      if (currentForm.password) {
-        body.password = currentForm.password;
+      if (editForm.password) {
+        body.password = editForm.password;
       }
-      await api.put<UserResponse>(`/users/${user.id}`, body);
+      await api.put<UserResponse>(`/users/${selectedUser.id}`, body);
       toast.success("Usuário atualizado com sucesso");
       setEditOpen(false);
       setSelectedUser(null);
-      selectedUserRef.current = null;
-      setForm(emptyForm);
+      setEditForm(emptyForm);
       fetchUsers();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -259,7 +253,7 @@ export function UsersPage() {
     }
   };
 
-  // Delete
+  // ─── Delete ────────────────────────────────────────────────────────
   const openDelete = (user: User) => {
     if (user.id === currentUser?.id) {
       toast.error("Você não pode excluir seu próprio usuário");
@@ -269,9 +263,12 @@ export function UsersPage() {
     setDeleteOpen(true);
   };
 
-  const handleDelete = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!selectedUser) return;
+
     try {
       setDeleting(true);
       await api.delete(`/users/${selectedUser.id}`);
@@ -287,6 +284,16 @@ export function UsersPage() {
       }
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // Prevent Radix Dialog from closing when interacting with Select portals
+  const preventCloseOnOutside = (e: Event) => {
+    const target = e.target as HTMLElement;
+    // Allow close if it's the overlay (radix dialog overlay)
+    // But prevent if it's a select portal
+    if (target.closest("[data-radix-popper-content-wrapper]")) {
+      e.preventDefault();
     }
   };
 
@@ -319,7 +326,13 @@ export function UsersPage() {
             Gerencie os usuários do sistema
           </p>
         </div>
-        <Button onClick={() => { setForm(emptyForm); setCreateOpen(true); }}>
+        <Button
+          type="button"
+          onClick={() => {
+            setCreateForm(emptyForm);
+            setCreateOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Novo Usuário
         </Button>
@@ -451,9 +464,13 @@ export function UsersPage() {
         </CardContent>
       </Card>
 
-      {/* Create Dialog */}
+      {/* ─── Create Dialog ──────────────────────────────────────────── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          className="sm:max-w-md"
+          onInteractOutside={preventCloseOnOutside}
+          onPointerDownOutside={preventCloseOnOutside}
+        >
           <DialogHeader>
             <DialogTitle>Novo Usuário</DialogTitle>
             <DialogDescription>
@@ -465,8 +482,8 @@ export function UsersPage() {
               <Label htmlFor="create-name">Nome Completo *</Label>
               <Input
                 id="create-name"
-                value={form.full_name}
-                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                value={createForm.full_name}
+                onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
                 placeholder="Nome completo do usuário"
               />
             </div>
@@ -475,8 +492,8 @@ export function UsersPage() {
               <Input
                 id="create-email"
                 type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                 placeholder="usuario@email.com"
               />
             </div>
@@ -485,8 +502,8 @@ export function UsersPage() {
               <Input
                 id="create-password"
                 type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                value={createForm.password}
+                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
                 placeholder="••••••••"
               />
             </div>
@@ -494,9 +511,9 @@ export function UsersPage() {
               <div className="space-y-2">
                 <Label>Papel</Label>
                 <Select
-                  value={form.role}
+                  value={createForm.role}
                   onValueChange={(v) =>
-                    setForm({ ...form, role: v as UserFormData["role"] })
+                    setCreateForm({ ...createForm, role: v as UserFormData["role"] })
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -512,10 +529,10 @@ export function UsersPage() {
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
-                  value={form.status}
+                  value={createForm.status}
                   onValueChange={(v) =>
-                    setForm({
-                      ...form,
+                    setCreateForm({
+                      ...createForm,
                       status: v as UserFormData["status"],
                     })
                   }
@@ -533,13 +550,19 @@ export function UsersPage() {
           </div>
           <DialogFooter>
             <Button
+              type="button"
               variant="outline"
               onClick={() => setCreateOpen(false)}
               disabled={saving}
             >
               Cancelar
             </Button>
-            <Button onClick={handleCreate} disabled={saving}>
+            <Button
+              type="button"
+              onClick={handleCreate}
+              disabled={saving}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -553,9 +576,13 @@ export function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* ─── Edit Dialog ────────────────────────────────────────────── */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          className="sm:max-w-md"
+          onInteractOutside={preventCloseOnOutside}
+          onPointerDownOutside={preventCloseOnOutside}
+        >
           <DialogHeader>
             <DialogTitle>Editar Usuário</DialogTitle>
             <DialogDescription>
@@ -567,8 +594,8 @@ export function UsersPage() {
               <Label htmlFor="edit-name">Nome Completo *</Label>
               <Input
                 id="edit-name"
-                value={form.full_name}
-                onChange={(e) => updateForm({ ...formRef.current, full_name: e.target.value })}
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
                 placeholder="Nome completo do usuário"
               />
             </div>
@@ -577,8 +604,8 @@ export function UsersPage() {
               <Input
                 id="edit-email"
                 type="email"
-                value={form.email}
-                onChange={(e) => updateForm({ ...formRef.current, email: e.target.value })}
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                 placeholder="usuario@email.com"
               />
             </div>
@@ -587,8 +614,8 @@ export function UsersPage() {
               <Input
                 id="edit-password"
                 type="password"
-                value={form.password}
-                onChange={(e) => updateForm({ ...formRef.current, password: e.target.value })}
+                value={editForm.password}
+                onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                 placeholder="Deixe em branco para manter a atual"
               />
             </div>
@@ -596,9 +623,9 @@ export function UsersPage() {
               <div className="space-y-2">
                 <Label>Papel</Label>
                 <Select
-                  value={form.role}
+                  value={editForm.role}
                   onValueChange={(v) =>
-                    updateForm({ ...formRef.current, role: v as UserFormData["role"] })
+                    setEditForm({ ...editForm, role: v as UserFormData["role"] })
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -614,10 +641,10 @@ export function UsersPage() {
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
-                  value={form.status}
+                  value={editForm.status}
                   onValueChange={(v) =>
-                    updateForm({
-                      ...formRef.current,
+                    setEditForm({
+                      ...editForm,
                       status: v as UserFormData["status"],
                     })
                   }
@@ -635,6 +662,7 @@ export function UsersPage() {
           </div>
           <DialogFooter>
             <Button
+              type="button"
               variant="outline"
               onClick={() => setEditOpen(false)}
               disabled={saving}
@@ -643,9 +671,9 @@ export function UsersPage() {
             </Button>
             <Button
               type="button"
-              onPointerDown={(e) => e.stopPropagation()}
               onClick={handleEdit}
               disabled={saving}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               {saving ? (
                 <>
@@ -660,7 +688,7 @@ export function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* ─── Delete Confirmation ─────────────────────────────────────── */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
@@ -673,6 +701,7 @@ export function UsersPage() {
           </DialogHeader>
           <DialogFooter>
             <Button
+              type="button"
               variant="outline"
               onClick={() => setDeleteOpen(false)}
               disabled={deleting}
@@ -684,6 +713,7 @@ export function UsersPage() {
               onClick={handleDelete}
               disabled={deleting}
               variant="destructive"
+              onPointerDown={(e) => e.stopPropagation()}
             >
               {deleting ? (
                 <>
