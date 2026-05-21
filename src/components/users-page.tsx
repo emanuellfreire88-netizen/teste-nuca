@@ -207,7 +207,9 @@ export function UsersPage() {
     setEditOpen(true);
   };
 
-  const handleEdit = async () => {
+  const handleEdit = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (!selectedUser) return;
     if (!form.full_name || !form.email) {
       toast.error("Nome e e-mail são obrigatórios");
@@ -623,7 +625,7 @@ export function UsersPage() {
             >
               Cancelar
             </Button>
-            <Button onClick={handleEdit} disabled={saving}>
+            <Button type="button" onClick={handleEdit} disabled={saving}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

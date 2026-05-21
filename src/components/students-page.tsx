@@ -59,6 +59,7 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  CalendarDays,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1023,6 +1024,136 @@ function InfoRow({
   );
 }
 
+// ─── Student Events Dialog ──────────────────────────────────────────────────
+
+interface StudentEventData {
+  id: string;
+  title: string;
+  date: string;
+  location: string | null;
+  status: string;
+  student_attended: boolean;
+  student_notes: string | null;
+}
+
+const eventStatusLabels: Record<string, string> = {
+  upcoming: "Próximo",
+  ongoing: "Em Andamento",
+  completed: "Concluído",
+  cancelled: "Cancelado",
+};
+
+const eventStatusBadgeClass: Record<string, string> = {
+  upcoming: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+  ongoing: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  completed: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700",
+  cancelled: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 dark:border-red-800",
+};
+
+function StudentEventsDialog({
+  open,
+  onOpenChange,
+  student,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  student: Student | null;
+}) {
+  const [events, setEvents] = useState<StudentEventData[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open && student) {
+      fetchStudentEvents(student.id);
+    }
+  }, [open, student]);
+
+  const fetchStudentEvents = async (studentId: string) => {
+    try {
+      setLoading(true);
+      const data = await api.get<{ events: StudentEventData[] }>(
+        `/events?student_id=${studentId}&limit=100`
+      );
+      setEvents(data.events);
+    } catch {
+      toast.error("Erro ao carregar eventos do aluno");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Eventos do Aluno</DialogTitle>
+          <DialogDescription>
+            Eventos em que <strong>{student?.full_name}</strong> participa
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-2">
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : events.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <CalendarDays className="h-10 w-10 mb-3 text-muted-foreground/40" />
+              <p className="text-sm">Nenhum evento encontrado para este aluno</p>
+            </div>
+          ) : (
+            <ScrollArea className="max-h-96">
+              <div className="space-y-3 pr-2">
+                {events.map((event) => (
+                  <div
+                    key={event.id}
+                    className="flex items-start gap-3 rounded-lg border p-3"
+                  >
+                    <div className="mt-0.5">
+                      {event.student_attended ? (
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{event.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <CalendarDays className="h-3 w-3" />
+                          {formatDate(event.date)}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 ${eventStatusBadgeClass[event.status] || ""}`}
+                        >
+                          {eventStatusLabels[event.status] || event.status}
+                        </Badge>
+                      </div>
+                      {event.student_notes && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Obs: {event.student_notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Students List ───────────────────────────────────────────────────────────
 
 function StudentsList({
@@ -1054,6 +1185,8 @@ function StudentsList({
   // Dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [eventsDialogOpen, setEventsDialogOpen] = useState(false);
+  const [eventsStudent, setEventsStudent] = useState<Student | null>(null);
 
   const fetchStudents = useCallback(async () => {
     try {
@@ -1127,6 +1260,12 @@ function StudentsList({
     e?.stopPropagation();
     setEditingStudent(student);
     setDialogOpen(true);
+  };
+
+  const handleOpenEvents = (student: Student, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEventsStudent(student);
+    setEventsDialogOpen(true);
   };
 
   const handleRowClick = (student: Student) => {
@@ -1333,18 +1472,30 @@ function StudentsList({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {(user?.role === "Admin" ||
-                          user?.role === "Operator") && (
+                        <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={(e) =>
-                              handleOpenEdit(student, e)
-                            }
+                            className="h-8 w-8"
+                            onClick={(e) => handleOpenEvents(student, e)}
+                            title="Ver Eventos"
                           >
-                            <Pencil className="h-4 w-4" />
+                            <CalendarDays className="h-4 w-4" />
                           </Button>
-                        )}
+                          {(user?.role === "Admin" ||
+                            user?.role === "Operator") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) =>
+                                handleOpenEdit(student, e)
+                              }
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -1422,9 +1573,17 @@ function StudentsList({
                     {student.status === "active" ? "Ativo" : "Inativo"}
                   </Badge>
                 </div>
-                {(user?.role === "Admin" ||
-                  user?.role === "Operator") && (
-                  <div className="flex justify-end mt-2">
+                <div className="flex justify-end mt-2 gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => handleOpenEvents(student, e)}
+                  >
+                    <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                    Eventos
+                  </Button>
+                  {(user?.role === "Admin" ||
+                    user?.role === "Operator") && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1433,8 +1592,8 @@ function StudentsList({
                       <Pencil className="h-3.5 w-3.5 mr-1" />
                       Editar
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))
@@ -1480,6 +1639,13 @@ function StudentsList({
         student={editingStudent}
         schools={schools}
         onSuccess={fetchStudents}
+      />
+
+      {/* Student Events Dialog */}
+      <StudentEventsDialog
+        open={eventsDialogOpen}
+        onOpenChange={setEventsDialogOpen}
+        student={eventsStudent}
       />
     </div>
   );

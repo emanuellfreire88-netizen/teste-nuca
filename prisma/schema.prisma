@@ -26,6 +26,7 @@ model User {
 
   attendance_records AttendanceRecord[]
   action_logs     ActionLog[]
+  events          Event[]
 
   @@map("users")
 }
@@ -74,6 +75,7 @@ model Student {
 
   school          School   @relation(fields: [school_id], references: [id])
   attendance_records AttendanceRecord[]
+  event_participations EventParticipant[]
 
   @@map("students")
 }
@@ -115,4 +117,36 @@ model Session {
   created_at   DateTime @default(now())
 
   @@map("sessions")
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  date        DateTime
+  location    String?
+  status      String   @default("upcoming") // upcoming, ongoing, completed, cancelled
+  created_by  String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  creator     User     @relation(fields: [created_by], references: [id])
+  participants EventParticipant[]
+
+  @@map("events")
+}
+
+model EventParticipant {
+  id          String   @id @default(uuid())
+  event_id    String
+  student_id  String
+  attended    Boolean  @default(false)
+  notes       String?
+  created_at  DateTime @default(now())
+
+  event       Event    @relation(fields: [event_id], references: [id])
+  student     Student  @relation(fields: [student_id], references: [id])
+
+  @@unique([event_id, student_id])
+  @@map("event_participants")
 }

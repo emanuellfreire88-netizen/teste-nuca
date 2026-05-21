@@ -14,6 +14,7 @@ const AttendancePage = dynamic(() => import("@/components/attendance-page").then
 const UsersPage = dynamic(() => import("@/components/users-page").then(m => ({ default: m.UsersPage })), { ssr: false });
 const LogsPage = dynamic(() => import("@/components/logs-page").then(m => ({ default: m.LogsPage })), { ssr: false });
 const ReportsPage = dynamic(() => import("@/components/reports-page").then(m => ({ default: m.ReportsPage })), { ssr: false });
+const EventsPage = dynamic(() => import("@/components/events-page").then(m => ({ default: m.EventsPage })), { ssr: false });
 
 // Hydration-safe check: returns false on server, then true on client
 const emptySubscribe = () => () => {};
@@ -54,6 +55,8 @@ export default function Home() {
         return <StudentsPage />;
       case "attendance":
         return <AttendancePage />;
+      case "events":
+        return <EventsPage />;
       case "users":
         return <UsersPage />;
       case "reports":
