@@ -27,14 +27,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   School,
   Plus,
   Search,
@@ -53,6 +45,46 @@ import {
   ImagePlus,
   Loader2,
 } from "lucide-react";
+
+// ── Custom Modal (replaces Radix Dialog) ────────────────────────────────────
+
+function Modal({ open, onClose, children }: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className="relative z-10 w-full max-w-2xl mx-4 bg-background rounded-lg border shadow-lg animate-in fade-in-0 zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -313,8 +345,7 @@ export function SchoolsPage() {
     }
   };
 
-  const handleDelete = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
+  const handleDelete = async () => {
     if (!deletingSchool) return;
 
     try {
@@ -366,7 +397,7 @@ export function SchoolsPage() {
               </p>
             </div>
             {canEdit && (
-              <Button onClick={handleOpenCreate} className="shrink-0">
+              <Button type="button" onClick={handleOpenCreate} className="shrink-0">
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Escola
               </Button>
@@ -415,6 +446,7 @@ export function SchoolsPage() {
                 </p>
                 {canEdit && !searchQuery && (
                   <Button
+                    type="button"
                     variant="outline"
                     className="mt-4"
                     onClick={handleOpenCreate}
@@ -523,7 +555,7 @@ export function SchoolsPage() {
       {/* Create / Edit Dialog (shared by both views) */}
       <SchoolFormDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onClose={() => setDialogOpen(false)}
         editingSchool={editingSchool}
         formData={formData}
         onFormDataChange={setFormData}
@@ -535,17 +567,18 @@ export function SchoolsPage() {
       />
 
       {/* Delete Confirmation (shared by both views) */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar exclusão</DialogTitle>
-            <DialogDescription>
+      <Modal open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <div className="p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Confirmar exclusão</h2>
+            <p className="text-sm text-muted-foreground mt-2">
               Tem certeza que deseja excluir a escola{" "}
               <strong>{deletingSchool?.name}</strong>? Todos os alunos e registros de frequência vinculados também serão excluídos. Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
             <Button
+              type="button"
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
               disabled={deleteLoading}
@@ -567,9 +600,9 @@ export function SchoolsPage() {
                 "Excluir"
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -636,7 +669,7 @@ function SchoolDetailView({
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={onBack}>
+          <Button type="button" variant="outline" size="icon" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Voltar</span>
           </Button>
@@ -654,13 +687,14 @@ function SchoolDetailView({
         </div>
         <div className="flex items-center gap-2">
           {onEdit && (
-            <Button variant="outline" onClick={() => onEdit(school)}>
+            <Button type="button" variant="outline" onClick={() => onEdit(school)}>
               <Pencil className="mr-2 h-4 w-4" />
               Editar
             </Button>
           )}
           {onDelete && (
             <Button
+              type="button"
               variant="destructive"
               onClick={() => onDelete(school)}
             >
@@ -901,11 +935,11 @@ function SchoolDetailView({
   );
 }
 
-// ── School Form Dialog ──────────────────────────────────────────────────────
+// ── School Form Dialog (using custom Modal) ────────────────────────────────
 
 function SchoolFormDialog({
   open,
-  onOpenChange,
+  onClose,
   editingSchool,
   formData,
   onFormDataChange,
@@ -916,7 +950,7 @@ function SchoolFormDialog({
   fileInputRef,
 }: {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   editingSchool: SchoolData | null;
   formData: FormData;
   onFormDataChange: (data: FormData) => void;
@@ -931,18 +965,19 @@ function SchoolFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+    <Modal open={open} onClose={onClose}>
+      <div className="p-6 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">
             {editingSchool ? "Editar Escola" : "Nova Escola"}
-          </DialogTitle>
-          <DialogDescription>
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
             {editingSchool
               ? "Atualize as informações da escola abaixo."
               : "Preencha os dados para cadastrar uma nova escola."}
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+        </div>
 
         <div className="grid gap-6 py-4">
           {/* Photo Upload */}
@@ -1098,15 +1133,21 @@ function SchoolFormDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        {/* Footer */}
+        <div className="flex justify-end gap-2 pt-4 border-t">
           <Button
+            type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={onClose}
             disabled={submitting}
           >
             Cancelar
           </Button>
-          <Button onClick={onSubmit} disabled={submitting || uploading}>
+          <Button
+            type="button"
+            onClick={onSubmit}
+            disabled={submitting || uploading}
+          >
             {submitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1118,8 +1159,8 @@ function SchoolFormDialog({
               "Criar Escola"
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </Modal>
   );
 }

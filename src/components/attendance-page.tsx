@@ -23,13 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -109,6 +102,10 @@ interface SchoolsApiResponse {
     totalPages: number;
   };
 }
+
+// ── Shared select styles ─────────────────────────────────────────────────────
+const nativeSelectClass =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 // ── Date Picker Component ────────────────────────────────────────────────────
 
@@ -334,27 +331,24 @@ function AttendanceMarkingView() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* School selector */}
+            {/* School selector — native HTML select to avoid Radix click interception */}
             <div className="flex-1 space-y-1.5">
               <label className="text-sm font-medium">Escola</label>
               {loadingSchools ? (
                 <Skeleton className="h-9 w-full" />
               ) : (
-                <Select
+                <select
                   value={selectedSchoolId}
-                  onValueChange={setSelectedSchoolId}
+                  onChange={(e) => setSelectedSchoolId(e.target.value)}
+                  className={nativeSelectClass}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione a escola" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="">Selecione a escola</option>
+                  {schools.map((school) => (
+                    <option key={school.id} value={school.id}>
+                      {school.name}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
 
@@ -387,6 +381,7 @@ function AttendanceMarkingView() {
               {canMark && students.length > 0 && (
                 <div className="flex items-center gap-2">
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={setAllPresent}
@@ -396,6 +391,7 @@ function AttendanceMarkingView() {
                     Todos Presentes
                   </Button>
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={setAllAbsent}
@@ -457,6 +453,7 @@ function AttendanceMarkingView() {
                             {canMark ? (
                               <div className="flex items-center justify-end gap-2">
                                 <Button
+                                  type="button"
                                   variant={status === "present" ? "default" : "outline"}
                                   size="sm"
                                   className={
@@ -476,6 +473,7 @@ function AttendanceMarkingView() {
                                   <span className="hidden sm:inline ml-1">Presente</span>
                                 </Button>
                                 <Button
+                                  type="button"
                                   variant={status === "absent" ? "default" : "outline"}
                                   size="sm"
                                   className={
@@ -530,7 +528,11 @@ function AttendanceMarkingView() {
                 <div className="text-sm text-muted-foreground">
                   {Object.keys(attendanceMap).length} de {students.length} aluno(s) registrado(s)
                 </div>
-                <Button onClick={handleSave} disabled={saving}>
+                <Button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -686,28 +688,24 @@ function AttendanceHistoryView() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* School filter */}
+            {/* School filter — native HTML select */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Escola</label>
               {loadingSchools ? (
                 <Skeleton className="h-9 w-full" />
               ) : (
-                <Select
+                <select
                   value={selectedSchoolId}
-                  onValueChange={(v) => { setSelectedSchoolId(v); setPage(1); }}
+                  onChange={(e) => { setSelectedSchoolId(e.target.value); setPage(1); }}
+                  className={nativeSelectClass}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Todas as escolas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as escolas</SelectItem>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="all">Todas as escolas</option>
+                  {schools.map((school) => (
+                    <option key={school.id} value={school.id}>
+                      {school.name}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
 
@@ -731,19 +729,18 @@ function AttendanceHistoryView() {
               />
             </div>
 
-            {/* Status filter */}
+            {/* Status filter — native HTML select */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Status</label>
-              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="present">Presente</SelectItem>
-                  <SelectItem value="absent">Ausente</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                className={nativeSelectClass}
+              >
+                <option value="all">Todos</option>
+                <option value="present">Presente</option>
+                <option value="absent">Ausente</option>
+              </select>
             </div>
           </div>
 
@@ -752,6 +749,7 @@ function AttendanceHistoryView() {
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
               <span className="text-sm text-muted-foreground mr-2">Exportar:</span>
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleExport("excel")}
@@ -765,6 +763,7 @@ function AttendanceHistoryView() {
                 Exportar Excel
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handleExport("pdf")}
@@ -880,6 +879,7 @@ function AttendanceHistoryView() {
           </p>
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -889,6 +889,7 @@ function AttendanceHistoryView() {
               Anterior
             </Button>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}

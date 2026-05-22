@@ -19,21 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -50,8 +35,6 @@ import {
   Camera,
   Upload,
   User,
-  Phone,
-  MapPin,
   Heart,
   Shield,
   GraduationCap,
@@ -163,6 +146,51 @@ const gradeOptions = [
 const classOptions = ["A", "B", "C", "D", "E", "F"];
 
 const bloodTypeOptions = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+// ─── Custom Modal ────────────────────────────────────────────────────────────
+
+function Modal({ open, onClose, children, maxWidth = "max-w-2xl" }: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  maxWidth?: string;
+}) {
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className={`relative z-10 w-full ${maxWidth} mx-4 bg-background rounded-lg border shadow-lg animate-in fade-in-0 zoom-in-95 duration-200`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Native Select Styling ───────────────────────────────────────────────────
+
+const nativeSelectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -410,327 +438,316 @@ function StudentFormDialog({
     }
   };
 
+  const handleClose = () => {
+    if (!saving) onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0">
-        <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle>
-            {isEditing ? "Editar Aluno" : "Novo Aluno"}
-          </DialogTitle>
-        </DialogHeader>
-        <Tabs defaultValue="personal" className="w-full">
-          <div className="px-6">
-            <TabsList className="w-full grid grid-cols-3">
-              <TabsTrigger value="personal">Dados Pessoais</TabsTrigger>
-              <TabsTrigger value="school">Escolar</TabsTrigger>
-              <TabsTrigger value="guardian">Responsável</TabsTrigger>
-            </TabsList>
-          </div>
-          <ScrollArea className="h-[55vh]">
-            {/* Personal Tab */}
-            <TabsContent value="personal" className="px-6 pb-4 mt-4 space-y-4">
-              <div className="flex justify-center py-2">
-                <PhotoUpload
-                  photo={form.photo}
-                  onPhotoChange={(url) => updateField("photo", url)}
+    <Modal open={open} onClose={handleClose} maxWidth="max-w-2xl">
+      <div className="px-6 pt-6 pb-2">
+        <h2 className="text-lg font-semibold">
+          {isEditing ? "Editar Aluno" : "Novo Aluno"}
+        </h2>
+      </div>
+      <Tabs defaultValue="personal" className="w-full">
+        <div className="px-6">
+          <TabsList className="w-full grid grid-cols-3">
+            <TabsTrigger value="personal">Dados Pessoais</TabsTrigger>
+            <TabsTrigger value="school">Escolar</TabsTrigger>
+            <TabsTrigger value="guardian">Responsável</TabsTrigger>
+          </TabsList>
+        </div>
+        <ScrollArea className="h-[55vh]">
+          {/* Personal Tab */}
+          <TabsContent value="personal" className="px-6 pb-4 mt-4 space-y-4">
+            <div className="flex justify-center py-2">
+              <PhotoUpload
+                photo={form.photo}
+                onPhotoChange={(url) => updateField("photo", url)}
+              />
+            </div>
+            <Separator />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <Label htmlFor="full_name">
+                  Nome Completo <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="full_name"
+                  value={form.full_name}
+                  onChange={(e) => updateField("full_name", e.target.value)}
+                  placeholder="Nome completo do aluno"
+                  className={errors.full_name ? "border-destructive" : ""}
+                />
+                {errors.full_name && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.full_name}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="cpf">CPF</Label>
+                <Input
+                  id="cpf"
+                  value={form.cpf}
+                  onChange={(e) =>
+                    updateField("cpf", formatCPF(e.target.value))
+                  }
+                  placeholder="000.000.000-00"
                 />
               </div>
-              <Separator />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <Label htmlFor="full_name">
-                    Nome Completo <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="full_name"
-                    value={form.full_name}
-                    onChange={(e) => updateField("full_name", e.target.value)}
-                    placeholder="Nome completo do aluno"
-                    className={errors.full_name ? "border-destructive" : ""}
-                  />
-                  {errors.full_name && (
-                    <p className="text-sm text-destructive mt-1">
-                      {errors.full_name}
-                    </p>
-                  )}
-                </div>
 
-                <div>
-                  <Label htmlFor="cpf">CPF</Label>
-                  <Input
-                    id="cpf"
-                    value={form.cpf}
-                    onChange={(e) =>
-                      updateField("cpf", formatCPF(e.target.value))
-                    }
-                    placeholder="000.000.000-00"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="rg">RG</Label>
-                  <Input
-                    id="rg"
-                    value={form.rg}
-                    onChange={(e) => updateField("rg", e.target.value)}
-                    placeholder="RG do aluno"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="date_of_birth">Data de Nascimento</Label>
-                  <Input
-                    id="date_of_birth"
-                    type="date"
-                    value={form.date_of_birth}
-                    onChange={(e) =>
-                      updateField("date_of_birth", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="blood_type">Tipo Sanguíneo</Label>
-                  <Select
-                    value={form.blood_type}
-                    onValueChange={(v) => updateField("blood_type", v)}
-                  >
-                    <SelectTrigger id="blood_type">
-                      <SelectValue placeholder="Selecionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {bloodTypeOptions.map((bt) => (
-                        <SelectItem key={bt} value={bt}>
-                          {bt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={form.phone}
-                    onChange={(e) =>
-                      updateField("phone", formatPhone(e.target.value))
-                    }
-                    placeholder="(00) 00000-0000"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="address">Endereço</Label>
-                  <Textarea
-                    id="address"
-                    value={form.address}
-                    onChange={(e) => updateField("address", e.target.value)}
-                    placeholder="Endereço completo"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="special_needs">Necessidades Especiais</Label>
-                  <Textarea
-                    id="special_needs"
-                    value={form.special_needs}
-                    onChange={(e) =>
-                      updateField("special_needs", e.target.value)
-                    }
-                    placeholder="Descreva se houver necessidades especiais"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="medications">Medicações</Label>
-                  <Textarea
-                    id="medications"
-                    value={form.medications}
-                    onChange={(e) =>
-                      updateField("medications", e.target.value)
-                    }
-                    placeholder="Medicações em uso"
-                    rows={2}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="rg">RG</Label>
+                <Input
+                  id="rg"
+                  value={form.rg}
+                  onChange={(e) => updateField("rg", e.target.value)}
+                  placeholder="RG do aluno"
+                />
               </div>
-            </TabsContent>
 
-            {/* School Tab */}
-            <TabsContent value="school" className="px-6 pb-4 mt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <Label htmlFor="school_id">
-                    Escola <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={form.school_id}
-                    onValueChange={(v) => updateField("school_id", v)}
-                  >
-                    <SelectTrigger
-                      id="school_id"
-                      className={errors.school_id ? "border-destructive" : ""}
-                    >
-                      <SelectValue placeholder="Selecionar escola" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {schools.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.school_id && (
-                    <p className="text-sm text-destructive mt-1">
-                      {errors.school_id}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="grade">Série</Label>
-                  <Select
-                    value={form.grade}
-                    onValueChange={(v) => updateField("grade", v)}
-                  >
-                    <SelectTrigger id="grade">
-                      <SelectValue placeholder="Selecionar série" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {gradeOptions.map((g) => (
-                        <SelectItem key={g} value={g}>
-                          {g}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="class">Turma</Label>
-                  <Select
-                    value={form.class}
-                    onValueChange={(v) => updateField("class", v)}
-                  >
-                    <SelectTrigger id="class">
-                      <SelectValue placeholder="Selecionar turma" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classOptions.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={form.status}
-                    onValueChange={(v) => updateField("status", v)}
-                  >
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Selecionar status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Ativo</SelectItem>
-                      <SelectItem value="inactive">Inativo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label htmlFor="date_of_birth">Data de Nascimento</Label>
+                <Input
+                  id="date_of_birth"
+                  type="date"
+                  value={form.date_of_birth}
+                  onChange={(e) =>
+                    updateField("date_of_birth", e.target.value)
+                  }
+                />
               </div>
-            </TabsContent>
 
-            {/* Guardian Tab */}
-            <TabsContent value="guardian" className="px-6 pb-4 mt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <Label htmlFor="guardian_name">Nome do Responsável</Label>
-                  <Input
-                    id="guardian_name"
-                    value={form.guardian_name}
-                    onChange={(e) =>
-                      updateField("guardian_name", e.target.value)
-                    }
-                    placeholder="Nome completo do responsável"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="guardian_phone">
-                    Telefone do Responsável
-                  </Label>
-                  <Input
-                    id="guardian_phone"
-                    value={form.guardian_phone}
-                    onChange={(e) =>
-                      updateField(
-                        "guardian_phone",
-                        formatPhone(e.target.value)
-                      )
-                    }
-                    placeholder="(00) 00000-0000"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="guardian_email">
-                    E-mail do Responsável
-                  </Label>
-                  <Input
-                    id="guardian_email"
-                    type="email"
-                    value={form.guardian_email}
-                    onChange={(e) =>
-                      updateField("guardian_email", e.target.value)
-                    }
-                    placeholder="email@exemplo.com"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="emergency_contact">
-                    Contato de Emergência
-                  </Label>
-                  <Input
-                    id="emergency_contact"
-                    value={form.emergency_contact}
-                    onChange={(e) =>
-                      updateField("emergency_contact", e.target.value)
-                    }
-                    placeholder="Nome e telefone para emergências"
-                  />
-                </div>
+              <div>
+                <Label htmlFor="blood_type">Tipo Sanguíneo</Label>
+                <select
+                  id="blood_type"
+                  value={form.blood_type}
+                  onChange={(e) => updateField("blood_type", e.target.value)}
+                  className={nativeSelectClass}
+                >
+                  <option value="">Selecionar</option>
+                  {bloodTypeOptions.map((bt) => (
+                    <option key={bt} value={bt}>
+                      {bt}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </TabsContent>
-          </ScrollArea>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
-              {saving
-                ? "Salvando..."
-                : isEditing
-                  ? "Salvar Alterações"
-                  : "Criar Aluno"}
-            </Button>
-          </div>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+              <div className="sm:col-span-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input
+                  id="phone"
+                  value={form.phone}
+                  onChange={(e) =>
+                    updateField("phone", formatPhone(e.target.value))
+                  }
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="address">Endereço</Label>
+                <Textarea
+                  id="address"
+                  value={form.address}
+                  onChange={(e) => updateField("address", e.target.value)}
+                  placeholder="Endereço completo"
+                  rows={2}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="special_needs">Necessidades Especiais</Label>
+                <Textarea
+                  id="special_needs"
+                  value={form.special_needs}
+                  onChange={(e) =>
+                    updateField("special_needs", e.target.value)
+                  }
+                  placeholder="Descreva se houver necessidades especiais"
+                  rows={2}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="medications">Medicações</Label>
+                <Textarea
+                  id="medications"
+                  value={form.medications}
+                  onChange={(e) =>
+                    updateField("medications", e.target.value)
+                  }
+                  placeholder="Medicações em uso"
+                  rows={2}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* School Tab */}
+          <TabsContent value="school" className="px-6 pb-4 mt-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <Label htmlFor="school_id">
+                  Escola <span className="text-destructive">*</span>
+                </Label>
+                <select
+                  id="school_id"
+                  value={form.school_id}
+                  onChange={(e) => updateField("school_id", e.target.value)}
+                  className={`${nativeSelectClass} ${errors.school_id ? "border-destructive" : ""}`}
+                >
+                  <option value="">Selecionar escola</option>
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.school_id && (
+                  <p className="text-sm text-destructive mt-1">
+                    {errors.school_id}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="grade">Série</Label>
+                <select
+                  id="grade"
+                  value={form.grade}
+                  onChange={(e) => updateField("grade", e.target.value)}
+                  className={nativeSelectClass}
+                >
+                  <option value="">Selecionar série</option>
+                  {gradeOptions.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="class">Turma</Label>
+                <select
+                  id="class_field"
+                  value={form.class}
+                  onChange={(e) => updateField("class", e.target.value)}
+                  className={nativeSelectClass}
+                >
+                  <option value="">Selecionar turma</option>
+                  {classOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  value={form.status}
+                  onChange={(e) => updateField("status", e.target.value)}
+                  className={nativeSelectClass}
+                >
+                  <option value="active">Ativo</option>
+                  <option value="inactive">Inativo</option>
+                </select>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Guardian Tab */}
+          <TabsContent value="guardian" className="px-6 pb-4 mt-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <Label htmlFor="guardian_name">Nome do Responsável</Label>
+                <Input
+                  id="guardian_name"
+                  value={form.guardian_name}
+                  onChange={(e) =>
+                    updateField("guardian_name", e.target.value)
+                  }
+                  placeholder="Nome completo do responsável"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="guardian_phone">
+                  Telefone do Responsável
+                </Label>
+                <Input
+                  id="guardian_phone"
+                  value={form.guardian_phone}
+                  onChange={(e) =>
+                    updateField(
+                      "guardian_phone",
+                      formatPhone(e.target.value)
+                    )
+                  }
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="guardian_email">
+                  E-mail do Responsável
+                </Label>
+                <Input
+                  id="guardian_email"
+                  type="email"
+                  value={form.guardian_email}
+                  onChange={(e) =>
+                    updateField("guardian_email", e.target.value)
+                  }
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="emergency_contact">
+                  Contato de Emergência
+                </Label>
+                <Input
+                  id="emergency_contact"
+                  value={form.emergency_contact}
+                  onChange={(e) =>
+                    updateField("emergency_contact", e.target.value)
+                  }
+                  placeholder="Nome e telefone para emergências"
+                />
+              </div>
+            </div>
+          </TabsContent>
+        </ScrollArea>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Cancelar
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={saving}>
+            {saving
+              ? "Salvando..."
+              : isEditing
+                ? "Salvar Alterações"
+                : "Criar Aluno"}
+          </Button>
+        </div>
+      </Tabs>
+    </Modal>
   );
 }
 
@@ -769,19 +786,20 @@ function StudentProfile({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Button variant="outline" size="sm" onClick={onBack}>
+        <Button type="button" variant="outline" size="sm" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           Voltar
         </Button>
         <div className="flex-1" />
         {canEdit && (
-          <Button variant="outline" size="sm" onClick={onEdit}>
+          <Button type="button" variant="outline" size="sm" onClick={onEdit}>
             <Pencil className="h-4 w-4 mr-1" />
             Editar
           </Button>
         )}
         {isAdmin && (
           <Button
+            type="button"
             variant="destructive"
             size="sm"
             onClick={onDelete}
@@ -1083,74 +1101,76 @@ function StudentEventsDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Eventos do Aluno</DialogTitle>
-          <DialogDescription>
-            Eventos em que <strong>{student?.full_name}</strong> participa
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-2">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
+    <Modal open={open} onClose={() => onOpenChange(false)} maxWidth="max-w-lg">
+      <div className="px-6 pt-6 pb-2">
+        <h2 className="text-lg font-semibold">Eventos do Aluno</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Eventos em que <strong>{student?.full_name}</strong> participa
+        </p>
+      </div>
+      <div className="px-6 py-2">
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : events.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+            <CalendarDays className="h-10 w-10 mb-3 text-muted-foreground/40" />
+            <p className="text-sm">Nenhum evento encontrado para este aluno</p>
+          </div>
+        ) : (
+          <ScrollArea className="max-h-96">
+            <div className="space-y-3 pr-2">
+              {events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-start gap-3 rounded-lg border p-3"
+                >
+                  <div className="mt-0.5">
+                    {event.student_attended ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{event.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3" />
+                        {formatDate(event.date)}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] px-1.5 py-0 ${eventStatusBadgeClass[event.status] || ""}`}
+                      >
+                        {eventStatusLabels[event.status] || event.status}
+                      </Badge>
+                    </div>
+                    {event.student_notes && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Obs: {event.student_notes}
+                      </p>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
-          ) : events.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-              <CalendarDays className="h-10 w-10 mb-3 text-muted-foreground/40" />
-              <p className="text-sm">Nenhum evento encontrado para este aluno</p>
-            </div>
-          ) : (
-            <ScrollArea className="max-h-96">
-              <div className="space-y-3 pr-2">
-                {events.map((event) => (
-                  <div
-                    key={event.id}
-                    className="flex items-start gap-3 rounded-lg border p-3"
-                  >
-                    <div className="mt-0.5">
-                      {event.student_attended ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{event.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <CalendarDays className="h-3 w-3" />
-                          {formatDate(event.date)}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] px-1.5 py-0 ${eventStatusBadgeClass[event.status] || ""}`}
-                        >
-                          {eventStatusLabels[event.status] || event.status}
-                        </Badge>
-                      </div>
-                      {event.student_notes && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Obs: {event.student_notes}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fechar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </ScrollArea>
+        )}
+      </div>
+      <div className="flex justify-end px-6 py-4 border-t">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+        >
+          Fechar
+        </Button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1283,7 +1303,7 @@ function StudentsList({
           </p>
         </div>
         {canCreate && (
-          <Button onClick={handleOpenCreate}>
+          <Button type="button" onClick={handleOpenCreate}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Aluno
           </Button>
@@ -1304,70 +1324,54 @@ function StudentsList({
               />
             </div>
 
-            <Select
+            <select
               value={statusFilter}
-              onValueChange={(v) => handleFilterChange(setStatusFilter, v)}
+              onChange={(e) => handleFilterChange(setStatusFilter, e.target.value)}
+              className={nativeSelectClass}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
-                <SelectItem value="active">Ativo</SelectItem>
-                <SelectItem value="inactive">Inativo</SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="all">Todos os Status</option>
+              <option value="active">Ativo</option>
+              <option value="inactive">Inativo</option>
+            </select>
 
-            <Select
+            <select
               value={schoolFilter}
-              onValueChange={(v) => handleFilterChange(setSchoolFilter, v)}
+              onChange={(e) => handleFilterChange(setSchoolFilter, e.target.value)}
+              className={nativeSelectClass}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Escola" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as Escolas</SelectItem>
-                {schools.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="all">Todas as Escolas</option>
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
 
-            <Select
+            <select
               value={gradeFilter}
-              onValueChange={(v) => handleFilterChange(setGradeFilter, v)}
+              onChange={(e) => handleFilterChange(setGradeFilter, e.target.value)}
+              className={nativeSelectClass}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Série" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as Séries</SelectItem>
-                {gradeOptions.map((g) => (
-                  <SelectItem key={g} value={g}>
-                    {g}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="all">Todas as Séries</option>
+              {gradeOptions.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
 
-            <Select
+            <select
               value={classFilter}
-              onValueChange={(v) => handleFilterChange(setClassFilter, v)}
+              onChange={(e) => handleFilterChange(setClassFilter, e.target.value)}
+              className={nativeSelectClass}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Turma" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as Turmas</SelectItem>
-                {classOptions.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="all">Todas as Turmas</option>
+              {classOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
         </CardContent>
       </Card>
@@ -1474,6 +1478,7 @@ function StudentsList({
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
@@ -1485,6 +1490,7 @@ function StudentsList({
                           {(user?.role === "Admin" ||
                             user?.role === "Operator") && (
                             <Button
+                              type="button"
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
@@ -1575,6 +1581,7 @@ function StudentsList({
                 </div>
                 <div className="flex justify-end mt-2 gap-1">
                   <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     onClick={(e) => handleOpenEvents(student, e)}
@@ -1585,6 +1592,7 @@ function StudentsList({
                   {(user?.role === "Admin" ||
                     user?.role === "Operator") && (
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       onClick={(e) => handleOpenEdit(student, e)}
@@ -1610,6 +1618,7 @@ function StudentsList({
           </p>
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               variant="outline"
               size="sm"
               disabled={pagination.page <= 1}
@@ -1621,6 +1630,7 @@ function StudentsList({
               {pagination.page} / {pagination.totalPages}
             </span>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               disabled={pagination.page >= pagination.totalPages}
@@ -1730,8 +1740,7 @@ export function StudentsPage() {
     if (editDialogOpen) fetchSchools();
   }, [editDialogOpen, fetchSchools]);
 
-  const handleDelete = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
+  const handleDelete = async () => {
     if (!selectedStudentId) return;
     try {
       setDeleteLoading(true);
@@ -1818,45 +1827,45 @@ export function StudentsPage() {
         />
 
         {/* Delete Confirmation */}
-        <Dialog
+        <Modal
           open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
+          onClose={() => setDeleteDialogOpen(false)}
+          maxWidth="max-w-md"
         >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirmar Exclusão</DialogTitle>
-              <DialogDescription>
-                Tem certeza que deseja excluir o aluno{" "}
-                <strong>{selectedStudent.full_name}</strong>? Esta ação não pode
-                ser desfeita.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setDeleteDialogOpen(false)}
-                disabled={deleteLoading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleteLoading}
-                variant="destructive"
-              >
-                {deleteLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  "Excluir"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <div className="px-6 pt-6 pb-2">
+            <h2 className="text-lg font-semibold">Confirmar Exclusão</h2>
+            <p className="text-sm text-muted-foreground mt-2">
+              Tem certeza que deseja excluir o aluno{" "}
+              <strong>{selectedStudent.full_name}</strong>? Esta ação não pode
+              ser desfeita.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 px-6 py-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleteLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              variant="destructive"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                "Excluir"
+              )}
+            </Button>
+          </div>
+        </Modal>
       </>
     );
   }
