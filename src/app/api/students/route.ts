@@ -41,7 +41,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
             select: { id: true, name: true },
           },
         },
-        orderBy: { full_name: 'asc' },
+        orderBy: [
+          { full_name: 'asc' },
+        ],
         skip,
         take: limit,
       }),
