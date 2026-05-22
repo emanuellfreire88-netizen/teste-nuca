@@ -88,21 +88,37 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
     let y = 0;
 
     // ── Cover / Title ──
-    y = 20;
     doc.setFillColor(...BRAND_GREEN);
-    doc.rect(0, 0, pageWidth, 45, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.text('Relatorio de Alunos por Escola', margin, 22);
-    doc.setFontSize(11);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} as ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, margin, 34);
-    doc.setFontSize(10);
-    doc.text(`Total: ${students.length} aluno(s) em ${sortedSchools.length} escola(s)`, margin, 41);
+    doc.rect(0, 0, pageWidth, 38, 'F');
 
-    y = 55;
+    // Title
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relat\u00f3rio de Alunos por Escola', margin, 18);
+
+    // Subtitle line
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const generatedAt = new Date().toLocaleDateString('pt-BR') + ' \u00e0s ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    doc.text('Gerado em: ' + generatedAt, margin, 28);
+
+    // Right side: summary stats
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    const summaryText = students.length + ' aluno(s) | ' + sortedSchools.length + ' escola(s)';
+    doc.text(summaryText, pageWidth - margin, 18, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+
+    // Thin accent line below green header
+    doc.setFillColor(255, 255, 255);
+    doc.rect(margin, 36, contentWidth, 0.5, 'F');
+
+    y = 48;
     doc.setTextColor(...DARK_TEXT);
 
     // ── School sections ──
@@ -110,41 +126,53 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
       const school = sortedSchools[si];
       const schoolStudents = school.students;
 
-      // Check if enough space for header + at least 3 rows
-      const estimatedTableHeight = 20 + Math.min(schoolStudents.length, 3) * 7;
-      if (y + estimatedTableHeight > pageHeight - 25) {
+      // Check if enough space for header + at least 5 rows + subtotal
+      const estimatedHeight = 30 + Math.min(schoolStudents.length, 5) * 7 + 12;
+      if (y + estimatedHeight > pageHeight - 20) {
         doc.addPage();
         y = 20;
       }
 
-      // School header bar
-      doc.setFillColor(236, 253, 245); // emerald-50
-      doc.rect(margin, y - 5, pageWidth - margin * 2, 12, 'F');
-      doc.setDrawColor(...BRAND_GREEN_LIGHT);
-      doc.setLineWidth(0.5);
-      doc.line(margin, y - 5, margin, y + 7); // left accent bar
+      // School header: thick left bar + school name + info
+      const headerHeight = school.director || school.address || school.phone ? 16 : 10;
+      doc.setFillColor(236, 253, 245); // emerald-50 background
+      doc.rect(margin, y, contentWidth, headerHeight, 'F');
 
-      doc.setFontSize(13);
+      // Left accent bar (thicker, 3px wide)
+      doc.setFillColor(...BRAND_GREEN);
+      doc.rect(margin, y, 3, headerHeight, 'F');
+
+      // School name
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(...BRAND_GREEN);
-      doc.text(school.name, margin + 4, y + 3);
+      doc.text(school.name, margin + 7, y + 7);
 
-      // School info on the right
-      doc.setFontSize(8);
+      // School info: director, address, phone
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
       doc.setTextColor(...GRAY_TEXT);
-      const infoParts: string[] = [];
-      if (school.director) infoParts.push(`Diretor(a): ${school.director}`);
-      if (school.phone) infoParts.push(`Tel: ${school.phone}`);
-      if (infoParts.length > 0) {
-        doc.text(infoParts.join('  |  '), pageWidth - margin - 2, y + 3, { align: 'right' });
+      const infoLines: string[] = [];
+      if (school.director) infoLines.push('Diretor(a): ' + school.director);
+      if (school.address) infoLines.push('End.: ' + school.address);
+      if (school.phone) infoLines.push('Tel: ' + school.phone);
+      if (infoLines.length > 0) {
+        doc.text(infoLines.join('   |   '), margin + 7, y + 13);
       }
 
-      y += 12;
+      // Student count badge on right
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...BRAND_GREEN);
+      const countText = schoolStudents.length + ' aluno' + (schoolStudents.length !== 1 ? 's' : '');
+      doc.text(countText, pageWidth - margin - 4, y + 7, { align: 'right' });
+
+      y += headerHeight + 2;
 
       // Student table
       const tableBody = schoolStudents.map((s, i) => [
         String(i + 1),
         s.full_name,
-        s.cpf || '-',
         s.grade || '-',
         s.class || '-',
         s.status === 'active' ? 'Ativo' : 'Inativo',
@@ -154,13 +182,14 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
 
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Nome', 'CPF', 'Serie', 'Turma', 'Status', 'Responsavel', 'Telefone']],
+        head: [['#', 'Nome', 'S\u00e9rie', 'Turma', 'Status', 'Respons\u00e1vel', 'Telefone']],
         body: tableBody,
         styles: {
-          fontSize: 7,
-          cellPadding: 2,
-          lineColor: [220, 220, 220] as [number, number, number],
-          lineWidth: 0.2,
+          fontSize: 7.5,
+          cellPadding: { top: 2, right: 3, bottom: 2, left: 3 },
+          lineColor: [230, 230, 230] as [number, number, number],
+          lineWidth: 0.15,
+          font: 'helvetica',
         },
         headStyles: {
           fillColor: BRAND_GREEN,
@@ -169,63 +198,92 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
           fontSize: 7.5,
         },
         alternateRowStyles: {
-          fillColor: [249, 250, 251] as [number, number, number],
+          fillColor: [248, 250, 252] as [number, number, number],
         },
         columnStyles: {
           0: { cellWidth: 10, halign: 'center' },
           1: { cellWidth: 'auto' },
-          5: { halign: 'center' },
+          2: { cellWidth: 22, halign: 'center' },
+          3: { cellWidth: 18, halign: 'center' },
+          4: { cellWidth: 18, halign: 'center' },
+          5: { cellWidth: 'auto' },
+          6: { cellWidth: 35 },
         },
         margin: { left: margin, right: margin },
-        tableWidth: pageWidth - margin * 2,
+        tableWidth: contentWidth,
       });
 
       // Get Y after table
-      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 3;
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 2;
 
-      // Subtotal
-      doc.setFillColor(236, 253, 245);
-      const subtotalWidth = pageWidth - margin * 2;
-      doc.rect(margin, y - 1, subtotalWidth, 8, 'F');
-      doc.setFontSize(9);
-      doc.setTextColor(...BRAND_GREEN);
-      doc.text(`Subtotal: ${schoolStudents.length} aluno(s)`, margin + 4, y + 4.5);
+      // Subtotal bar
+      doc.setFillColor(241, 245, 249); // slate-100
+      doc.rect(margin, y, contentWidth, 7, 'F');
+      doc.setFillColor(...BRAND_GREEN);
+      doc.rect(margin, y, 2, 7, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...DARK_TEXT);
+      doc.text('Subtotal: ' + schoolStudents.length + ' aluno' + (schoolStudents.length !== 1 ? 's' : ''), margin + 6, y + 5);
 
-      y += 14;
+      y += 12;
 
       // Separator between schools (not after last)
       if (si < sortedSchools.length - 1) {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.3);
-        doc.line(margin, y - 4, pageWidth - margin, y - 4);
-        y += 2;
+        // Dotted separator: small dots across the page
+        doc.setFillColor(200, 200, 200);
+        const dotStartX = margin + 30;
+        const dotEndX = pageWidth - margin - 30;
+        for (let dx = dotStartX; dx < dotEndX; dx += 4) {
+          doc.circle(dx, y - 3, 0.3, 'F');
+        }
+        y += 3;
       }
     }
 
     // ── Grand Total ──
-    if (y + 20 > pageHeight - 15) {
+    if (y + 18 > pageHeight - 15) {
       doc.addPage();
       y = 20;
     }
 
-    y += 4;
+    y += 2;
     doc.setFillColor(...BRAND_GREEN);
-    doc.rect(margin, y - 2, pageWidth - margin * 2, 14, 'F');
+    doc.rect(margin, y, contentWidth, 12, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.text(`TOTAL GERAL: ${students.length} aluno(s) em ${sortedSchools.length} escola(s)`, margin + 4, y + 7);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    const grandTotalText = 'TOTAL GERAL: ' + students.length + ' aluno' + (students.length !== 1 ? 's' : '') + ' em ' + sortedSchools.length + ' escola' + (sortedSchools.length !== 1 ? 's' : '');
+    doc.text(grandTotalText, margin + 6, y + 8);
 
     // ── Footer on each page ──
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
+      // Footer line
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.3);
+      doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
+      // Footer text
       doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(...GRAY_TEXT);
       doc.text(
-        `NUCA Plataforma  |  Pagina ${i} de ${pageCount}`,
+        'NUCA Plataforma',
+        margin,
+        pageHeight - 5
+      );
+      doc.text(
+        'P\u00e1gina ' + i + ' de ' + pageCount,
         pageWidth / 2,
-        pageHeight - 6,
+        pageHeight - 5,
         { align: 'center' }
+      );
+      doc.text(
+        generatedAt,
+        pageWidth - margin,
+        pageHeight - 5,
+        { align: 'right' }
       );
     }
 
@@ -327,13 +385,13 @@ async function exportAttendanceReport(format: string) {
     doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
-    doc.text('Relatorio de Frequencia', 14, 18);
+    doc.text('Relat\u00f3rio de Frequ\u00eancia', 14, 18);
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
 
     autoTable(doc, {
       startY: 42,
-      head: [['Aluno', 'Escola', 'Serie', 'Turma', 'Data', 'Status']],
+      head: [['Aluno', 'Escola', 'S\u00e9rie', 'Turma', 'Data', 'Status']],
       body: records.map((r) => [
         r.student.full_name,
         r.student.school.name,
@@ -413,7 +471,7 @@ async function exportSchools(format: string) {
     doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
-    doc.text('Relatorio de Escolas', 14, 18);
+    doc.text('Relat\u00f3rio de Escolas', 14, 18);
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
 
