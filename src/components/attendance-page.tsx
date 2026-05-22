@@ -215,10 +215,22 @@ function AttendanceMarkingView() {
             existing[rec.student_id] = rec.status;
             existingIds[rec.student_id] = rec.id;
           }
+          // Auto-fill students without records as "present" (most common case)
+          for (const s of studentList) {
+            if (!existing[s.id]) {
+              existing[s.id] = "present";
+            }
+          }
           setAttendanceMap(existing);
           setExistingAttendance(existingIds);
         } catch {
-          // No existing records – that's OK
+          // No existing records – auto-fill all as "present"
+          const defaultMap: Record<string, "present" | "absent"> = {};
+          for (const s of studentList) {
+            defaultMap[s.id] = "present";
+          }
+          setAttendanceMap(defaultMap);
+          setExistingAttendance({});
         }
       } catch {
         toast.error("Erro ao carregar alunos");

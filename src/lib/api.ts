@@ -1,4 +1,5 @@
 import { useAuthStore } from "./auth-store";
+import { toast } from "sonner";
 
 const BASE_URL = "/api";
 
@@ -31,10 +32,7 @@ function handleUnauthorized() {
   const { logout, isAuthenticated } = useAuthStore.getState();
   if (isAuthenticated) {
     // Show a brief message before redirecting
-    try {
-      const toast = require('sonner').toast;
-      toast.error('Sessão expirada. Faça login novamente.');
-    } catch {}
+    toast.error('Sessão expirada. Faça login novamente.');
   }
   logout();
   // Small delay so the user sees the toast

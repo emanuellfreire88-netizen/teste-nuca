@@ -14,21 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -52,6 +37,51 @@ import {
   UserPlus,
   UserMinus,
 } from "lucide-react";
+
+// ── Custom Modal ────────────────────────────────────────────────────────────
+
+function Modal({ open, onClose, children, maxWidth = "max-w-2xl" }: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  maxWidth?: string;
+}) {
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div
+        className={`relative z-10 w-full ${maxWidth} mx-4 bg-background rounded-lg border shadow-lg animate-in fade-in-0 zoom-in-95 duration-200`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Native select styling ───────────────────────────────────────────────────
+
+const nativeSelectClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -491,18 +521,17 @@ export function EventsPage() {
                 className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
-                <SelectItem value="upcoming">Próximo</SelectItem>
-                <SelectItem value="ongoing">Em Andamento</SelectItem>
-                <SelectItem value="completed">Concluído</SelectItem>
-                <SelectItem value="cancelled">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={`${nativeSelectClass} w-[180px]`}
+            >
+              <option value="all">Todos os Status</option>
+              <option value="upcoming">Próximo</option>
+              <option value="ongoing">Em Andamento</option>
+              <option value="completed">Concluído</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
           </div>
 
           {/* Loading */}
@@ -668,224 +697,217 @@ export function EventsPage() {
         </>
       )}
 
-      {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingEvent ? "Editar Evento" : "Novo Evento"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingEvent
-                ? "Atualize as informações do evento abaixo."
-                : "Preencha os dados para criar um novo evento."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="event-title">
-                Título <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="event-title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="Título do evento"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-description">Descrição</Label>
-              <Textarea
-                id="event-description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Descrição do evento"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-date">
-                Data e Hora <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="event-date"
-                type="datetime-local"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-location">Local</Label>
-              <Input
-                id="event-location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Local do evento"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(v) => setFormData({ ...formData, status: v })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="upcoming">Próximo</SelectItem>
-                  <SelectItem value="ongoing">Em Andamento</SelectItem>
-                  <SelectItem value="completed">Concluído</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      {/* Create/Edit Modal */}
+      <Modal open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="max-w-md">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold">
+            {editingEvent ? "Editar Evento" : "Novo Evento"}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {editingEvent
+              ? "Atualize as informações do evento abaixo."
+              : "Preencha os dados para criar um novo evento."}
+          </p>
+        </div>
+        <div className="space-y-4 px-6 pb-2">
+          <div className="space-y-2">
+            <Label htmlFor="event-title">
+              Título <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="event-title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="Título do evento"
+            />
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              disabled={formSubmitting}
+          <div className="space-y-2">
+            <Label htmlFor="event-description">Descrição</Label>
+            <Textarea
+              id="event-description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Descrição do evento"
+              rows={3}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="event-date">
+              Data e Hora <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="event-date"
+              type="datetime-local"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="event-location">Local</Label>
+            <Input
+              id="event-location"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              placeholder="Local do evento"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              className={nativeSelectClass}
             >
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleSubmitForm} disabled={formSubmitting}>
-              {formSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : editingEvent ? (
-                "Salvar Alterações"
-              ) : (
-                "Criar Evento"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Excluir Evento</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir o evento{" "}
-              <strong>{deletingEvent?.title}</strong>? Todos os participantes serão removidos. Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={deleteLoading}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleteLoading}
-              variant="destructive"
-            >
-              {deleteLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Excluindo...
-                </>
-              ) : (
-                "Excluir"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Students Dialog */}
-      <Dialog open={addStudentsOpen} onOpenChange={setAddStudentsOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Adicionar Alunos</DialogTitle>
-            <DialogDescription>
-              Selecione os alunos que deseja adicionar ao evento.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar aluno pelo nome..."
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <ScrollArea className="h-[300px] border rounded-lg">
-              {filteredAvailableStudents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <Users className="h-8 w-8 mb-2" />
-                  <p className="text-sm">Nenhum aluno disponível</p>
-                </div>
-              ) : (
-                <div className="p-2 space-y-1">
-                  {filteredAvailableStudents.map((student) => (
-                    <label
-                      key={student.id}
-                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedStudentIds.includes(student.id)}
-                        onChange={() => toggleStudentSelection(student.id)}
-                        className="rounded border-muted-foreground"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{student.full_name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {student.school?.name || "—"} • {student.grade || "—"}
-                          {student.class ? ` / Turma ${student.class}` : ""}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-            {selectedStudentIds.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                {selectedStudentIds.length} aluno(s) selecionado(s)
-              </p>
+              <option value="upcoming">Próximo</option>
+              <option value="ongoing">Em Andamento</option>
+              <option value="completed">Concluído</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 p-6 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setDialogOpen(false)}
+            disabled={formSubmitting}
+          >
+            Cancelar
+          </Button>
+          <Button type="button" onClick={handleSubmitForm} disabled={formSubmitting}>
+            {formSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : editingEvent ? (
+              "Salvar Alterações"
+            ) : (
+              "Criar Evento"
             )}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <div className="p-6">
+          <h2 className="text-lg font-semibold">Excluir Evento</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Tem certeza que deseja excluir o evento{" "}
+            <strong>{deletingEvent?.title}</strong>? Todos os participantes serão removidos. Esta ação não pode ser desfeita.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2 px-6 pb-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deleteLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleteLoading}
+            variant="destructive"
+          >
+            {deleteLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Excluindo...
+              </>
+            ) : (
+              "Excluir"
+            )}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Add Students Modal */}
+      <Modal open={addStudentsOpen} onClose={() => setAddStudentsOpen(false)} maxWidth="max-w-lg">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold">Adicionar Alunos</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Selecione os alunos que deseja adicionar ao evento.
+          </p>
+        </div>
+        <div className="space-y-4 px-6 pb-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar aluno pelo nome..."
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+              className="pl-9"
+            />
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setAddStudentsOpen(false)}
-              disabled={addStudentsLoading}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleAddStudents}
-              disabled={addStudentsLoading || selectedStudentIds.length === 0}
-            >
-              {addStudentsLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adicionando...
-                </>
-              ) : (
-                <>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Adicionar ({selectedStudentIds.length})
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <ScrollArea className="h-[300px] border rounded-lg">
+            {filteredAvailableStudents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                <Users className="h-8 w-8 mb-2" />
+                <p className="text-sm">Nenhum aluno disponível</p>
+              </div>
+            ) : (
+              <div className="p-2 space-y-1">
+                {filteredAvailableStudents.map((student) => (
+                  <label
+                    key={student.id}
+                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedStudentIds.includes(student.id)}
+                      onChange={() => toggleStudentSelection(student.id)}
+                      className="rounded border-muted-foreground"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{student.full_name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {student.school?.name || "—"} • {student.grade || "—"}
+                        {student.class ? ` / Turma ${student.class}` : ""}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+          {selectedStudentIds.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {selectedStudentIds.length} aluno(s) selecionado(s)
+            </p>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 p-6 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setAddStudentsOpen(false)}
+            disabled={addStudentsLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleAddStudents}
+            disabled={addStudentsLoading || selectedStudentIds.length === 0}
+          >
+            {addStudentsLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adicionando...
+              </>
+            ) : (
+              <>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Adicionar ({selectedStudentIds.length})
+              </>
+            )}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

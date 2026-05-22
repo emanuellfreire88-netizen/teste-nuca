@@ -291,13 +291,15 @@ export function ReportsPage() {
   };
 
   // ─── Export grouped ─────────────────────────────────────────────
-  const handleExport = async () => {
+  const handleExport = async (overrideType?: "students" | "attendance" | "schools", overrideFormat?: "excel" | "pdf") => {
+    const type = overrideType || exportType;
+    const format = overrideFormat || exportFormat;
     try {
       setExporting(true);
       const token = useAuthStore.getState().token;
       const params = new URLSearchParams();
-      params.set("format", exportFormat);
-      params.set("type", exportType);
+      params.set("format", format);
+      params.set("type", type);
       if (filterSchool) params.set("school_id", filterSchool);
       if (filterStatus) params.set("status", filterStatus);
       if (filterGrade) params.set("grade", filterGrade);
@@ -310,10 +312,10 @@ export function ReportsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `relatorio-${exportType}.${exportFormat === "excel" ? "xlsx" : "pdf"}`;
+      a.download = `relatorio-${type}.${format === "excel" ? "xlsx" : "pdf"}`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(`Relatório exportado em ${exportFormat === "excel" ? "Excel" : "PDF"}`);
+      toast.success(`Relatório exportado em ${format === "excel" ? "Excel" : "PDF"}`);
     } catch { toast.error("Erro ao exportar relatório"); }
     finally { setExporting(false); }
   };
@@ -477,11 +479,11 @@ export function ReportsPage() {
               <Button variant="outline" size="sm" onClick={handlePrint} disabled={loadingGrouped}>
                 <Printer className="h-4 w-4 mr-2" /> Imprimir
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { setExportType("students"); setExportFormat("pdf"); setTimeout(() => handleExport(), 100); }} disabled={exporting}>
+              <Button variant="outline" size="sm" onClick={() => handleExport("students", "pdf")} disabled={exporting}>
                 {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
                 Exportar PDF
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { setExportType("students"); setExportFormat("excel"); setTimeout(() => handleExport(), 100); }} disabled={exporting}>
+              <Button variant="outline" size="sm" onClick={() => handleExport("students", "excel")} disabled={exporting}>
                 {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
                 Exportar Excel
               </Button>
