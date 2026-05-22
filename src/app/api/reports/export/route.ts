@@ -15,7 +15,7 @@ export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
     await logAction(req.user!.userId, 'export_report', `Exportação de relatório (${type}, ${format})`, req);
 
     if (type === 'students') {
-      return await exportStudents(format);
+      return await exportStudentsGrouped(format, searchParams);
     } else if (type === 'attendance') {
       return await exportAttendanceReport(format);
     } else if (type === 'schools') {
@@ -32,74 +32,181 @@ export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
   }
 });
 
-async function exportStudents(format: string) {
+// ─── Students grouped by school ─────────────────────────────────────
+async function exportStudentsGrouped(format: string, searchParams: URLSearchParams) {
+  const status = searchParams.get('status') || '';
+  const school_id = searchParams.get('school_id') || '';
+  const grade = searchParams.get('grade') || '';
+  const classFilter = searchParams.get('class') || '';
+  const sortOrder = searchParams.get('sort') || 'asc';
+
+  const where: Record<string, unknown> = {};
+  if (status) where.status = status;
+  if (school_id) where.school_id = school_id;
+  if (grade) where.grade = grade;
+  if (classFilter) where.class = classFilter;
+
   const students = await db.student.findMany({
+    where,
     include: {
-      school: { select: { name: true } },
+      school: { select: { id: true, name: true } },
     },
-    orderBy: { full_name: 'asc' },
+    orderBy: [
+      { school: { name: 'asc' } },
+      { full_name: sortOrder === 'desc' ? 'desc' : 'asc' },
+    ],
     take: 10000,
   });
 
-  const data = students.map((s) => ({
-    Nome: s.full_name,
-    CPF: s.cpf || '-',
-    RG: s.rg || '-',
-    'Data Nascimento': s.date_of_birth ? new Date(s.date_of_birth).toLocaleDateString('pt-BR') : '-',
-    Escola: s.school.name,
-    Série: s.grade || '-',
-    Turma: s.class || '-',
-    Status: s.status === 'active' ? 'Ativo' : 'Inativo',
-    Telefone: s.phone || '-',
-    Responsável: s.guardian_name || '-',
-    'Tel. Responsável': s.guardian_phone || '-',
-  }));
+  // Group by school
+  const schoolMap = new Map<string, typeof students>();
+  for (const s of students) {
+    const name = s.school.name;
+    if (!schoolMap.has(name)) schoolMap.set(name, []);
+    schoolMap.get(name)!.push(s);
+  }
+  const sortedSchools = Array.from(schoolMap.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0], 'pt-BR')
+  );
 
   if (format === 'pdf') {
     const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(16);
-    doc.text('Relatório de Alunos', 14, 20);
+    doc.setFontSize(18);
+    doc.text('Relatório de Alunos por Escola', 14, 20);
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
 
-    autoTable(doc, {
-      startY: 35,
-      head: [['Nome', 'CPF', 'Escola', 'Série', 'Turma', 'Status', 'Responsável']],
-      body: students.map((s) => [
+    let y = 35;
+
+    for (const [schoolName, schoolStudents] of sortedSchools) {
+      // Check if we need a new page
+      if (y > 170) {
+        doc.addPage();
+        y = 20;
+      }
+
+      // School header
+      doc.setFontSize(13);
+      doc.setTextColor(34, 139, 34);
+      doc.text(`📚 ${schoolName}`, 14, y);
+      y += 2;
+
+      const tableBody = schoolStudents.map((s, i) => [
+        i + 1,
         s.full_name,
         s.cpf || '-',
-        s.school.name,
         s.grade || '-',
         s.class || '-',
         s.status === 'active' ? 'Ativo' : 'Inativo',
         s.guardian_name || '-',
-      ]),
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [34, 139, 34] },
-    });
+        s.phone || '-',
+      ]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['#', 'Nome', 'CPF', 'Série', 'Turma', 'Status', 'Responsável', 'Telefone']],
+        body: tableBody,
+        styles: { fontSize: 7 },
+        headStyles: { fillColor: [34, 139, 34] },
+        margin: { left: 14 },
+      });
+
+      // Get the Y position after the table
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
+
+      // Subtotal
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Total: ${schoolStudents.length} aluno(s)`, 14, y);
+      y += 10;
+    }
+
+    // Grand total
+    if (y > 180) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(12);
+    doc.setTextColor(34, 139, 34);
+    doc.text(`📊 Total Geral: ${students.length} aluno(s)`, 14, y);
+
+    // Footer on each page
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `Gerado em: ${new Date().toLocaleDateString('pt-BR')} | Página ${i} de ${pageCount}`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 8,
+        { align: 'center' }
+      );
+    }
 
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename=alunos.pdf',
+        'Content-Disposition': 'attachment; filename=alunos-por-escola.pdf',
       },
     });
   }
 
+  // Excel: each school on a separate sheet
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(data);
-  XLSX.utils.book_append_sheet(wb, ws, 'Alunos');
+
+  for (const [schoolName, schoolStudents] of sortedSchools) {
+    const data = schoolStudents.map((s, i) => ({
+      '#': i + 1,
+      Nome: s.full_name,
+      CPF: s.cpf || '-',
+      RG: s.rg || '-',
+      'Data Nascimento': s.date_of_birth ? new Date(s.date_of_birth).toLocaleDateString('pt-BR') : '-',
+      Série: s.grade || '-',
+      Turma: s.class || '-',
+      Status: s.status === 'active' ? 'Ativo' : 'Inativo',
+      Telefone: s.phone || '-',
+      Responsável: s.guardian_name || '-',
+      'Tel. Responsável': s.guardian_phone || '-',
+    }));
+
+    // Add subtotal row
+    data.push({
+      '#': 0,
+      Nome: `TOTAL: ${schoolStudents.length} aluno(s)`,
+      CPF: '', RG: '', 'Data Nascimento': '', Série: '', Turma: '', Status: '', Telefone: '', Responsável: '', 'Tel. Responsável': '',
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    // Sheet name max 31 chars, no special chars
+    const sheetName = schoolName.replace(/[\\/*?[\]:]/g, '').substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  }
+
+  // Add summary sheet
+  const summaryData = sortedSchools.map(([schoolName, schoolStudents]) => ({
+    Escola: schoolName,
+    'Total de Alunos': schoolStudents.length,
+  }));
+  summaryData.push({
+    Escola: 'TOTAL GERAL',
+    'Total de Alunos': students.length,
+  });
+  const summaryWs = XLSX.utils.json_to_sheet(summaryData);
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Resumo');
+
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename=alunos.xlsx',
+      'Content-Disposition': 'attachment; filename=alunos-por-escola.xlsx',
     },
   });
 }
 
+// ─── Attendance report ──────────────────────────────────────────────
 async function exportAttendanceReport(format: string) {
   const records = await db.attendanceRecord.findMany({
     include: {
@@ -169,6 +276,7 @@ async function exportAttendanceReport(format: string) {
   });
 }
 
+// ─── Schools report ──────────────────────────────────────────────────
 async function exportSchools(format: string) {
   const schools = await db.school.findMany({
     include: {
