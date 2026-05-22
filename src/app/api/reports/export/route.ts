@@ -6,6 +6,12 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// Green brand color
+const BRAND_GREEN = [22, 163, 74] as [number, number, number]; // emerald-600
+const BRAND_GREEN_LIGHT = [34, 197, 94] as [number, number, number]; // emerald-500
+const DARK_TEXT = [30, 30, 30] as [number, number, number];
+const GRAY_TEXT = [120, 120, 120] as [number, number, number];
+
 export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(req.url);
@@ -49,7 +55,7 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
   const students = await db.student.findMany({
     where,
     include: {
-      school: { select: { id: true, name: true } },
+      school: { select: { id: true, name: true, address: true, phone: true, director_name: true } },
     },
     orderBy: [
       { school: { name: 'asc' } },
@@ -59,40 +65,84 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
   });
 
   // Group by school
-  const schoolMap = new Map<string, typeof students>();
+  const schoolMap = new Map<string, { name: string; address: string | null; phone: string | null; director: string | null; students: typeof students }>();
   for (const s of students) {
-    const name = s.school.name;
-    if (!schoolMap.has(name)) schoolMap.set(name, []);
-    schoolMap.get(name)!.push(s);
+    const sid = s.school.id;
+    if (!schoolMap.has(sid)) {
+      schoolMap.set(sid, {
+        name: s.school.name,
+        address: s.school.address,
+        phone: s.school.phone,
+        director: s.school.director_name,
+        students: [],
+      });
+    }
+    schoolMap.get(sid)!.students.push(s);
   }
-  const sortedSchools = Array.from(schoolMap.entries()).sort((a, b) =>
-    a[0].localeCompare(b[0], 'pt-BR')
+  const sortedSchools = Array.from(schoolMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, 'pt-BR')
   );
 
   if (format === 'pdf') {
     const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(18);
-    doc.text('Relatório de Alunos por Escola', 14, 20);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    let y = 0;
+
+    // ── Cover / Title ──
+    y = 20;
+    doc.setFillColor(...BRAND_GREEN);
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.text('Relatorio de Alunos por Escola', margin, 22);
+    doc.setFontSize(11);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} as ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, margin, 34);
     doc.setFontSize(10);
-    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+    doc.text(`Total: ${students.length} aluno(s) em ${sortedSchools.length} escola(s)`, margin, 41);
 
-    let y = 35;
+    y = 55;
+    doc.setTextColor(...DARK_TEXT);
 
-    for (const [schoolName, schoolStudents] of sortedSchools) {
-      // Check if we need a new page
-      if (y > 170) {
+    // ── School sections ──
+    for (let si = 0; si < sortedSchools.length; si++) {
+      const school = sortedSchools[si];
+      const schoolStudents = school.students;
+
+      // Check if enough space for header + at least 3 rows
+      const estimatedTableHeight = 20 + Math.min(schoolStudents.length, 3) * 7;
+      if (y + estimatedTableHeight > pageHeight - 25) {
         doc.addPage();
         y = 20;
       }
 
-      // School header
-      doc.setFontSize(13);
-      doc.setTextColor(34, 139, 34);
-      doc.text(`📚 ${schoolName}`, 14, y);
-      y += 2;
+      // School header bar
+      doc.setFillColor(236, 253, 245); // emerald-50
+      doc.rect(margin, y - 5, pageWidth - margin * 2, 12, 'F');
+      doc.setDrawColor(...BRAND_GREEN_LIGHT);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y - 5, margin, y + 7); // left accent bar
 
+      doc.setFontSize(13);
+      doc.setTextColor(...BRAND_GREEN);
+      doc.text(school.name, margin + 4, y + 3);
+
+      // School info on the right
+      doc.setFontSize(8);
+      doc.setTextColor(...GRAY_TEXT);
+      const infoParts: string[] = [];
+      if (school.director) infoParts.push(`Diretor(a): ${school.director}`);
+      if (school.phone) infoParts.push(`Tel: ${school.phone}`);
+      if (infoParts.length > 0) {
+        doc.text(infoParts.join('  |  '), pageWidth - margin - 2, y + 3, { align: 'right' });
+      }
+
+      y += 12;
+
+      // Student table
       const tableBody = schoolStudents.map((s, i) => [
-        i + 1,
+        String(i + 1),
         s.full_name,
         s.cpf || '-',
         s.grade || '-',
@@ -104,42 +154,77 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
 
       autoTable(doc, {
         startY: y,
-        head: [['#', 'Nome', 'CPF', 'Série', 'Turma', 'Status', 'Responsável', 'Telefone']],
+        head: [['#', 'Nome', 'CPF', 'Serie', 'Turma', 'Status', 'Responsavel', 'Telefone']],
         body: tableBody,
-        styles: { fontSize: 7 },
-        headStyles: { fillColor: [34, 139, 34] },
-        margin: { left: 14 },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          lineColor: [220, 220, 220] as [number, number, number],
+          lineWidth: 0.2,
+        },
+        headStyles: {
+          fillColor: BRAND_GREEN,
+          textColor: [255, 255, 255] as [number, number, number],
+          fontStyle: 'bold',
+          fontSize: 7.5,
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251] as [number, number, number],
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 'auto' },
+          5: { halign: 'center' },
+        },
+        margin: { left: margin, right: margin },
+        tableWidth: pageWidth - margin * 2,
       });
 
-      // Get the Y position after the table
-      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
+      // Get Y after table
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 3;
 
       // Subtotal
+      doc.setFillColor(236, 253, 245);
+      const subtotalWidth = pageWidth - margin * 2;
+      doc.rect(margin, y - 1, subtotalWidth, 8, 'F');
       doc.setFontSize(9);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Total: ${schoolStudents.length} aluno(s)`, 14, y);
-      y += 10;
+      doc.setTextColor(...BRAND_GREEN);
+      doc.text(`Subtotal: ${schoolStudents.length} aluno(s)`, margin + 4, y + 4.5);
+
+      y += 14;
+
+      // Separator between schools (not after last)
+      if (si < sortedSchools.length - 1) {
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        doc.line(margin, y - 4, pageWidth - margin, y - 4);
+        y += 2;
+      }
     }
 
-    // Grand total
-    if (y > 180) {
+    // ── Grand Total ──
+    if (y + 20 > pageHeight - 15) {
       doc.addPage();
       y = 20;
     }
-    doc.setFontSize(12);
-    doc.setTextColor(34, 139, 34);
-    doc.text(`📊 Total Geral: ${students.length} aluno(s)`, 14, y);
 
-    // Footer on each page
+    y += 4;
+    doc.setFillColor(...BRAND_GREEN);
+    doc.rect(margin, y - 2, pageWidth - margin * 2, 14, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.text(`TOTAL GERAL: ${students.length} aluno(s) em ${sortedSchools.length} escola(s)`, margin + 4, y + 7);
+
+    // ── Footer on each page ──
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(128, 128, 128);
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY_TEXT);
       doc.text(
-        `Gerado em: ${new Date().toLocaleDateString('pt-BR')} | Página ${i} de ${pageCount}`,
-        doc.internal.pageSize.getWidth() / 2,
-        doc.internal.pageSize.getHeight() - 8,
+        `NUCA Plataforma  |  Pagina ${i} de ${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 6,
         { align: 'center' }
       );
     }
@@ -153,44 +238,44 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
     });
   }
 
-  // Excel: each school on a separate sheet
+  // ── Excel: each school on a separate sheet ──
   const wb = XLSX.utils.book_new();
 
-  for (const [schoolName, schoolStudents] of sortedSchools) {
-    const data = schoolStudents.map((s, i) => ({
+  for (const school of sortedSchools) {
+    const data = school.students.map((s, i) => ({
       '#': i + 1,
-      Nome: s.full_name,
-      CPF: s.cpf || '-',
-      RG: s.rg || '-',
+      'Nome': s.full_name,
+      'CPF': s.cpf || '-',
+      'RG': s.rg || '-',
       'Data Nascimento': s.date_of_birth ? new Date(s.date_of_birth).toLocaleDateString('pt-BR') : '-',
-      Série: s.grade || '-',
-      Turma: s.class || '-',
-      Status: s.status === 'active' ? 'Ativo' : 'Inativo',
-      Telefone: s.phone || '-',
-      Responsável: s.guardian_name || '-',
-      'Tel. Responsável': s.guardian_phone || '-',
+      'Serie': s.grade || '-',
+      'Turma': s.class || '-',
+      'Status': s.status === 'active' ? 'Ativo' : 'Inativo',
+      'Telefone': s.phone || '-',
+      'Responsavel': s.guardian_name || '-',
+      'Tel. Responsavel': s.guardian_phone || '-',
     }));
 
     // Add subtotal row
     data.push({
       '#': 0,
-      Nome: `TOTAL: ${schoolStudents.length} aluno(s)`,
-      CPF: '', RG: '', 'Data Nascimento': '', Série: '', Turma: '', Status: '', Telefone: '', Responsável: '', 'Tel. Responsável': '',
+      'Nome': `TOTAL: ${school.students.length} aluno(s)`,
+      'CPF': '', 'RG': '', 'Data Nascimento': '', 'Serie': '', 'Turma': '', 'Status': '', 'Telefone': '', 'Responsavel': '', 'Tel. Responsavel': '',
     });
 
     const ws = XLSX.utils.json_to_sheet(data);
     // Sheet name max 31 chars, no special chars
-    const sheetName = schoolName.replace(/[\\/*?[\]:]/g, '').substring(0, 31);
+    const sheetName = school.name.replace(/[\\/*?[\]:]/g, '').substring(0, 31);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   }
 
   // Add summary sheet
-  const summaryData = sortedSchools.map(([schoolName, schoolStudents]) => ({
-    Escola: schoolName,
-    'Total de Alunos': schoolStudents.length,
+  const summaryData = sortedSchools.map((school) => ({
+    'Escola': school.name,
+    'Total de Alunos': school.students.length,
   }));
   summaryData.push({
-    Escola: 'TOTAL GERAL',
+    'Escola': 'TOTAL GERAL',
     'Total de Alunos': students.length,
   });
   const summaryWs = XLSX.utils.json_to_sheet(summaryData);
@@ -226,22 +311,29 @@ async function exportAttendanceReport(format: string) {
   const data = records.map((r) => ({
     Aluno: r.student.full_name,
     Escola: r.student.school.name,
-    Série: r.student.grade || '-',
+    Serie: r.student.grade || '-',
     Turma: r.student.class || '-',
     Data: new Date(r.date).toLocaleDateString('pt-BR'),
     Status: r.status === 'present' ? 'Presente' : 'Ausente',
   }));
 
   if (format === 'pdf') {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('Relatório de Frequência', 14, 20);
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Header bar
+    doc.setFillColor(...BRAND_GREEN);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.text('Relatorio de Frequencia', 14, 18);
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
 
     autoTable(doc, {
-      startY: 35,
-      head: [['Aluno', 'Escola', 'Série', 'Turma', 'Data', 'Status']],
+      startY: 42,
+      head: [['Aluno', 'Escola', 'Serie', 'Turma', 'Data', 'Status']],
       body: records.map((r) => [
         r.student.full_name,
         r.student.school.name,
@@ -250,9 +342,25 @@ async function exportAttendanceReport(format: string) {
         new Date(r.date).toLocaleDateString('pt-BR'),
         r.status === 'present' ? 'Presente' : 'Ausente',
       ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [34, 139, 34] },
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: BRAND_GREEN, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [249, 250, 251] as [number, number, number] },
+      margin: { left: 14, right: 14 },
     });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY_TEXT);
+      doc.text(
+        `NUCA Plataforma  |  Pagina ${i} de ${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 6,
+        { align: 'center' }
+      );
+    }
 
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
     return new NextResponse(pdfBuffer, {
@@ -265,7 +373,7 @@ async function exportAttendanceReport(format: string) {
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(data);
-  XLSX.utils.book_append_sheet(wb, ws, 'Frequência');
+  XLSX.utils.book_append_sheet(wb, ws, 'Frequencia');
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
   return new NextResponse(buffer, {
@@ -288,7 +396,7 @@ async function exportSchools(format: string) {
 
   const data = schools.map((s) => ({
     Nome: s.name,
-    Endereço: s.address || '-',
+    Endereco: s.address || '-',
     Telefone: s.phone || '-',
     Email: s.email || '-',
     Diretor: s.director_name || '-',
@@ -296,25 +404,49 @@ async function exportSchools(format: string) {
   }));
 
   if (format === 'pdf') {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('Relatório de Escolas', 14, 20);
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Header bar
+    doc.setFillColor(...BRAND_GREEN);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.text('Relatorio de Escolas', 14, 18);
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
 
     autoTable(doc, {
-      startY: 35,
-      head: [['Nome', 'Endereço', 'Telefone', 'Diretor', 'Total Alunos']],
+      startY: 42,
+      head: [['Nome', 'Endereco', 'Telefone', 'Email', 'Diretor', 'Total Alunos']],
       body: schools.map((s) => [
         s.name,
         s.address || '-',
         s.phone || '-',
+        s.email || '-',
         s.director_name || '-',
         s._count.students,
       ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [34, 139, 34] },
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: BRAND_GREEN, textColor: [255, 255, 255] as [number, number, number], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [249, 250, 251] as [number, number, number] },
+      margin: { left: 14, right: 14 },
     });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY_TEXT);
+      doc.text(
+        `NUCA Plataforma  |  Pagina ${i} de ${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 6,
+        { align: 'center' }
+      );
+    }
 
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
     return new NextResponse(pdfBuffer, {
