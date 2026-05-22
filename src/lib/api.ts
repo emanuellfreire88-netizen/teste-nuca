@@ -15,14 +15,14 @@ class ApiError extends Error {
   }
 }
 
-function getAuthHeaders(method: string): HeadersInit {
+function getAuthHeaders(hasBody: boolean): HeadersInit {
   const token = useAuthStore.getState().token;
   const headers: HeadersInit = {};
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  // Only set Content-Type for methods that send a body
-  if (method === "POST" || method === "PUT" || method === "PATCH") {
+  // Only set Content-Type when a JSON body is being sent
+  if (hasBody) {
     headers["Content-Type"] = "application/json";
   }
   return headers;
@@ -45,12 +45,13 @@ async function request<T>(
   body?: unknown
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
+  const hasBody = body !== undefined;
   const options: RequestInit = {
     method,
-    headers: getAuthHeaders(method),
+    headers: getAuthHeaders(hasBody),
   };
 
-  if (body !== undefined) {
+  if (hasBody) {
     options.body = JSON.stringify(body);
   }
 

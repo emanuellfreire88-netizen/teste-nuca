@@ -136,13 +136,17 @@ export async function DELETE(
       // Use transaction for cascade delete to ensure data consistency
       await db.$transaction(async (tx) => {
         if (existingSchool._count.students > 0) {
-          // Cascade: delete attendance records for all students, then students, then school
+          // Cascade: delete event participations, attendance records, then students, then school
           const studentIds = (await tx.student.findMany({
             where: { school_id: id },
             select: { id: true },
           })).map(s => s.id);
 
           if (studentIds.length > 0) {
+            // Delete event participations for these students first
+            await tx.eventParticipant.deleteMany({
+              where: { student_id: { in: studentIds } },
+            });
             await tx.attendanceRecord.deleteMany({
               where: { student_id: { in: studentIds } },
             });

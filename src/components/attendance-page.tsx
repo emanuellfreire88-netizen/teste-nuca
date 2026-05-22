@@ -300,15 +300,21 @@ function AttendanceMarkingView() {
       await api.post("/attendance", { records });
       toast.success("Frequência salva com sucesso!");
 
-      // Refresh existing attendance data
+      // Refresh existing attendance data — use a high limit to avoid pagination truncation
       const attendanceData = await api.get<AttendanceApiResponse>(
-        `/attendance?school_id=${selectedSchoolId}&date=${dateStr}`
+        `/attendance?school_id=${selectedSchoolId}&date=${dateStr}&limit=200`
       );
       const existing: Record<string, "present" | "absent"> = {};
       const existingIds: Record<string, string> = {};
       for (const rec of attendanceData.records || []) {
         existing[rec.student_id] = rec.status;
         existingIds[rec.student_id] = rec.id;
+      }
+      // Auto-fill students without records as "present" (same logic as initial load)
+      for (const s of students) {
+        if (!existing[s.id]) {
+          existing[s.id] = "present";
+        }
       }
       setAttendanceMap(existing);
       setExistingAttendance(existingIds);

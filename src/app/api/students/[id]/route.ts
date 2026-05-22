@@ -136,7 +136,9 @@ export async function DELETE(
 
       // Use transaction for cascade delete to ensure data consistency
       await db.$transaction(async (tx) => {
-        // Delete attendance records first (cascade manually since Prisma doesn't auto-cascade)
+        // Delete event participations first
+        await tx.eventParticipant.deleteMany({ where: { student_id: id } });
+        // Delete attendance records (cascade manually since Prisma doesn't auto-cascade)
         await tx.attendanceRecord.deleteMany({ where: { student_id: id } });
         await tx.student.delete({ where: { id } });
       });

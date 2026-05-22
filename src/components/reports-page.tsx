@@ -676,7 +676,7 @@ export function ReportsPage() {
                     <option value="pdf">PDF (.pdf)</option>
                   </select>
                 </div>
-                <Button className="w-full" onClick={handleExport} disabled={exporting}>
+                <Button className="w-full" onClick={() => handleExport()} disabled={exporting}>
                   {exporting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Exportando...</> : <><Download className="mr-2 h-4 w-4" />Exportar</>}
                 </Button>
               </CardContent>

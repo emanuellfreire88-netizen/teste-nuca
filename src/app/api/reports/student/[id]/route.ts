@@ -3,10 +3,11 @@ import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 
-export const GET = withRole(['Admin', 'Operator'], async (
+export async function GET(
   req: AuthenticatedRequest,
   context: { params: Promise<{ id: string }> }
-) => {
+) {
+  return withRole(['Admin', 'Operator'], async (_req: AuthenticatedRequest) => {
   try {
     const { id } = await context.params;
 
@@ -103,10 +104,10 @@ export const GET = withRole(['Admin', 'Operator'], async (
     };
 
     await logAction(
-      req.user!.userId,
+      _req.user!.userId,
       'export_report',
       `Relatório individual do aluno: ${student.full_name}`,
-      req
+      _req
     );
 
     return NextResponse.json({
@@ -127,4 +128,5 @@ export const GET = withRole(['Admin', 'Operator'], async (
       { status: 500 }
     );
   }
-});
+  })(req, context);
+}

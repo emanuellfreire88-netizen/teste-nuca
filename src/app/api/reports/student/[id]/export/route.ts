@@ -9,10 +9,11 @@ const BRAND_GREEN = [22, 163, 74] as [number, number, number];
 const DARK_TEXT = [30, 30, 30] as [number, number, number];
 const GRAY_TEXT = [120, 120, 120] as [number, number, number];
 
-export const GET = withRole(['Admin', 'Operator'], async (
+export async function GET(
   req: AuthenticatedRequest,
   context: { params: Promise<{ id: string }> }
-) => {
+) {
+  return withRole(['Admin', 'Operator'], async (_req: AuthenticatedRequest) => {
   try {
     const { id } = await context.params;
     const { searchParams } = new URL(req.url);
@@ -69,10 +70,10 @@ export const GET = withRole(['Admin', 'Operator'], async (
     };
 
     await logAction(
-      req.user!.userId,
+      _req.user!.userId,
       'export_report',
       `Exportacao PDF do relatorio individual: ${student.full_name}`,
-      req
+      _req
     );
 
     if (format === 'pdf') {
@@ -95,7 +96,6 @@ export const GET = withRole(['Admin', 'Operator'], async (
       doc.setTextColor(...DARK_TEXT);
 
       // ── Student Info Section ──
-      // Student name
       doc.setFontSize(16);
       doc.text(student.full_name, margin, y);
       y += 8;
@@ -204,4 +204,5 @@ export const GET = withRole(['Admin', 'Operator'], async (
       { status: 500 }
     );
   }
-});
+  })(req, context);
+}

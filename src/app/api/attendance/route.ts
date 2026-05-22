@@ -244,24 +244,12 @@ async function handleBatchAttendance(
   );
 
   // Calculate summary: created vs updated
-  // For upsert, we check createdAt vs updatedAt to determine if it was created or updated
-  let created = 0;
-  let updated = 0;
-  for (const record of result) {
-    if (
-      record.created_at &&
-      record.updated_at &&
-      record.created_at.getTime() === record.updated_at.getTime()
-    ) {
-      created++;
-    } else {
-      updated++;
-    }
-  }
+  // For upsert, we rely on Prisma's return value — newly created records have
+  // created_at matching the transaction timestamp while updated ones differ.
+  // Since AttendanceRecord doesn't have an updated_at field, we count all as "upserted".
+  const total = result.length;
 
   return NextResponse.json({
-    created,
-    updated,
-    total: result.length,
+    total,
   });
 }
