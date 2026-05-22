@@ -40,12 +40,14 @@ export async function POST(
 
       const existingIds = new Set(existingParticipants.map((p) => p.student_id));
       const newStudentIds = student_ids.filter((sid: string) => !existingIds.has(sid));
+      const addedBy = _req.user!.userId;
 
       if (newStudentIds.length > 0) {
         await db.eventParticipant.createMany({
           data: newStudentIds.map((student_id: string) => ({
             event_id: id,
             student_id,
+            added_by: addedBy,
           })),
         });
       }

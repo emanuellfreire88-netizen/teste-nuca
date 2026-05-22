@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 
+const VALID_CATEGORIES = ['sports', 'cultural', 'party', 'academic', 'other'];
+
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(req.url);
@@ -12,6 +14,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
     const student_id = searchParams.get('student_id') || '';
+    const school_id = searchParams.get('school_id') || '';
+    const category = searchParams.get('category') || '';
+    const date_from = searchParams.get('date_from') || '';
+    const date_to = searchParams.get('date_to') || '';
 
     const skip = (page - 1) * limit;
 
@@ -31,12 +37,30 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       };
     }
 
+    if (school_id) {
+      where.school_id = school_id;
+    }
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (date_from || date_to) {
+      const dateFilter: Record<string, unknown> = {};
+      if (date_from) dateFilter.gte = new Date(date_from);
+      if (date_to) dateFilter.lte = new Date(date_to);
+      where.date = dateFilter;
+    }
+
     const [events, total] = await Promise.all([
       db.event.findMany({
         where,
         include: {
           creator: {
             select: { id: true, full_name: true },
+          },
+          school: {
+            select: { id: true, name: true },
           },
           _count: {
             select: { participants: true },
@@ -85,7 +109,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
-    const { title, description, date, location, status } = body;
+    const { title, description, date, location, status, photo_url, school_id, category } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -117,6 +141,24 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       );
     }
 
+    const eventCategory = category || 'other';
+    if (!VALID_CATEGORIES.includes(eventCategory)) {
+      return NextResponse.json(
+        { error: 'Categoria inválida. Valores permitidos: sports, cultural, party, academic, other' },
+        { status: 400 }
+      );
+    }
+
+    if (school_id) {
+      const school = await db.school.findUnique({ where: { id: school_id } });
+      if (!school) {
+        return NextResponse.json(
+          { error: 'Escola não encontrada' },
+          { status: 400 }
+        );
+      }
+    }
+
     const event = await db.event.create({
       data: {
         title,
@@ -125,10 +167,16 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
         location: location || null,
         status: eventStatus,
         created_by: req.user!.userId,
+        photo_url: photo_url || null,
+        school_id: school_id || null,
+        category: eventCategory,
       },
       include: {
         creator: {
           select: { id: true, full_name: true },
+        },
+        school: {
+          select: { id: true, name: true },
         },
       },
     });

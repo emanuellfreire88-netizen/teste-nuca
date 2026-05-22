@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 
+const VALID_CATEGORIES = ['sports', 'cultural', 'party', 'academic', 'other'];
+
 export async function GET(
   req: AuthenticatedRequest,
   context: { params: Promise<{ id: string }> }
@@ -15,6 +17,9 @@ export async function GET(
         include: {
           creator: {
             select: { id: true, full_name: true },
+          },
+          school: {
+            select: { id: true, name: true },
           },
           participants: {
             include: {
@@ -86,12 +91,30 @@ export async function PUT(
         );
       }
 
+      if (body.category !== undefined && !VALID_CATEGORIES.includes(body.category)) {
+        return NextResponse.json(
+          { error: 'Categoria inválida. Valores permitidos: sports, cultural, party, academic, other' },
+          { status: 400 }
+        );
+      }
+
+      if (body.school_id !== undefined && body.school_id !== null) {
+        const school = await db.school.findUnique({ where: { id: body.school_id } });
+        if (!school) {
+          return NextResponse.json(
+            { error: 'Escola não encontrada' },
+            { status: 400 }
+          );
+        }
+      }
+
       const updateData: Record<string, unknown> = {};
-      const fields = ['title', 'description', 'location', 'status'];
+      const fields = ['title', 'description', 'location', 'status', 'photo_url', 'category'];
       for (const field of fields) {
         if (body[field] !== undefined) updateData[field] = body[field];
       }
       if (body.date !== undefined) updateData.date = new Date(body.date);
+      if (body.school_id !== undefined) updateData.school_id = body.school_id || null;
 
       const event = await db.event.update({
         where: { id },
@@ -99,6 +122,9 @@ export async function PUT(
         include: {
           creator: {
             select: { id: true, full_name: true },
+          },
+          school: {
+            select: { id: true, name: true },
           },
         },
       });

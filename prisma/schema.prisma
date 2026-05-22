@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -27,6 +26,7 @@ model User {
   attendance_records AttendanceRecord[]
   action_logs     ActionLog[]
   events          Event[]
+  added_participants EventParticipant[]
 
   @@map("users")
 }
@@ -46,6 +46,7 @@ model School {
   updated_at    DateTime @updatedAt
 
   students      Student[]
+  events        Event[]
 
   @@map("schools")
 }
@@ -76,8 +77,21 @@ model Student {
   school          School   @relation(fields: [school_id], references: [id])
   attendance_records AttendanceRecord[]
   event_participations EventParticipant[]
+  badges          ParticipationBadge[]
 
   @@map("students")
+}
+
+model ParticipationBadge {
+  id          String   @id @default(uuid())
+  student_id  String
+  badge_type  String   // e.g., "5_events", "10_events", "20_events", "monthly_winner"
+  earned_at   DateTime @default(now())
+
+  student     Student  @relation(fields: [student_id], references: [id])
+
+  @@unique([student_id, badge_type])
+  @@map("participation_badges")
 }
 
 model AttendanceRecord {
@@ -122,15 +136,19 @@ model Session {
 model Event {
   id          String   @id @default(uuid())
   title       String
-  description String?  @db.Text
+  description String?
   date        DateTime
   location    String?
   status      String   @default("upcoming") // upcoming, ongoing, completed, cancelled
   created_by  String
+  photo_url   String?
+  school_id   String?
+  category    String   @default("other") // sports, cultural, party, academic, other
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
   creator     User     @relation(fields: [created_by], references: [id])
+  school      School?  @relation(fields: [school_id], references: [id])
   participants EventParticipant[]
 
   @@map("events")
@@ -142,10 +160,13 @@ model EventParticipant {
   student_id  String
   attended    Boolean  @default(false)
   notes       String?
+  added_by    String?
+  added_at    DateTime @default(now())
   created_at  DateTime @default(now())
 
-  event       Event    @relation(fields: [event_id], references: [id])
+  event       Event    @relation(fields: [event_id], references: [id], onDelete: Cascade)
   student     Student  @relation(fields: [student_id], references: [id])
+  adder       User?    @relation(fields: [added_by], references: [id])
 
   @@unique([event_id, student_id])
   @@map("event_participants")
