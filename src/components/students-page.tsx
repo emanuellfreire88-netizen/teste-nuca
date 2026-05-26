@@ -845,7 +845,7 @@ function StudentProfile({
                   <Badge variant="outline">Turma {student.class}</Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-foreground/70 dark:text-foreground/80 mt-1">
                 <GraduationCap className="h-4 w-4 inline mr-1" />
                 {student.school?.name || "Escola não informada"}
               </p>
@@ -1449,13 +1449,13 @@ function StudentsList({
                       <TableCell className="font-medium">
                         {student.full_name}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-foreground/70 dark:text-foreground/80">
                         {student.cpf || "—"}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-foreground/70 dark:text-foreground/80">
                         {student.school?.name || "—"}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-foreground/70 dark:text-foreground/80">
                         {student.grade || "—"}
                         {student.class ? ` / Turma ${student.class}` : ""}
                       </TableCell>
@@ -1556,7 +1556,7 @@ function StudentsList({
                     <p className="font-medium truncate">
                       {student.full_name}
                     </p>
-                    <p className="text-sm text-muted-foreground truncate">
+                    <p className="text-sm text-foreground/70 dark:text-foreground/80 truncate">
                       {student.school?.name || "—"} •{" "}
                       {student.grade || "—"}
                       {student.class

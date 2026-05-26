@@ -327,11 +327,11 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryBadgeClass: Record<string, string> = {
-  sports: "bg-orange-100 text-orange-800 border-orange-200",
-  cultural: "bg-purple-100 text-purple-800 border-purple-200",
-  party: "bg-pink-100 text-pink-800 border-pink-200",
-  academic: "bg-blue-100 text-blue-800 border-blue-200",
-  other: "bg-gray-100 text-gray-800 border-gray-200",
+  sports: "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200 dark:border-orange-800",
+  cultural: "bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+  party: "bg-pink-100 text-pink-800 dark:bg-pink-950/50 dark:text-pink-300 border-pink-200 dark:border-pink-800",
+  academic: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+  other: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700",
 };
 
 const badgeTypeLabels: Record<string, string> = {
@@ -342,17 +342,17 @@ const badgeTypeLabels: Record<string, string> = {
 };
 
 const badgeTypeColors: Record<string, string> = {
-  "5_events": "bg-amber-100 text-amber-800 border-amber-300",
-  "10_events": "bg-slate-100 text-slate-700 border-slate-300",
-  "20_events": "bg-yellow-100 text-yellow-800 border-yellow-400",
-  monthly_winner: "bg-emerald-100 text-emerald-800 border-emerald-300",
+  "5_events": "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-300 dark:border-amber-800",
+  "10_events": "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700",
+  "20_events": "bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300 border-yellow-400 dark:border-yellow-800",
+  monthly_winner: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800",
 };
 
 const badgeTypeIcons: Record<string, React.ReactNode> = {
-  "5_events": <Medal className="h-5 w-5 text-amber-600" />,
-  "10_events": <Medal className="h-5 w-5 text-slate-500" />,
-  "20_events": <Trophy className="h-5 w-5 text-yellow-500" />,
-  monthly_winner: <Award className="h-5 w-5 text-emerald-600" />,
+  "5_events": <Medal className="h-5 w-5 text-amber-600 dark:text-amber-400" />,
+  "10_events": <Medal className="h-5 w-5 text-slate-500 dark:text-slate-400" />,
+  "20_events": <Trophy className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />,
+  monthly_winner: <Award className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />,
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -1146,12 +1146,12 @@ export function EventsPage() {
                       )}
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="flex items-center gap-2 text-foreground/70 dark:text-foreground/80">
                         <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                         <span>{formatDateTime(event.date)}</span>
                       </div>
                       {event.location && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="flex items-center gap-2 text-foreground/70 dark:text-foreground/80">
                           <MapPin className="h-3.5 w-3.5 shrink-0" />
                           <span className="line-clamp-1">
                             {event.location}
@@ -1159,14 +1159,14 @@ export function EventsPage() {
                         </div>
                       )}
                       {event.school && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="flex items-center gap-2 text-foreground/70 dark:text-foreground/80">
                           <School className="h-3.5 w-3.5 shrink-0" />
                           <span className="line-clamp-1">
                             {event.school.name}
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="flex items-center gap-2 text-foreground/70 dark:text-foreground/80">
                         <Users className="h-3.5 w-3.5 shrink-0" />
                         <span>
                           {event.participant_count ?? 0} participante(s)
@@ -1233,13 +1233,13 @@ export function EventsPage() {
                                   event.category}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
+                            <TableCell className="text-foreground/70 dark:text-foreground/80">
                               {formatDateTime(event.date)}
                             </TableCell>
-                            <TableCell className="text-muted-foreground max-w-[150px] truncate">
+                            <TableCell className="text-foreground/70 dark:text-foreground/80 max-w-[150px] truncate">
                               {event.location || "—"}
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
+                            <TableCell className="text-foreground/70 dark:text-foreground/80">
                               {event.school?.name || "—"}
                             </TableCell>
                             <TableCell>
@@ -1359,7 +1359,7 @@ export function EventsPage() {
                         <CalendarDays className="h-5 w-5 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-foreground/70 dark:text-foreground/80">
                           Total de Eventos
                         </p>
                         <p className="text-2xl font-bold">
@@ -1376,7 +1376,7 @@ export function EventsPage() {
                         <Users className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-foreground/70 dark:text-foreground/80">
                           Total de Participacoes
                         </p>
                         <p className="text-2xl font-bold">
@@ -1393,7 +1393,7 @@ export function EventsPage() {
                         <CheckCircle2 className="h-5 w-5 text-purple-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-foreground/70 dark:text-foreground/80">
                           Alunos que Participaram
                         </p>
                         <p className="text-2xl font-bold">
@@ -1410,7 +1410,7 @@ export function EventsPage() {
                         <XCircle className="h-5 w-5 text-red-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-foreground/70 dark:text-foreground/80">
                           Nunca Participaram
                         </p>
                         <p className="text-2xl font-bold">
@@ -1573,7 +1573,7 @@ export function EventsPage() {
                                       </span>
                                     </div>
                                   </TableCell>
-                                  <TableCell className="text-sm text-muted-foreground">
+                                  <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">
                                     {student.school_name || "—"}
                                   </TableCell>
                                   <TableCell className="text-center">
@@ -1893,7 +1893,7 @@ export function EventsPage() {
                                   </span>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
+                              <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">
                                 {badge.student.school?.name || "—"}
                               </TableCell>
                               <TableCell>
@@ -1919,7 +1919,7 @@ export function EventsPage() {
                                     badge.badge_type}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
+                              <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">
                                 {formatDate(badge.earned_at)}
                               </TableCell>
                             </TableRow>
@@ -2792,7 +2792,7 @@ function EventDetailView({
                   {categoryLabels[event.category] || event.category}
                 </Badge>
               )}
-              <span className="text-sm text-muted-foreground flex items-center gap-1">
+              <span className="text-sm text-foreground/70 dark:text-foreground/80 flex items-center gap-1">
                 <CalendarDays className="h-3.5 w-3.5" />
                 {formatDateTime(event.date)}
               </span>
@@ -2958,7 +2958,7 @@ function EventDetailView({
                       <p className="text-sm font-medium truncate">
                         {participant.student.full_name}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-foreground/70 dark:text-foreground/80">
                         {participant.student.school?.name || "—"} •{" "}
                         {participant.student.grade || "—"}
                       </p>
@@ -3072,10 +3072,10 @@ function EventDetailView({
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">
                           {participant.student.school?.name || "—"}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">
                           {participant.student.grade || "—"}
                           {participant.student.class
                             ? ` / ${participant.student.class}`

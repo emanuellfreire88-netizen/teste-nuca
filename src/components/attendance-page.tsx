@@ -461,10 +461,10 @@ function AttendanceMarkingView() {
                           <TableCell className="font-medium">
                             {student.full_name}
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell text-muted-foreground">
+                          <TableCell className="hidden sm:table-cell text-foreground/70 dark:text-foreground/80">
                             {student.class || "—"}
                           </TableCell>
-                          <TableCell className="hidden md:table-cell text-muted-foreground">
+                          <TableCell className="hidden md:table-cell text-foreground/70 dark:text-foreground/80">
                             {student.grade || "—"}
                           </TableCell>
                           <TableCell className="text-right">
@@ -544,7 +544,7 @@ function AttendanceMarkingView() {
           {/* Save button — always visible at the bottom */}
           {canMark && students.length > 0 && (
             <div className="shrink-0 border-t bg-card px-6 py-4 flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-foreground/70 dark:text-foreground/80">
                 {Object.keys(attendanceMap).length} de {students.length} aluno(s) registrado(s)
               </div>
               <Button
@@ -857,10 +857,10 @@ function AttendanceHistoryView() {
                       <TableCell className="font-medium">
                         {record.student?.full_name || "—"}
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-muted-foreground">
+                      <TableCell className="hidden sm:table-cell text-foreground/70 dark:text-foreground/80">
                         {record.student?.school?.name || "—"}
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
+                      <TableCell className="hidden md:table-cell text-foreground/70 dark:text-foreground/80">
                         {record.student?.class || "—"}
                       </TableCell>
                       <TableCell>
@@ -877,7 +877,7 @@ function AttendanceHistoryView() {
                           {record.status === "present" ? "Presente" : "Ausente"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                      <TableCell className="hidden lg:table-cell text-foreground/70 dark:text-foreground/80 text-sm">
                         {record.user?.full_name || "—"}
                       </TableCell>
                     </TableRow>
