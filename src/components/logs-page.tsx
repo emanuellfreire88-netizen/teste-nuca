@@ -347,7 +347,7 @@ export function LogsPage() {
             <FileText className="h-4 w-4" />
             Registros
             {!loading && (
-              <span className="text-foreground/80 dark:text-foreground/90 font-normal text-sm">
+              <span className="text-muted-foreground font-normal text-sm">
                 ({total} registro{total !== 1 ? "s" : ""})
               </span>
             )}
@@ -393,7 +393,7 @@ export function LogsPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium text-sm">{log.user?.full_name || 'Sistema'}</p>
-                        <p className="text-xs text-foreground/80 dark:text-foreground/90">{log.user?.email || '—'}</p>
+                        <p className="text-xs text-muted-foreground">{log.user?.email || '—'}</p>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -407,10 +407,10 @@ export function LogsPage() {
                     <TableCell className="text-sm max-w-xs truncate" title={log.description}>
                       {log.description}
                     </TableCell>
-                    <TableCell className="text-sm text-foreground/80 dark:text-foreground/90 font-mono">
+                    <TableCell className="text-sm text-muted-foreground font-mono">
                       {log.ip_address}
                     </TableCell>
-                    <TableCell className="text-sm text-foreground/80 dark:text-foreground/90 max-w-[180px] truncate" title={log.device}>
+                    <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate" title={log.device}>
                       {log.device}
                     </TableCell>
                   </TableRow>
@@ -424,7 +424,7 @@ export function LogsPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-foreground/80 dark:text-foreground/90">
+          <p className="text-sm text-muted-foreground">
             Página {page} de {totalPages}
           </p>
           <div className="flex items-center gap-2">

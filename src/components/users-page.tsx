@@ -413,7 +413,7 @@ export function UsersPage() {
                       </Avatar>
                     </TableCell>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
-                    <TableCell className="text-foreground/80 dark:text-foreground/90">{user.email}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={roleBadgeClass[user.role]}>
                         {roleLabels[user.role]}
@@ -424,7 +424,7 @@ export function UsersPage() {
                         {statusLabels[user.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-foreground/80 dark:text-foreground/90 text-sm">
+                    <TableCell className="text-muted-foreground text-sm">
                       {formatDate(user.last_login)}
                     </TableCell>
                     <TableCell className="text-right">

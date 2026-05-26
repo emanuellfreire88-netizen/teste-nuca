@@ -1146,12 +1146,12 @@ export function EventsPage() {
                       )}
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-foreground/80 dark:text-foreground/90">
+                      <div className="flex items-center gap-2 text-muted-foreground">
                         <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                         <span>{formatDateTime(event.date)}</span>
                       </div>
                       {event.location && (
-                        <div className="flex items-center gap-2 text-foreground/80 dark:text-foreground/90">
+                        <div className="flex items-center gap-2 text-muted-foreground">
                           <MapPin className="h-3.5 w-3.5 shrink-0" />
                           <span className="line-clamp-1">
                             {event.location}
@@ -1159,14 +1159,14 @@ export function EventsPage() {
                         </div>
                       )}
                       {event.school && (
-                        <div className="flex items-center gap-2 text-foreground/80 dark:text-foreground/90">
+                        <div className="flex items-center gap-2 text-muted-foreground">
                           <School className="h-3.5 w-3.5 shrink-0" />
                           <span className="line-clamp-1">
                             {event.school.name}
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-foreground/80 dark:text-foreground/90">
+                      <div className="flex items-center gap-2 text-muted-foreground">
                         <Users className="h-3.5 w-3.5 shrink-0" />
                         <span>
                           {event.participant_count ?? 0} participante(s)
@@ -1233,13 +1233,13 @@ export function EventsPage() {
                                   event.category}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-foreground/80 dark:text-foreground/90">
+                            <TableCell className="text-muted-foreground">
                               {formatDateTime(event.date)}
                             </TableCell>
-                            <TableCell className="text-foreground/80 dark:text-foreground/90 max-w-[150px] truncate">
+                            <TableCell className="text-muted-foreground max-w-[150px] truncate">
                               {event.location || "—"}
                             </TableCell>
-                            <TableCell className="text-foreground/80 dark:text-foreground/90">
+                            <TableCell className="text-muted-foreground">
                               {event.school?.name || "—"}
                             </TableCell>
                             <TableCell>
@@ -1359,7 +1359,7 @@ export function EventsPage() {
                         <CalendarDays className="h-5 w-5 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-foreground/80 dark:text-foreground/90">
+                        <p className="text-sm text-muted-foreground">
                           Total de Eventos
                         </p>
                         <p className="text-2xl font-bold">
@@ -1376,7 +1376,7 @@ export function EventsPage() {
                         <Users className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-foreground/80 dark:text-foreground/90">
+                        <p className="text-sm text-muted-foreground">
                           Total de Participacoes
                         </p>
                         <p className="text-2xl font-bold">
@@ -1393,7 +1393,7 @@ export function EventsPage() {
                         <CheckCircle2 className="h-5 w-5 text-purple-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-foreground/80 dark:text-foreground/90">
+                        <p className="text-sm text-muted-foreground">
                           Alunos que Participaram
                         </p>
                         <p className="text-2xl font-bold">
@@ -1410,7 +1410,7 @@ export function EventsPage() {
                         <XCircle className="h-5 w-5 text-red-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-foreground/80 dark:text-foreground/90">
+                        <p className="text-sm text-muted-foreground">
                           Nunca Participaram
                         </p>
                         <p className="text-2xl font-bold">
@@ -1573,7 +1573,7 @@ export function EventsPage() {
                                       </span>
                                     </div>
                                   </TableCell>
-                                  <TableCell className="text-sm text-foreground/80 dark:text-foreground/90">
+                                  <TableCell className="text-sm text-muted-foreground">
                                     {student.school_name || "—"}
                                   </TableCell>
                                   <TableCell className="text-center">
@@ -1619,7 +1619,7 @@ export function EventsPage() {
                                   {categoryLabels[cat.category] ||
                                     cat.category}
                                 </Badge>
-                                <span className="text-sm text-foreground/70 dark:text-foreground/80">
+                                <span className="text-sm text-muted-foreground">
                                   {cat.total_events} evento(s)
                                 </span>
                               </div>
@@ -1733,7 +1733,7 @@ export function EventsPage() {
                                 {categoryLabels[event.category] ||
                                   event.category}
                               </Badge>
-                              <span className="text-xs text-foreground/70 dark:text-foreground/80">
+                              <span className="text-xs text-muted-foreground">
                                 {event.participant_count} partic.
                               </span>
                             </div>
@@ -1819,7 +1819,7 @@ export function EventsPage() {
                               <p className="text-sm font-semibold truncate">
                                 {alert.full_name}
                               </p>
-                              <p className="text-xs text-foreground/70 dark:text-foreground/80">
+                              <p className="text-xs text-muted-foreground">
                                 {alert.total_events} eventos •{" "}
                                 {badgeTypeLabels[alert.badge_type] ||
                                   alert.badge_type}
@@ -1893,7 +1893,7 @@ export function EventsPage() {
                                   </span>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-sm text-foreground/80 dark:text-foreground/90">
+                              <TableCell className="text-sm text-muted-foreground">
                                 {badge.student.school?.name || "—"}
                               </TableCell>
                               <TableCell>
@@ -1919,7 +1919,7 @@ export function EventsPage() {
                                     badge.badge_type}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-sm text-foreground/80 dark:text-foreground/90">
+                              <TableCell className="text-sm text-muted-foreground">
                                 {formatDate(badge.earned_at)}
                               </TableCell>
                             </TableRow>
@@ -1984,7 +1984,7 @@ export function EventsPage() {
                               </Avatar>
                               <div>
                                 <p className="font-medium">{s.full_name}</p>
-                                <p className="text-xs text-foreground/70 dark:text-foreground/80">
+                                <p className="text-xs text-muted-foreground">
                                   {s.school?.name || "—"}
                                 </p>
                               </div>
@@ -2188,7 +2188,7 @@ export function EventsPage() {
                     </div>
                   )}
                   {reportStudentId && (
-                    <p className="text-xs text-foreground/70 dark:text-foreground/80">
+                    <p className="text-xs text-muted-foreground">
                       Aluno selecionado:{" "}
                       <span className="font-medium">
                         {reportStudentSearch}
@@ -2633,7 +2633,7 @@ export function EventsPage() {
                       <p className="text-sm font-medium truncate">
                         {student.full_name}
                       </p>
-                      <p className="text-xs text-foreground/70 dark:text-foreground/80 truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {student.school?.name || "—"} •{" "}
                         {student.grade || "—"}
                         {student.class ? ` / Turma ${student.class}` : ""}
@@ -2645,7 +2645,7 @@ export function EventsPage() {
             )}
           </ScrollArea>
           {selectedStudentIds.length > 0 && (
-            <p className="text-sm text-foreground/70 dark:text-foreground/80">
+            <p className="text-sm text-muted-foreground">
               {selectedStudentIds.length} aluno(s) selecionado(s)
             </p>
           )}
@@ -2792,7 +2792,7 @@ function EventDetailView({
                   {categoryLabels[event.category] || event.category}
                 </Badge>
               )}
-              <span className="text-sm text-foreground/80 dark:text-foreground/90 flex items-center gap-1">
+              <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <CalendarDays className="h-3.5 w-3.5" />
                 {formatDateTime(event.date)}
               </span>
@@ -2958,7 +2958,7 @@ function EventDetailView({
                       <p className="text-sm font-medium truncate">
                         {participant.student.full_name}
                       </p>
-                      <p className="text-xs text-foreground/80 dark:text-foreground/90">
+                      <p className="text-xs text-muted-foreground">
                         {participant.student.school?.name || "—"} •{" "}
                         {participant.student.grade || "—"}
                       </p>
@@ -2977,7 +2977,7 @@ function EventDetailView({
                         </Badge>
                       </div>
                       {participant.notes && (
-                        <p className="text-xs text-foreground/70 dark:text-foreground/80 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           Nota: {participant.notes}
                         </p>
                       )}
@@ -3072,10 +3072,10 @@ function EventDetailView({
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-foreground/80 dark:text-foreground/90">
+                        <TableCell className="text-sm text-muted-foreground">
                           {participant.student.school?.name || "—"}
                         </TableCell>
-                        <TableCell className="text-sm text-foreground/80 dark:text-foreground/90">
+                        <TableCell className="text-sm text-muted-foreground">
                           {participant.student.grade || "—"}
                           {participant.student.class
                             ? ` / ${participant.student.class}`
@@ -3140,7 +3140,7 @@ function EventDetailView({
                             </div>
                           ) : (
                             <span
-                              className="text-xs text-foreground/70 dark:text-foreground/80 cursor-pointer hover:underline"
+                              className="text-xs text-muted-foreground cursor-pointer hover:underline"
                               onClick={() => {
                                 setEditingNotes(participant.id);
                                 setNotesValue(participant.notes || "");

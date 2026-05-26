@@ -455,16 +455,16 @@ function AttendanceMarkingView() {
                       const status = attendanceMap[student.id];
                       return (
                         <TableRow key={student.id}>
-                          <TableCell className="text-foreground/70 dark:text-foreground/80 text-sm">
+                          <TableCell className="text-muted-foreground text-sm">
                             {index + 1}
                           </TableCell>
                           <TableCell className="font-medium">
                             {student.full_name}
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell text-foreground/80 dark:text-foreground/90">
+                          <TableCell className="hidden sm:table-cell text-muted-foreground">
                             {student.class || "—"}
                           </TableCell>
-                          <TableCell className="hidden md:table-cell text-foreground/80 dark:text-foreground/90">
+                          <TableCell className="hidden md:table-cell text-muted-foreground">
                             {student.grade || "—"}
                           </TableCell>
                           <TableCell className="text-right">
@@ -544,7 +544,7 @@ function AttendanceMarkingView() {
           {/* Save button — always visible at the bottom */}
           {canMark && students.length > 0 && (
             <div className="shrink-0 border-t bg-card px-6 py-4 flex items-center justify-between">
-              <div className="text-sm text-foreground/80 dark:text-foreground/90">
+              <div className="text-sm text-muted-foreground">
                 {Object.keys(attendanceMap).length} de {students.length} aluno(s) registrado(s)
               </div>
               <Button
@@ -857,10 +857,10 @@ function AttendanceHistoryView() {
                       <TableCell className="font-medium">
                         {record.student?.full_name || "—"}
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-foreground/80 dark:text-foreground/90">
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">
                         {record.student?.school?.name || "—"}
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-foreground/80 dark:text-foreground/90">
+                      <TableCell className="hidden md:table-cell text-muted-foreground">
                         {record.student?.class || "—"}
                       </TableCell>
                       <TableCell>
@@ -877,7 +877,7 @@ function AttendanceHistoryView() {
                           {record.status === "present" ? "Presente" : "Ausente"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-foreground/80 dark:text-foreground/90 text-sm">
+                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
                         {record.user?.full_name || "—"}
                       </TableCell>
                     </TableRow>
@@ -892,7 +892,7 @@ function AttendanceHistoryView() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-foreground/70 dark:text-foreground/80">
+          <p className="text-sm text-muted-foreground">
             Página {page} de {totalPages}
           </p>
           <div className="flex items-center gap-2">
