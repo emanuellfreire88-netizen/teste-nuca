@@ -277,7 +277,7 @@ export function AppLayout({
 
         {/* Main content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-6">{children}</div>
+          <div className="p-6 min-h-full flex flex-col">{children}</div>
         </main>
       </div>
     </div>

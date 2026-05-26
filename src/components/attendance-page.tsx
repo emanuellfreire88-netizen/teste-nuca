@@ -335,9 +335,9 @@ function AttendanceMarkingView() {
   ).length;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6 flex-1 min-h-0">
       {/* Header & Filters */}
-      <Card>
+      <Card className="shrink-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5" />
@@ -383,10 +383,10 @@ function AttendanceMarkingView() {
         </CardContent>
       </Card>
 
-      {/* Student list */}
+      {/* Student list — fills remaining space */}
       {selectedSchoolId && (
-        <Card>
-          <CardHeader>
+        <Card className="flex-1 min-h-0 flex flex-col">
+          <CardHeader className="shrink-0">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle className="text-base">Lista de Alunos</CardTitle>
@@ -422,7 +422,7 @@ function AttendanceMarkingView() {
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 min-h-0 overflow-hidden">
             {loadingStudents ? (
               <div className="space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -439,7 +439,7 @@ function AttendanceMarkingView() {
                 Nenhum aluno encontrado para esta escola.
               </div>
             ) : (
-              <ScrollArea className="max-h-[500px]">
+              <ScrollArea className="h-full">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -539,33 +539,33 @@ function AttendanceMarkingView() {
                 </Table>
               </ScrollArea>
             )}
-
-            {/* Save button */}
-            {canMark && students.length > 0 && (
-              <div className="mt-6 flex items-center justify-between border-t pt-4">
-                <div className="text-sm text-muted-foreground">
-                  {Object.keys(attendanceMap).length} de {students.length} aluno(s) registrado(s)
-                </div>
-                <Button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <ClipboardCheck className="mr-2 h-4 w-4" />
-                      Salvar Frequência
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
           </CardContent>
+
+          {/* Save button — always visible at the bottom */}
+          {canMark && students.length > 0 && (
+            <div className="shrink-0 border-t bg-card px-6 py-4 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                {Object.keys(attendanceMap).length} de {students.length} aluno(s) registrado(s)
+              </div>
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                    Salvar Frequência
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </Card>
       )}
     </div>
@@ -927,16 +927,16 @@ function AttendanceHistoryView() {
 
 export function AttendancePage() {
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex flex-col flex-1 min-h-0 gap-6">
+      <div className="shrink-0">
         <h1 className="text-2xl font-bold tracking-tight">Frequência</h1>
         <p className="text-muted-foreground mt-1">
           Gerencie a frequência dos alunos e consulte o histórico de registros.
         </p>
       </div>
 
-      <Tabs defaultValue="mark" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="mark" className="flex-1 min-h-0 flex flex-col gap-4">
+        <TabsList className="shrink-0 self-start">
           <TabsTrigger value="mark" className="gap-1.5">
             <ClipboardCheck className="h-4 w-4" />
             Marcar Frequência
@@ -947,11 +947,11 @@ export function AttendancePage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="mark">
+        <TabsContent value="mark" className="flex-1 min-h-0">
           <AttendanceMarkingView />
         </TabsContent>
 
-        <TabsContent value="history">
+        <TabsContent value="history" className="flex-1 min-h-0">
           <AttendanceHistoryView />
         </TabsContent>
       </Tabs>
