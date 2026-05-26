@@ -109,7 +109,7 @@ export function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight">
           Olá, {firstName}! 👋
         </h1>
-        <p className="text-foreground/70 dark:text-foreground/80 mt-1">
+        <p className="text-foreground/80 dark:text-foreground/90 mt-1">
           Bem-vindo(a) ao painel de gestão escolar. Aqui está um resumo geral.
         </p>
       </div>
@@ -121,7 +121,7 @@ export function DashboardPage() {
           return (
             <Card key={card.title}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-foreground/70 dark:text-foreground/80">
+                <CardTitle className="text-sm font-medium text-foreground/80 dark:text-foreground/90">
                   {card.title}
                 </CardTitle>
                 <div className={`rounded-lg p-2 ${card.bg}`}>
@@ -191,7 +191,7 @@ export function DashboardPage() {
 
                 {/* Students per school */}
                 <div className="pt-2 border-t">
-                  <h4 className="text-xs font-semibold text-foreground/70 dark:text-foreground/80 mb-3 uppercase tracking-wider">
+                  <h4 className="text-xs font-semibold text-foreground/80 dark:text-foreground/90 mb-3 uppercase tracking-wider">
                     Alunos por Escola
                   </h4>
                   {(data?.students.per_school.length ?? 0) > 0 ? (
@@ -241,7 +241,7 @@ export function DashboardPage() {
                     value={attendancePercentage(data?.attendance.today.present ?? 0, data?.attendance.today.total ?? 0)}
                     className="h-2"
                   />
-                  <div className="flex justify-between text-xs text-foreground/70 dark:text-foreground/80">
+                  <div className="flex justify-between text-xs text-foreground/80 dark:text-foreground/90">
                     <span className="text-emerald-600">Presentes: {data?.attendance.today.present ?? 0}</span>
                     <span className="text-red-600">Ausentes: {data?.attendance.today.absent ?? 0}</span>
                   </div>
@@ -259,7 +259,7 @@ export function DashboardPage() {
                     value={attendancePercentage(data?.attendance.this_week.present ?? 0, data?.attendance.this_week.total ?? 0)}
                     className="h-2"
                   />
-                  <div className="flex justify-between text-xs text-foreground/70 dark:text-foreground/80">
+                  <div className="flex justify-between text-xs text-foreground/80 dark:text-foreground/90">
                     <span className="text-emerald-600">Presentes: {data?.attendance.this_week.present ?? 0}</span>
                     <span className="text-red-600">Ausentes: {data?.attendance.this_week.absent ?? 0}</span>
                   </div>
@@ -277,7 +277,7 @@ export function DashboardPage() {
                     value={attendancePercentage(data?.attendance.this_month.present ?? 0, data?.attendance.this_month.total ?? 0)}
                     className="h-2"
                   />
-                  <div className="flex justify-between text-xs text-foreground/70 dark:text-foreground/80">
+                  <div className="flex justify-between text-xs text-foreground/80 dark:text-foreground/90">
                     <span className="text-emerald-600">Presentes: {data?.attendance.this_month.present ?? 0}</span>
                     <span className="text-red-600">Ausentes: {data?.attendance.this_month.absent ?? 0}</span>
                   </div>

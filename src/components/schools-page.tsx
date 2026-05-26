@@ -480,19 +480,19 @@ export function SchoolsPage() {
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
                       {school.address && (
-                        <div className="flex items-center gap-2 text-foreground/70 dark:text-foreground/80">
+                        <div className="flex items-center gap-2 text-foreground/80 dark:text-foreground/90">
                           <MapPin className="h-3.5 w-3.5 shrink-0" />
                           <span className="line-clamp-1">{school.address}</span>
                         </div>
                       )}
                       {school.phone && (
-                        <div className="flex items-center gap-2 text-foreground/70 dark:text-foreground/80">
+                        <div className="flex items-center gap-2 text-foreground/80 dark:text-foreground/90">
                           <Phone className="h-3.5 w-3.5 shrink-0" />
                           <span>{school.phone}</span>
                         </div>
                       )}
                       {school.director_name && (
-                        <div className="flex items-center gap-2 text-foreground/70 dark:text-foreground/80">
+                        <div className="flex items-center gap-2 text-foreground/80 dark:text-foreground/90">
                           <User className="h-3.5 w-3.5 shrink-0" />
                           <span>{school.director_name}</span>
                         </div>
@@ -526,13 +526,13 @@ export function SchoolsPage() {
                             <TableCell className="font-medium">
                               {school.name}
                             </TableCell>
-                            <TableCell className="text-foreground/70 dark:text-foreground/80">
+                            <TableCell className="text-foreground/80 dark:text-foreground/90">
                               {school.address || "—"}
                             </TableCell>
-                            <TableCell className="text-foreground/70 dark:text-foreground/80">
+                            <TableCell className="text-foreground/80 dark:text-foreground/90">
                               {school.phone || "—"}
                             </TableCell>
-                            <TableCell className="text-foreground/70 dark:text-foreground/80">
+                            <TableCell className="text-foreground/80 dark:text-foreground/90">
                               {school.director_name || "—"}
                             </TableCell>
                             <TableCell className="text-center">
@@ -678,7 +678,7 @@ function SchoolDetailView({
               {school.name}
             </h1>
             {school.address && (
-              <p className="text-foreground/70 dark:text-foreground/80 mt-0.5 flex items-center gap-1.5">
+              <p className="text-foreground/80 dark:text-foreground/90 mt-0.5 flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />
                 {school.address}
               </p>
@@ -863,12 +863,12 @@ function SchoolDetailView({
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {student.grade && (
-                          <span className="text-xs text-foreground/70 dark:text-foreground/80">
+                          <span className="text-xs text-foreground/80 dark:text-foreground/90">
                             {student.grade}
                           </span>
                         )}
                         {student.class && (
-                          <span className="text-xs text-foreground/70 dark:text-foreground/80">
+                          <span className="text-xs text-foreground/80 dark:text-foreground/90">
                             Turma {student.class}
                           </span>
                         )}
@@ -905,10 +905,10 @@ function SchoolDetailView({
                         <TableCell className="font-medium">
                           {student.full_name}
                         </TableCell>
-                        <TableCell className="text-foreground/70 dark:text-foreground/80">
+                        <TableCell className="text-foreground/80 dark:text-foreground/90">
                           {student.grade || "—"}
                         </TableCell>
-                        <TableCell className="text-foreground/70 dark:text-foreground/80">
+                        <TableCell className="text-foreground/80 dark:text-foreground/90">
                           {student.class || "—"}
                         </TableCell>
                         <TableCell>

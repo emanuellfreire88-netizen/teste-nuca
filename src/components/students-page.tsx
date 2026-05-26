@@ -845,7 +845,7 @@ function StudentProfile({
                   <Badge variant="outline">Turma {student.class}</Badge>
                 )}
               </div>
-              <p className="text-sm text-foreground/70 dark:text-foreground/80 mt-1">
+              <p className="text-sm text-foreground/80 dark:text-foreground/90 mt-1">
                 <GraduationCap className="h-4 w-4 inline mr-1" />
                 {student.school?.name || "Escola não informada"}
               </p>
@@ -1138,7 +1138,7 @@ function StudentEventsDialog({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{event.title}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className="text-xs text-foreground/70 dark:text-foreground/80 flex items-center gap-1">
                         <CalendarDays className="h-3 w-3" />
                         {formatDate(event.date)}
                       </span>
@@ -1150,7 +1150,7 @@ function StudentEventsDialog({
                       </Badge>
                     </div>
                     {event.student_notes && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-foreground/70 dark:text-foreground/80 mt-1">
                         Obs: {event.student_notes}
                       </p>
                     )}
@@ -1449,13 +1449,13 @@ function StudentsList({
                       <TableCell className="font-medium">
                         {student.full_name}
                       </TableCell>
-                      <TableCell className="text-foreground/70 dark:text-foreground/80">
+                      <TableCell className="text-foreground/80 dark:text-foreground/90">
                         {student.cpf || "—"}
                       </TableCell>
-                      <TableCell className="text-foreground/70 dark:text-foreground/80">
+                      <TableCell className="text-foreground/80 dark:text-foreground/90">
                         {student.school?.name || "—"}
                       </TableCell>
-                      <TableCell className="text-foreground/70 dark:text-foreground/80">
+                      <TableCell className="text-foreground/80 dark:text-foreground/90">
                         {student.grade || "—"}
                         {student.class ? ` / Turma ${student.class}` : ""}
                       </TableCell>
@@ -1556,7 +1556,7 @@ function StudentsList({
                     <p className="font-medium truncate">
                       {student.full_name}
                     </p>
-                    <p className="text-sm text-foreground/70 dark:text-foreground/80 truncate">
+                    <p className="text-sm text-foreground/80 dark:text-foreground/90 truncate">
                       {student.school?.name || "—"} •{" "}
                       {student.grade || "—"}
                       {student.class
@@ -1611,7 +1611,7 @@ function StudentsList({
       {/* Pagination */}
       {!loading && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-foreground/70 dark:text-foreground/80">
             Mostrando {(pagination.page - 1) * pagination.limit + 1} a{" "}
             {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
             de {pagination.total} alunos

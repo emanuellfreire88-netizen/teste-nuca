@@ -261,8 +261,8 @@ export function AppLayout({
             <DropdownMenuContent align="end" className="w-56">
               <div className="px-2 py-1.5">
                 <p className="text-sm font-medium">{user.full_name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-foreground/70 dark:text-foreground/80">{user.email}</p>
+                <p className="text-xs text-foreground/70 dark:text-foreground/80 mt-0.5">
                   Perfil: {user.role}
                 </p>
               </div>

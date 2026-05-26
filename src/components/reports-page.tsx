@@ -523,7 +523,7 @@ export function ReportsPage() {
                         </Badge>
                       </div>
                       {group.school_director && (
-                        <p className="text-xs text-foreground/70 dark:text-foreground/80 mt-1">
+                        <p className="text-xs text-foreground/80 dark:text-foreground/90 mt-1">
                           Diretor(a): {group.school_director}
                           {group.school_phone && ` • Tel: ${group.school_phone}`}
                         </p>
@@ -545,7 +545,7 @@ export function ReportsPage() {
                         <TableBody>
                           {group.students.map((student, idx) => (
                             <TableRow key={student.id}>
-                              <TableCell className="text-muted-foreground text-xs">{idx + 1}</TableCell>
+                              <TableCell className="text-foreground/70 dark:text-foreground/80 text-xs">{idx + 1}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-7 w-7">
@@ -562,13 +562,13 @@ export function ReportsPage() {
                                   {student.status === "active" ? "Ativo" : "Inativo"}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">{student.phone || "—"}</TableCell>
+                              <TableCell className="text-sm text-foreground/80 dark:text-foreground/90">{student.phone || "—"}</TableCell>
                               <TableCell className="text-sm">{student.guardian_name || "—"}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
-                      <div className="px-6 py-3 bg-muted/30 border-t text-sm font-medium text-foreground/70 dark:text-foreground/80">
+                      <div className="px-6 py-3 bg-muted/30 border-t text-sm font-medium text-foreground/80 dark:text-foreground/90">
                         Total: {group.students.length} aluno{group.students.length !== 1 ? "s" : ""}
                       </div>
                     </CardContent>
@@ -583,7 +583,7 @@ export function ReportsPage() {
                   <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
                     Total Geral: {groupedData.grand_total} aluno{groupedData.grand_total !== 1 ? "s" : ""}
                   </span>
-                  <span className="text-sm text-foreground/70 dark:text-foreground/80">
+                  <span className="text-sm text-foreground/80 dark:text-foreground/90">
                     em {groupedData.groups.length} escola{groupedData.groups.length !== 1 ? "s" : ""}
                   </span>
                 </div>
@@ -629,7 +629,7 @@ export function ReportsPage() {
                           <div className="w-full bg-muted rounded-full h-2 mt-2">
                             <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: card.data.total > 0 ? `${(card.data.present / card.data.total) * 100}%` : "0%" }} />
                           </div>
-                          <p className="text-xs text-foreground/70 dark:text-foreground/80">Total: {card.data.total.toLocaleString("pt-BR")}</p>
+                          <p className="text-xs text-foreground/80 dark:text-foreground/90">Total: {card.data.total.toLocaleString("pt-BR")}</p>
                         </div>
                       ) : <p className="text-muted-foreground text-sm">Sem dados</p>}
                     </CardContent>
@@ -711,7 +711,7 @@ export function ReportsPage() {
                     : studentOptions.map((s) => (
                       <button key={s.id} className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b last:border-b-0" onClick={() => { setSelectedStudentId(s.id); setStudentSearch(s.full_name); setStudentReport(null); }}>
                         <Avatar className="h-8 w-8"><AvatarImage src={s.photo || undefined} alt={s.full_name} /><AvatarFallback className="text-xs">{getInitials(s.full_name)}</AvatarFallback></Avatar>
-                        <div className="flex-1 min-w-0"><p className="font-medium text-sm truncate">{s.full_name}</p><p className="text-xs text-foreground/70 dark:text-foreground/80 truncate">{s.school.name}{s.grade ? ` • ${s.grade}` : ""}{s.class ? ` • ${s.class}` : ""}</p></div>
+                        <div className="flex-1 min-w-0"><p className="font-medium text-sm truncate">{s.full_name}</p><p className="text-xs text-foreground/80 dark:text-foreground/90 truncate">{s.school.name}{s.grade ? ` • ${s.grade}` : ""}{s.class ? ` • ${s.class}` : ""}</p></div>
                       </button>
                     ))}
                   </div>
@@ -738,7 +738,7 @@ export function ReportsPage() {
                           <h3 className="text-xl font-bold">{studentReport.student.full_name}</h3>
                           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1">
                             <Badge variant="outline" className="bg-emerald-50 text-emerald-700">{studentReport.student.status === "active" ? "Ativo" : "Inativo"}</Badge>
-                            {studentReport.student.cpf && <span className="text-sm text-foreground/70 dark:text-foreground/80">CPF: {studentReport.student.cpf}</span>}
+                            {studentReport.student.cpf && <span className="text-sm text-foreground/80 dark:text-foreground/90">CPF: {studentReport.student.cpf}</span>}
                           </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm">
@@ -759,7 +759,7 @@ export function ReportsPage() {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Eventos</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold">{studentReport.attendance_summary.total_events}</p><p className="text-xs text-muted-foreground mt-1">eventos participados</p></CardContent></Card>
                   <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Presenças</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-emerald-600">{studentReport.attendance_summary.attended_count}</p><p className="text-xs text-muted-foreground mt-1">de {studentReport.attendance_summary.total_events} eventos</p></CardContent></Card>
-                  <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Frequência</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-3xl font-bold">{studentReport.attendance_summary.attendance_rate}%</p><Progress value={studentReport.attendance_summary.attendance_rate} className="h-2" /><p className="text-xs text-foreground/70 dark:text-foreground/80">{studentReport.attendance_summary.attended_count} presentes • {studentReport.attendance_summary.absent_count} ausentes</p></CardContent></Card>
+                  <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Frequência</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-3xl font-bold">{studentReport.attendance_summary.attendance_rate}%</p><Progress value={studentReport.attendance_summary.attendance_rate} className="h-2" /><p className="text-xs text-foreground/80 dark:text-foreground/90">{studentReport.attendance_summary.attended_count} presentes • {studentReport.attendance_summary.absent_count} ausentes</p></CardContent></Card>
                 </div>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
@@ -776,11 +776,11 @@ export function ReportsPage() {
                           {studentReport.events.map((event) => (
                             <TableRow key={event.id}>
                               <TableCell className="font-medium">{event.title}</TableCell>
-                              <TableCell className="text-foreground/70 dark:text-foreground/80 text-sm">{formatDateTime(event.date)}</TableCell>
-                              <TableCell className="text-foreground/70 dark:text-foreground/80 text-sm">{event.location || "—"}</TableCell>
+                              <TableCell className="text-foreground/80 dark:text-foreground/90 text-sm">{formatDateTime(event.date)}</TableCell>
+                              <TableCell className="text-foreground/80 dark:text-foreground/90 text-sm">{event.location || "—"}</TableCell>
                               <TableCell><Badge variant="outline" className={eventStatusBadgeClass[event.status] || ""}>{eventStatusLabels[event.status] || event.status}</Badge></TableCell>
                               <TableCell className="text-center">{event.attended ? <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" /> : <XCircle className="h-5 w-5 text-red-500 mx-auto" />}</TableCell>
-                              <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">{event.notes || "—"}</TableCell>
+                              <TableCell className="text-sm text-foreground/80 dark:text-foreground/90">{event.notes || "—"}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
