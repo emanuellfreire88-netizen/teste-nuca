@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -137,7 +136,7 @@ model Session {
 model Event {
   id          String   @id @default(uuid())
   title       String
-  description String?  @db.Text
+  description String?
   date        DateTime
   location    String?
   status      String   @default("upcoming") // upcoming, ongoing, completed, cancelled
