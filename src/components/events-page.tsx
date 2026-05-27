@@ -916,34 +916,32 @@ export function EventsPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────
 
-  if (view === "detail" && selectedEventId) {
-    return (
-      <EventDetailView
-        event={eventDetail}
-        loading={detailLoading}
-        onBack={handleBackToList}
-        onEdit={isAdmin ? handleOpenEdit : undefined}
-        onDelete={
-          isAdmin
-            ? (ev) => {
-                setDeletingEvent(ev as EventData);
-                setDeleteDialogOpen(true);
-              }
-            : undefined
-        }
-        onAddStudents={isAdmin ? handleOpenAddStudents : undefined}
-        onRemoveStudent={isAdmin ? handleRemoveStudent : undefined}
-        onToggleAttended={isAdmin ? handleToggleAttended : undefined}
-        onUpdateNotes={isAdmin ? handleUpdateNotes : undefined}
-        onDownloadCertificate={handleDownloadCertificate}
-        certLoading={certLoading}
-        schools={schools}
-      />
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {view === "detail" && selectedEventId ? (
+        <EventDetailView
+          event={eventDetail}
+          loading={detailLoading}
+          onBack={handleBackToList}
+          onEdit={isAdmin ? handleOpenEdit : undefined}
+          onDelete={
+            isAdmin
+              ? (ev) => {
+                  setDeletingEvent(ev as EventData);
+                  setDeleteDialogOpen(true);
+                }
+              : undefined
+          }
+          onAddStudents={isAdmin ? handleOpenAddStudents : undefined}
+          onRemoveStudent={isAdmin ? handleRemoveStudent : undefined}
+          onToggleAttended={isAdmin ? handleToggleAttended : undefined}
+          onUpdateNotes={isAdmin ? handleUpdateNotes : undefined}
+          onDownloadCertificate={handleDownloadCertificate}
+          certLoading={certLoading}
+          schools={schools}
+        />
+      ) : (
+        <>
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -2369,6 +2367,8 @@ export function EventsPage() {
           )}
         </TabsContent>
       </Tabs>
+        </>
+      )}
 
       {/* Create/Edit Modal */}
       <Modal
