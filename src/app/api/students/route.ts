@@ -9,7 +9,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const rawLimit = parseInt(searchParams.get('limit') || '10');
-    const limit = Math.min(Math.max(1, rawLimit), 100); // Cap at 100 to prevent DoS
+    const limit = Math.min(Math.max(1, rawLimit), 500); // Cap at 500 to allow bulk fetches
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
     const school_id = searchParams.get('school_id') || '';

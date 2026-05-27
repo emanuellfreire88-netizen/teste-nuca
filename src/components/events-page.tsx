@@ -736,7 +736,7 @@ export function EventsPage() {
     setStudentSchoolFilter("all");
     try {
       const data = await api.get<{ students: StudentOption[] }>(
-        "/students?limit=200"
+        "/students?limit=500"
       );
       const existingIds = new Set(
         eventDetail.participants.map((p) => p.student_id)

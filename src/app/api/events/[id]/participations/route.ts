@@ -21,7 +21,7 @@ export async function GET(
         );
       }
 
-      const participations = await db.eventParticipation.findMany({
+      const participations = await db.eventParticipant.findMany({
         where: { event_id: id },
         include: {
           student: {
@@ -37,7 +37,7 @@ export async function GET(
             },
           },
         },
-        orderBy: { created_at: 'asc' },
+        orderBy: { added_at: 'asc' },
       });
 
       return NextResponse.json({ participations });
@@ -69,11 +69,9 @@ export async function POST(
         );
       }
 
-      const validStatuses = ['confirmed', 'attended', 'absent', 'cancelled'];
-
       // Support two modes:
       // 1. Array of student_ids: { student_ids: string[] }
-      // 2. Single student: { student_id: string, status?: string, notes?: string }
+      // 2. Single student: { student_id: string, notes?: string }
       if (body.student_ids && Array.isArray(body.student_ids)) {
         const studentIds: string[] = body.student_ids;
 
@@ -107,7 +105,7 @@ export async function POST(
         }
 
         // Check which students are already participating
-        const existingParticipations = await db.eventParticipation.findMany({
+        const existingParticipations = await db.eventParticipant.findMany({
           where: {
             event_id: id,
             student_id: { in: studentIds },
@@ -128,19 +126,13 @@ export async function POST(
         }
 
         // Create participations in bulk
-        const participationStatus = body.status && validStatuses.includes(body.status) ? body.status : 'confirmed';
-
-        await db.$transaction(
-          newStudentIds.map(studentId =>
-            db.eventParticipation.create({
-              data: {
-                event_id: id,
-                student_id: studentId,
-                status: participationStatus,
-              },
-            })
-          )
-        );
+        await db.eventParticipant.createMany({
+          data: newStudentIds.map(studentId => ({
+            event_id: id,
+            student_id: studentId,
+            added_by: _req.user!.userId,
+          })),
+        });
 
         await logAction(
           _req.user!.userId,
@@ -156,7 +148,7 @@ export async function POST(
         }, { status: 201 });
       } else if (body.student_id) {
         // Single student mode
-        const { student_id, status, notes } = body;
+        const { student_id, notes } = body;
 
         // Verify student exists
         const student = await db.student.findUnique({ where: { id: student_id } });
@@ -168,7 +160,7 @@ export async function POST(
         }
 
         // Check for existing participation (unique constraint on event_id + student_id)
-        const existing = await db.eventParticipation.findUnique({
+        const existing = await db.eventParticipant.findUnique({
           where: {
             event_id_student_id: {
               event_id: id,
@@ -184,14 +176,12 @@ export async function POST(
           );
         }
 
-        const participationStatus = status && validStatuses.includes(status) ? status : 'confirmed';
-
-        const participation = await db.eventParticipation.create({
+        const participation = await db.eventParticipant.create({
           data: {
             event_id: id,
             student_id,
-            status: participationStatus,
             notes: notes ? sanitizeInput(notes) : null,
+            added_by: _req.user!.userId,
           },
           include: {
             student: {

@@ -14,7 +14,7 @@ export async function PUT(
       const body = await _req.json();
 
       // Verify participation exists
-      const participation = await db.eventParticipation.findUnique({
+      const participation = await db.eventParticipant.findUnique({
         where: {
           event_id_student_id: {
             event_id: id,
@@ -30,19 +30,11 @@ export async function PUT(
         );
       }
 
-      const validStatuses = ['confirmed', 'attended', 'absent', 'cancelled'];
-      if (body.status !== undefined && !validStatuses.includes(body.status)) {
-        return NextResponse.json(
-          { error: `Status inválido. Status válidos: ${validStatuses.join(', ')}` },
-          { status: 400 }
-        );
-      }
-
       const updateData: Record<string, unknown> = {};
-      if (body.status !== undefined) updateData.status = body.status;
+      if (body.attended !== undefined) updateData.attended = Boolean(body.attended);
       if (body.notes !== undefined) updateData.notes = body.notes ? sanitizeInput(body.notes) : null;
 
-      const updated = await db.eventParticipation.update({
+      const updated = await db.eventParticipant.update({
         where: {
           event_id_student_id: {
             event_id: id,
@@ -95,7 +87,7 @@ export async function DELETE(
       const { id, studentId } = await context.params;
 
       // Verify participation exists
-      const participation = await db.eventParticipation.findUnique({
+      const participation = await db.eventParticipant.findUnique({
         where: {
           event_id_student_id: {
             event_id: id,
@@ -115,7 +107,7 @@ export async function DELETE(
         );
       }
 
-      await db.eventParticipation.delete({
+      await db.eventParticipant.delete({
         where: {
           event_id_student_id: {
             event_id: id,
