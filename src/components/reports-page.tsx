@@ -374,7 +374,7 @@ export function ReportsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Relatórios</h1>
-        <p className="text-muted-foreground mt-1">Visão geral dos dados do sistema</p>
+        <p className="text-muted-foreground dark:text-gray-300 mt-1">Visão geral dos dados do sistema</p>
       </div>
 
       <Tabs defaultValue="alunos-escola" className="space-y-6">
@@ -504,7 +504,7 @@ export function ReportsPage() {
             <div ref={printRef} className="space-y-6">
               {groupedData.groups.length === 0 ? (
                 <Card>
-                  <CardContent className="py-12 flex flex-col items-center text-muted-foreground">
+                  <CardContent className="py-12 flex flex-col items-center text-muted-foreground dark:text-gray-400">
                     <School className="h-10 w-10 mb-3" />
                     <p className="text-sm">Nenhum aluno encontrado com os filtros selecionados</p>
                   </CardContent>
@@ -523,7 +523,7 @@ export function ReportsPage() {
                         </Badge>
                       </div>
                       {group.school_director && (
-                        <p className="text-xs text-foreground/70 dark:text-foreground/80 mt-1">
+                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
                           Diretor(a): {group.school_director}
                           {group.school_phone && ` • Tel: ${group.school_phone}`}
                         </p>
@@ -545,14 +545,14 @@ export function ReportsPage() {
                         <TableBody>
                           {group.students.map((student, idx) => (
                             <TableRow key={student.id}>
-                              <TableCell className="text-muted-foreground text-xs">{idx + 1}</TableCell>
+                              <TableCell className="text-muted-foreground dark:text-gray-300 text-xs">{idx + 1}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-7 w-7">
                                     <AvatarImage src={student.photo || undefined} alt={student.full_name} />
                                     <AvatarFallback className="text-[10px]">{getInitials(student.full_name)}</AvatarFallback>
                                   </Avatar>
-                                  <span className="font-medium">{student.full_name}</span>
+                                  <span className="font-medium dark:text-gray-100">{student.full_name}</span>
                                 </div>
                               </TableCell>
                               <TableCell className="text-sm">{student.grade || "—"}</TableCell>
@@ -562,13 +562,13 @@ export function ReportsPage() {
                                   {student.status === "active" ? "Ativo" : "Inativo"}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">{student.phone || "—"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground dark:text-gray-300">{student.phone || "—"}</TableCell>
                               <TableCell className="text-sm">{student.guardian_name || "—"}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
-                      <div className="px-6 py-3 bg-muted/30 border-t text-sm font-medium text-foreground/70 dark:text-foreground/80">
+                      <div className="px-6 py-3 bg-muted/30 border-t text-sm font-medium text-muted-foreground dark:text-gray-400">
                         Total: {group.students.length} aluno{group.students.length !== 1 ? "s" : ""}
                       </div>
                     </CardContent>
@@ -583,7 +583,7 @@ export function ReportsPage() {
                   <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
                     Total Geral: {groupedData.grand_total} aluno{groupedData.grand_total !== 1 ? "s" : ""}
                   </span>
-                  <span className="text-sm text-foreground/70 dark:text-foreground/80">
+                  <span className="text-sm text-muted-foreground dark:text-gray-300">
                     em {groupedData.groups.length} escola{groupedData.groups.length !== 1 ? "s" : ""}
                   </span>
                 </div>
@@ -600,7 +600,7 @@ export function ReportsPage() {
               return (
                 <Card key={card.title}>
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground dark:text-gray-300">{card.title}</CardTitle>
                     <div className={`rounded-lg p-2 ${card.bg}`}><Icon className={`h-4 w-4 ${card.color}`} /></div>
                   </CardHeader>
                   <CardContent>
@@ -619,19 +619,19 @@ export function ReportsPage() {
                 return (
                   <Card key={card.title}>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+                      <CardTitle className="text-sm font-medium text-muted-foreground dark:text-gray-300">{card.title}</CardTitle>
                       <div className={`rounded-lg p-2 ${card.bg}`}><Icon className={`h-4 w-4 ${card.color}`} /></div>
                     </CardHeader>
                     <CardContent>
                       {loading ? <div className="space-y-2"><Skeleton className="h-8 w-16" /><Skeleton className="h-3 w-32" /></div> : card.data ? (
                         <div className="space-y-1">
-                          <p className="text-3xl font-bold tracking-tight">{card.data.present.toLocaleString("pt-BR")}<span className="text-sm font-normal text-muted-foreground ml-1">presentes</span></p>
+                          <p className="text-3xl font-bold tracking-tight">{card.data.present.toLocaleString("pt-BR")}<span className="text-sm font-normal text-muted-foreground dark:text-gray-300 ml-1">presentes</span></p>
                           <div className="w-full bg-muted rounded-full h-2 mt-2">
                             <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: card.data.total > 0 ? `${(card.data.present / card.data.total) * 100}%` : "0%" }} />
                           </div>
-                          <p className="text-xs text-foreground/70 dark:text-foreground/80">Total: {card.data.total.toLocaleString("pt-BR")}</p>
+                          <p className="text-xs text-muted-foreground dark:text-gray-400">Total: {card.data.total.toLocaleString("pt-BR")}</p>
                         </div>
-                      ) : <p className="text-muted-foreground text-sm">Sem dados</p>}
+                      ) : <p className="text-muted-foreground dark:text-gray-400 text-sm">Sem dados</p>}
                     </CardContent>
                   </Card>
                 );
@@ -644,13 +644,13 @@ export function ReportsPage() {
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4" />Alunos por Escola</CardTitle></CardHeader>
               <CardContent>
                 {loading ? <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}</div>
-                : chartData.length === 0 ? <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Nenhuma escola cadastrada</div>
+                : chartData.length === 0 ? <div className="flex items-center justify-center h-64 text-muted-foreground dark:text-gray-400 text-sm">Nenhuma escola cadastrada</div>
                 : (
                   <ResponsiveContainer width="100%" height={320}>
                     <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="name" angle={-35} textAnchor="end" fontSize={12} className="fill-muted-foreground" interval={0} />
-                      <YAxis className="fill-muted-foreground" fontSize={12} />
+                      <XAxis dataKey="name" angle={-35} textAnchor="end" fontSize={12} className="fill-muted-foreground dark:fill-gray-400" interval={0} />
+                      <YAxis className="fill-muted-foreground dark:fill-gray-400" fontSize={12} />
                       <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "13px" }} formatter={(value: number) => [value.toLocaleString("pt-BR"), "Alunos"]} />
                       <Bar dataKey="alunos" radius={[6, 6, 0, 0]}>{chartData.map((_, index) => <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}</Bar>
                     </BarChart>
@@ -694,7 +694,7 @@ export function ReportsPage() {
                   <div className="space-y-2">
                     <Label>Buscar Aluno</Label>
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground dark:text-gray-400" />
                       <Input placeholder="Buscar por nome, CPF ou RG..." value={studentSearch} onChange={(e) => { setStudentSearch(e.target.value); setSelectedStudentId(""); setStudentReport(null); }} className="pl-9" />
                     </div>
                   </div>
@@ -706,12 +706,12 @@ export function ReportsPage() {
                 </div>
                 {studentSearch && !selectedStudentId && (
                   <div className="border rounded-lg max-h-48 overflow-y-auto">
-                    {loadingStudents ? <div className="p-4 flex items-center justify-center gap-2 text-muted-foreground text-sm"><Loader2 className="h-4 w-4 animate-spin" />Buscando...</div>
-                    : studentOptions.length === 0 ? <div className="p-4 text-center text-muted-foreground text-sm">Nenhum aluno encontrado</div>
+                    {loadingStudents ? <div className="p-4 flex items-center justify-center gap-2 text-muted-foreground dark:text-gray-400 text-sm"><Loader2 className="h-4 w-4 animate-spin" />Buscando...</div>
+                    : studentOptions.length === 0 ? <div className="p-4 text-center text-muted-foreground dark:text-gray-400 text-sm">Nenhum aluno encontrado</div>
                     : studentOptions.map((s) => (
                       <button key={s.id} className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors border-b last:border-b-0" onClick={() => { setSelectedStudentId(s.id); setStudentSearch(s.full_name); setStudentReport(null); }}>
                         <Avatar className="h-8 w-8"><AvatarImage src={s.photo || undefined} alt={s.full_name} /><AvatarFallback className="text-xs">{getInitials(s.full_name)}</AvatarFallback></Avatar>
-                        <div className="flex-1 min-w-0"><p className="font-medium text-sm truncate">{s.full_name}</p><p className="text-xs text-foreground/70 dark:text-foreground/80 truncate">{s.school.name}{s.grade ? ` • ${s.grade}` : ""}{s.class ? ` • ${s.class}` : ""}</p></div>
+                        <div className="flex-1 min-w-0"><p className="font-medium dark:text-gray-100 text-sm truncate">{s.full_name}</p><p className="text-xs text-muted-foreground dark:text-gray-400 truncate">{s.school.name}{s.grade ? ` • ${s.grade}` : ""}{s.class ? ` • ${s.class}` : ""}</p></div>
                       </button>
                     ))}
                   </div>
@@ -725,7 +725,7 @@ export function ReportsPage() {
               </CardContent>
             </Card>
 
-            {loadingReport && <Card><CardContent className="p-6"><div className="flex flex-col items-center justify-center gap-3"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /><p className="text-muted-foreground text-sm">Gerando relatório...</p></div></CardContent></Card>}
+            {loadingReport && <Card><CardContent className="p-6"><div className="flex flex-col items-center justify-center gap-3"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground dark:text-gray-400" /><p className="text-muted-foreground dark:text-gray-400 text-sm">Gerando relatório...</p></div></CardContent></Card>}
 
             {studentReport && !loadingReport && (
               <div className="space-y-6">
@@ -738,28 +738,28 @@ export function ReportsPage() {
                           <h3 className="text-xl font-bold">{studentReport.student.full_name}</h3>
                           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1">
                             <Badge variant="outline" className="bg-emerald-50 text-emerald-700">{studentReport.student.status === "active" ? "Ativo" : "Inativo"}</Badge>
-                            {studentReport.student.cpf && <span className="text-sm text-foreground/70 dark:text-foreground/80">CPF: {studentReport.student.cpf}</span>}
+                            {studentReport.student.cpf && <span className="text-sm text-muted-foreground dark:text-gray-300">CPF: {studentReport.student.cpf}</span>}
                           </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm">
-                          {studentReport.student.grade && <div><span className="text-muted-foreground">Série: </span><span className="font-medium">{studentReport.student.grade}</span></div>}
-                          {studentReport.student.class && <div><span className="text-muted-foreground">Turma: </span><span className="font-medium">{studentReport.student.class}</span></div>}
-                          <div><span className="text-muted-foreground">Escola: </span><span className="font-medium">{studentReport.school.name}</span></div>
-                          {studentReport.student.date_of_birth && <div><span className="text-muted-foreground">Nascimento: </span><span className="font-medium">{formatDate(studentReport.student.date_of_birth)}</span></div>}
-                          {studentReport.student.phone && <div><span className="text-muted-foreground">Telefone: </span><span className="font-medium">{studentReport.student.phone}</span></div>}
-                          {studentReport.student.guardian_name && <div><span className="text-muted-foreground">Responsável: </span><span className="font-medium">{studentReport.student.guardian_name}</span></div>}
-                          {studentReport.student.blood_type && <div><span className="text-muted-foreground">Tipo Sanguíneo: </span><span className="font-medium">{studentReport.student.blood_type}</span></div>}
-                          {studentReport.student.special_needs && <div><span className="text-muted-foreground">Necessidades Especiais: </span><span className="font-medium">{studentReport.student.special_needs}</span></div>}
-                          {studentReport.school.director_name && <div><span className="text-muted-foreground">Diretor(a): </span><span className="font-medium">{studentReport.school.director_name}</span></div>}
+                          {studentReport.student.grade && <div><span className="text-muted-foreground dark:text-gray-400">Série: </span><span className="font-medium dark:text-gray-100">{studentReport.student.grade}</span></div>}
+                          {studentReport.student.class && <div><span className="text-muted-foreground dark:text-gray-400">Turma: </span><span className="font-medium dark:text-gray-100">{studentReport.student.class}</span></div>}
+                          <div><span className="text-muted-foreground dark:text-gray-400">Escola: </span><span className="font-medium dark:text-gray-100">{studentReport.school.name}</span></div>
+                          {studentReport.student.date_of_birth && <div><span className="text-muted-foreground dark:text-gray-400">Nascimento: </span><span className="font-medium dark:text-gray-100">{formatDate(studentReport.student.date_of_birth)}</span></div>}
+                          {studentReport.student.phone && <div><span className="text-muted-foreground dark:text-gray-400">Telefone: </span><span className="font-medium dark:text-gray-100">{studentReport.student.phone}</span></div>}
+                          {studentReport.student.guardian_name && <div><span className="text-muted-foreground dark:text-gray-400">Responsável: </span><span className="font-medium dark:text-gray-100">{studentReport.student.guardian_name}</span></div>}
+                          {studentReport.student.blood_type && <div><span className="text-muted-foreground dark:text-gray-400">Tipo Sanguíneo: </span><span className="font-medium dark:text-gray-100">{studentReport.student.blood_type}</span></div>}
+                          {studentReport.student.special_needs && <div><span className="text-muted-foreground dark:text-gray-400">Necessidades Especiais: </span><span className="font-medium dark:text-gray-100">{studentReport.student.special_needs}</span></div>}
+                          {studentReport.school.director_name && <div><span className="text-muted-foreground dark:text-gray-400">Diretor(a): </span><span className="font-medium dark:text-gray-100">{studentReport.school.director_name}</span></div>}
                         </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de Eventos</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold">{studentReport.attendance_summary.total_events}</p><p className="text-xs text-muted-foreground mt-1">eventos participados</p></CardContent></Card>
-                  <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Presenças</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-emerald-600">{studentReport.attendance_summary.attended_count}</p><p className="text-xs text-muted-foreground mt-1">de {studentReport.attendance_summary.total_events} eventos</p></CardContent></Card>
-                  <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Frequência</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-3xl font-bold">{studentReport.attendance_summary.attendance_rate}%</p><Progress value={studentReport.attendance_summary.attendance_rate} className="h-2" /><p className="text-xs text-foreground/70 dark:text-foreground/80">{studentReport.attendance_summary.attended_count} presentes • {studentReport.attendance_summary.absent_count} ausentes</p></CardContent></Card>
+                  <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground dark:text-gray-300">Total de Eventos</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold">{studentReport.attendance_summary.total_events}</p><p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">eventos participados</p></CardContent></Card>
+                  <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground dark:text-gray-300">Presenças</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-emerald-600">{studentReport.attendance_summary.attended_count}</p><p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">de {studentReport.attendance_summary.total_events} eventos</p></CardContent></Card>
+                  <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground dark:text-gray-300">Taxa de Frequência</CardTitle></CardHeader><CardContent className="space-y-2"><p className="text-3xl font-bold">{studentReport.attendance_summary.attendance_rate}%</p><Progress value={studentReport.attendance_summary.attendance_rate} className="h-2" /><p className="text-xs text-muted-foreground dark:text-gray-400">{studentReport.attendance_summary.attended_count} presentes • {studentReport.attendance_summary.absent_count} ausentes</p></CardContent></Card>
                 </div>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
@@ -769,18 +769,18 @@ export function ReportsPage() {
                     </Button>
                   </CardHeader>
                   <CardContent className="p-0">
-                    {studentReport.events.length === 0 ? <div className="flex flex-col items-center justify-center py-12 text-muted-foreground"><Calendar className="h-10 w-10 mb-3" /><p className="text-sm">Nenhum evento participado</p></div> : (
+                    {studentReport.events.length === 0 ? <div className="flex flex-col items-center justify-center py-12 text-muted-foreground dark:text-gray-400"><Calendar className="h-10 w-10 mb-3" /><p className="text-sm">Nenhum evento participado</p></div> : (
                       <Table>
                         <TableHeader><TableRow><TableHead>Evento</TableHead><TableHead>Data</TableHead><TableHead>Local</TableHead><TableHead>Status</TableHead><TableHead className="text-center">Presença</TableHead><TableHead>Observações</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {studentReport.events.map((event) => (
                             <TableRow key={event.id}>
-                              <TableCell className="font-medium">{event.title}</TableCell>
-                              <TableCell className="text-foreground/70 dark:text-foreground/80 text-sm">{formatDateTime(event.date)}</TableCell>
-                              <TableCell className="text-foreground/70 dark:text-foreground/80 text-sm">{event.location || "—"}</TableCell>
+                              <TableCell className="font-medium dark:text-gray-100">{event.title}</TableCell>
+                              <TableCell className="text-muted-foreground dark:text-gray-400 text-sm">{formatDateTime(event.date)}</TableCell>
+                              <TableCell className="text-muted-foreground dark:text-gray-400 text-sm">{event.location || "—"}</TableCell>
                               <TableCell><Badge variant="outline" className={eventStatusBadgeClass[event.status] || ""}>{eventStatusLabels[event.status] || event.status}</Badge></TableCell>
                               <TableCell className="text-center">{event.attended ? <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" /> : <XCircle className="h-5 w-5 text-red-500 mx-auto" />}</TableCell>
-                              <TableCell className="text-sm text-foreground/70 dark:text-foreground/80">{event.notes || "—"}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground dark:text-gray-400">{event.notes || "—"}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

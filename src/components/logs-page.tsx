@@ -219,13 +219,13 @@ export function LogsPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Logs de Ação</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground dark:text-gray-300 mt-1">
             Registro de ações realizadas no sistema
           </p>
         </div>
         <div className="flex flex-col items-center justify-center h-64 rounded-xl border-2 border-dashed border-muted-foreground/25 gap-3">
           <ShieldAlert className="h-10 w-10 text-muted-foreground" />
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground dark:text-gray-400 text-sm">
             Acesso restrito a administradores
           </p>
         </div>
@@ -239,7 +239,7 @@ export function LogsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Logs de Ação</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground dark:text-gray-300 mt-1">
             Registro de todas as ações realizadas no sistema
           </p>
         </div>
@@ -347,7 +347,7 @@ export function LogsPage() {
             <FileText className="h-4 w-4" />
             Registros
             {!loading && (
-              <span className="text-foreground/70 dark:text-foreground/80 font-normal text-sm">
+              <span className="text-muted-foreground dark:text-gray-400 font-normal text-sm">
                 ({total} registro{total !== 1 ? "s" : ""})
               </span>
             )}
@@ -368,7 +368,7 @@ export function LogsPage() {
               ))}
             </div>
           ) : logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground dark:text-gray-400">
               <FileText className="h-10 w-10 mb-3" />
               <p className="text-sm">Nenhum log encontrado</p>
             </div>
@@ -393,7 +393,7 @@ export function LogsPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium text-sm">{log.user?.full_name || 'Sistema'}</p>
-                        <p className="text-xs text-foreground/70 dark:text-foreground/80">{log.user?.email || '—'}</p>
+                        <p className="text-xs text-muted-foreground dark:text-gray-400">{log.user?.email || '—'}</p>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -407,10 +407,10 @@ export function LogsPage() {
                     <TableCell className="text-sm max-w-xs truncate" title={log.description}>
                       {log.description}
                     </TableCell>
-                    <TableCell className="text-sm text-foreground/70 dark:text-foreground/80 font-mono">
+                    <TableCell className="text-sm text-muted-foreground dark:text-gray-300 font-mono">
                       {log.ip_address}
                     </TableCell>
-                    <TableCell className="text-sm text-foreground/70 dark:text-foreground/80 max-w-[180px] truncate" title={log.device}>
+                    <TableCell className="text-sm text-muted-foreground dark:text-gray-300 max-w-[180px] truncate" title={log.device}>
                       {log.device}
                     </TableCell>
                   </TableRow>
@@ -424,7 +424,7 @@ export function LogsPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-foreground/70 dark:text-foreground/80">
+          <p className="text-sm text-muted-foreground dark:text-gray-300">
             Página {page} de {totalPages}
           </p>
           <div className="flex items-center gap-2">

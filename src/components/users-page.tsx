@@ -314,13 +314,13 @@ export function UsersPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground dark:text-gray-300 mt-1">
             Gerenciamento de usuários do sistema
           </p>
         </div>
         <div className="flex flex-col items-center justify-center h-64 rounded-xl border-2 border-dashed border-muted-foreground/25 gap-3">
           <ShieldAlert className="h-10 w-10 text-muted-foreground" />
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground dark:text-gray-400 text-sm">
             Acesso restrito a administradores
           </p>
         </div>
@@ -335,7 +335,7 @@ export function UsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground dark:text-gray-300 mt-1">
             Gerencie os usuários do sistema
           </p>
         </div>
@@ -351,7 +351,7 @@ export function UsersPage() {
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground dark:text-gray-400" />
         <Input
           placeholder="Buscar por nome ou e-mail..."
           value={search}
@@ -384,7 +384,7 @@ export function UsersPage() {
               ))}
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground dark:text-gray-400">
               <Users className="h-10 w-10 mb-3" />
               <p className="text-sm">Nenhum usuário encontrado</p>
             </div>
@@ -413,7 +413,7 @@ export function UsersPage() {
                       </Avatar>
                     </TableCell>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
-                    <TableCell className="text-foreground/70 dark:text-foreground/80">{user.email}</TableCell>
+                    <TableCell className="text-muted-foreground dark:text-gray-300">{user.email}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={roleBadgeClass[user.role]}>
                         {roleLabels[user.role]}
@@ -424,7 +424,7 @@ export function UsersPage() {
                         {statusLabels[user.status]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-foreground/70 dark:text-foreground/80 text-sm">
+                    <TableCell className="text-muted-foreground dark:text-gray-300 text-sm">
                       {formatDate(user.last_login)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -461,7 +461,7 @@ export function UsersPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold">Novo Usuário</h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground dark:text-gray-300">
               Preencha os dados para criar um novo usuário no sistema.
             </p>
           </div>
@@ -499,7 +499,7 @@ export function UsersPage() {
               onChange={(e) => updateField("password", e.target.value)}
               placeholder="••••••••"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground dark:text-gray-400">
               Mínimo 8 caracteres, 1 maiúscula, 1 número, 1 especial
             </p>
           </div>
@@ -564,7 +564,7 @@ export function UsersPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold">Editar Usuário</h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground dark:text-gray-300">
               Atualize os dados do usuário. Deixe a senha em branco para manter a atual.
             </p>
           </div>
@@ -667,7 +667,7 @@ export function UsersPage() {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
           Tem certeza que deseja excluir o usuário{" "}
           <strong>{selectedUser?.full_name}</strong>? Esta ação não pode ser desfeita.
         </p>
