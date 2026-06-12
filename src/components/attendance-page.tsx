@@ -692,20 +692,11 @@ function AttendanceHistoryView() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-          <CardDescription>
-            Filtre os registros de frequência por escola, período e status.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      {/* Filters — compact, always visible at top */}
+      <Card className="shrink-0">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* School filter — native HTML select */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Escola</label>
@@ -764,7 +755,7 @@ function AttendanceHistoryView() {
 
           {/* Export buttons */}
           {canExport && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
               <span className="text-sm text-muted-foreground mr-2">Exportar:</span>
               <Button
                 type="button"
@@ -799,20 +790,51 @@ function AttendanceHistoryView() {
         </CardContent>
       </Card>
 
-      {/* History table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Histórico de Frequência
-          </CardTitle>
-          <CardDescription>
-            {total > 0
-              ? `${total} registro(s) encontrado(s)`
-              : "Nenhum registro encontrado"}
-          </CardDescription>
+      {/* History table — fills remaining space */}
+      <Card className="flex-1 min-h-0 flex flex-col">
+        <CardHeader className="shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Histórico de Frequência
+              </CardTitle>
+              <CardDescription className="mt-1">
+                {total > 0
+                  ? `${total} registro(s) encontrado(s)`
+                  : "Nenhum registro encontrado"}
+              </CardDescription>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || loading}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Anterior
+                </Button>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  {page} / {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || loading}
+                >
+                  Próxima
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 min-h-0 overflow-hidden">
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -832,7 +854,7 @@ function AttendanceHistoryView() {
               <p className="text-xs mt-1">Ajuste os filtros para buscar registros.</p>
             </div>
           ) : (
-            <ScrollArea className="max-h-[500px]">
+            <ScrollArea className="h-full">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -887,36 +909,6 @@ function AttendanceHistoryView() {
             </ScrollArea>
           )}
         </CardContent>
-        {/* Pagination — outside CardContent, as a fixed footer in the Card */}
-        {totalPages > 1 && (
-          <div className="border-t px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              Página {page} de {totalPages}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || loading}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Anterior
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages || loading}
-              >
-                Próxima
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          </div>
-        )}
       </Card>
     </div>
   );
