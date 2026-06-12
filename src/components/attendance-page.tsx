@@ -849,7 +849,7 @@ function AttendanceHistoryView() {
                     <TableRow key={record.id}>
                       <TableCell className="text-sm">
                         {record.date
-                          ? format(new Date(record.date + "T00:00:00"), "dd/MM/yyyy", {
+                          ? format(new Date(record.date), "dd/MM/yyyy", {
                               locale: ptBR,
                             })
                           : "—"}

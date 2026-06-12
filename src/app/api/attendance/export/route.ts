@@ -6,6 +6,14 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+/**
+ * Create a consistent UTC midnight Date from a date string like "2026-06-12".
+ */
+function toUTCDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+}
+
 const BRAND_GREEN = [22, 163, 74] as [number, number, number];
 const GRAY_TEXT = [120, 120, 120] as [number, number, number];
 
@@ -26,14 +34,12 @@ export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
 
     const dateFilter: Record<string, Date> = {};
     if (date_from) {
-      const from = new Date(date_from);
-      from.setHours(0, 0, 0, 0);
-      dateFilter.gte = from;
+      dateFilter.gte = toUTCDate(date_from);
     }
     if (date_to) {
-      const to = new Date(date_to);
-      to.setHours(23, 59, 59, 999);
-      dateFilter.lte = to;
+      const end = toUTCDate(date_to);
+      end.setUTCHours(23, 59, 59, 999);
+      dateFilter.lte = end;
     }
     if (Object.keys(dateFilter).length > 0) {
       where.date = dateFilter;
