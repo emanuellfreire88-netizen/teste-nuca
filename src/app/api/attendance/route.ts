@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 
+/**
+ * Create a consistent UTC midnight Date from a date string like "2026-06-12".
+ * Avoids timezone-dependent setHours() which can cause mismatches
+ * between the upsert's `where` and `create` values on servers with
+ * different local timezones (e.g. Vercel runs in UTC).
+ */
+function toUTCDate(dateStr: string): Date {
+  // Parse "YYYY-MM-DD" → UTC midnight
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+}
+
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(req.url);
@@ -17,22 +29,19 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     if (student_id) where.student_id = student_id;
     if (status) where.status = status;
     if (date) {
-      const dateStart = new Date(date);
-      dateStart.setHours(0, 0, 0, 0);
-      const dateEnd = new Date(date);
-      dateEnd.setHours(23, 59, 59, 999);
+      const dateStart = toUTCDate(date);
+      const dateEnd = new Date(dateStart);
+      dateEnd.setUTCHours(23, 59, 59, 999);
       where.date = { gte: dateStart, lte: dateEnd };
     } else {
       const dateFilter: Record<string, Date> = {};
       if (date_from) {
-        const from = new Date(date_from);
-        from.setHours(0, 0, 0, 0);
-        dateFilter.gte = from;
+        dateFilter.gte = toUTCDate(date_from);
       }
       if (date_to) {
-        const to = new Date(date_to);
-        to.setHours(23, 59, 59, 999);
-        dateFilter.lte = to;
+        const end = toUTCDate(date_to);
+        end.setUTCHours(23, 59, 59, 999);
+        dateFilter.lte = end;
       }
       if (Object.keys(dateFilter).length > 0) {
         where.date = dateFilter;
@@ -46,7 +55,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     // Pagination to prevent loading all records at once
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
     const rawLimit = parseInt(searchParams.get('limit') || '50');
-    const limit = Math.min(Math.max(1, rawLimit), 100);
+    const limit = Math.min(Math.max(1, rawLimit), 200);
     const skip = (page - 1) * limit;
 
     const [records, total] = await Promise.all([
@@ -126,8 +135,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       );
     }
 
-    const dateObj = new Date(date);
-    dateObj.setHours(0, 0, 0, 0);
+    const dateObj = toUTCDate(date);
 
     // Use upsert on student_id + date unique constraint
     const record = await db.attendanceRecord.upsert({
@@ -216,40 +224,67 @@ async function handleBatchAttendance(
     }
   }
 
-  // Use transaction to upsert all records
-  const result = await db.$transaction(
-    records.map((rec) => {
-      const dateObj = new Date(rec.date);
-      dateObj.setHours(0, 0, 0, 0);
+  try {
+    // Use transaction to upsert all records
+    // Process in chunks of 50 to avoid Neon statement timeout
+    const CHUNK_SIZE = 50;
+    let totalUpserted = 0;
 
-      return db.attendanceRecord.upsert({
-        where: {
-          student_id_date: {
-            student_id: rec.student_id,
-            date: dateObj,
-          },
-        },
-        create: {
-          student_id: rec.student_id,
-          date: dateObj,
-          status: rec.status,
-          created_by: userId,
-        },
-        update: {
-          status: rec.status,
-          created_by: userId,
-        },
-      });
-    })
-  );
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+      const chunk = records.slice(i, i + CHUNK_SIZE);
 
-  // Calculate summary: created vs updated
-  // For upsert, we rely on Prisma's return value — newly created records have
-  // created_at matching the transaction timestamp while updated ones differ.
-  // Since AttendanceRecord doesn't have an updated_at field, we count all as "upserted".
-  const total = result.length;
+      const result = await db.$transaction(
+        chunk.map((rec) => {
+          const dateObj = toUTCDate(rec.date);
 
-  return NextResponse.json({
-    total,
-  });
+          return db.attendanceRecord.upsert({
+            where: {
+              student_id_date: {
+                student_id: rec.student_id,
+                date: dateObj,
+              },
+            },
+            create: {
+              student_id: rec.student_id,
+              date: dateObj,
+              status: rec.status,
+              created_by: userId,
+            },
+            update: {
+              status: rec.status,
+              created_by: userId,
+            },
+          });
+        })
+      );
+
+      totalUpserted += result.length;
+    }
+
+    return NextResponse.json({
+      total: totalUpserted,
+    });
+  } catch (error: unknown) {
+    console.error('Batch attendance transaction error:', error);
+
+    // Provide more specific error messages for common Prisma errors
+    const errMsg = error instanceof Error ? error.message : '';
+    if (errMsg.includes('UniqueConstraint')) {
+      return NextResponse.json(
+        { error: 'Conflito de registro: já existe uma frequência para este aluno nesta data.' },
+        { status: 409 }
+      );
+    }
+    if (errMsg.includes('timeout') || errMsg.includes('Timed out')) {
+      return NextResponse.json(
+        { error: 'Tempo esgotado ao salvar frequência. Tente com menos alunos ou tente novamente.' },
+        { status: 504 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Erro ao salvar frequência. Tente novamente.' },
+      { status: 500 }
+    );
+  }
 }
