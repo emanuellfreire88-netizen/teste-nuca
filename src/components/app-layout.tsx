@@ -37,6 +37,7 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  MessageSquare,
 } from "lucide-react";
 
 export type PageKey =
@@ -47,7 +48,8 @@ export type PageKey =
   | "events"
   | "users"
   | "reports"
-  | "logs";
+  | "logs"
+  | "support";
 
 interface NavItem {
   key: PageKey;
@@ -65,6 +67,7 @@ const navItems: NavItem[] = [
   { key: "users", label: "Usuários", icon: Users, adminOnly: true },
   { key: "reports", label: "Relatórios", icon: BarChart3 },
   { key: "logs", label: "Logs", icon: FileText, adminOnly: true },
+  { key: "support", label: "Suporte", icon: MessageSquare },
 ];
 
 function UserAvatar({ user }: { user: { full_name: string; profile_photo: string | null } }) {

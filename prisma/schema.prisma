@@ -28,6 +28,9 @@ model User {
   action_logs     ActionLog[]
   events          Event[]
   added_participants EventParticipant[]
+  support_tickets SupportTicket[]  @relation("TicketCreator")
+  support_messages SupportMessage[]
+  assigned_tickets SupportTicket[] @relation("TicketAssignee")
 
   @@map("users")
 }
@@ -171,4 +174,36 @@ model EventParticipant {
 
   @@unique([event_id, student_id])
   @@map("event_participants")
+}
+
+model SupportTicket {
+  id          String    @id @default(uuid())
+  protocol    String    @unique  // e.g., "SUP-2026-0001"
+  subject     String
+  status      String    @default("open") // open, in_progress, resolved, closed
+  priority    String    @default("normal") // low, normal, high, urgent
+  user_id     String
+  assigned_to String?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  user        User      @relation("TicketCreator", fields: [user_id], references: [id])
+  assignee    User?     @relation("TicketAssignee", fields: [assigned_to], references: [id])
+  messages    SupportMessage[]
+
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id          String    @id @default(uuid())
+  ticket_id   String
+  sender_id   String
+  content     String
+  is_read     Boolean   @default(false)
+  created_at  DateTime  @default(now())
+
+  ticket      SupportTicket @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  sender      User      @relation(fields: [sender_id], references: [id])
+
+  @@map("support_messages")
 }
