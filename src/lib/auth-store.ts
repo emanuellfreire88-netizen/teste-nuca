@@ -8,7 +8,7 @@ export interface User {
   role: "Admin" | "Operator" | "Viewer";
   status: string;
   profile_photo: string | null;
-  two_factor_enabled: boolean;
+  must_change_password: boolean;
 }
 
 interface AuthState {

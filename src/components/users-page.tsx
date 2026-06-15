@@ -29,6 +29,8 @@ import {
   Loader2,
   ShieldAlert,
   X,
+  KeyRound,
+  RotateCcw,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ interface User {
   role: "Admin" | "Operator" | "Viewer";
   status: "active" | "inactive";
   profile_photo: string | null;
-  two_factor_enabled: boolean;
+  must_change_password: boolean;
   last_login: string | null;
   created_at: string;
 }
@@ -159,10 +161,12 @@ export function UsersPage() {
   const debouncedSearch = useDebounce(search, 300);
 
   // Modal states
-  const [modalMode, setModalMode] = useState<"closed" | "create" | "edit" | "delete">("closed");
+  const [modalMode, setModalMode] = useState<"closed" | "create" | "edit" | "delete" | "reset-password">("closed");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<UserFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetSaving, setResetSaving] = useState(false);
 
   const isAdmin = currentUser?.role === "Admin";
 
@@ -197,6 +201,7 @@ export function UsersPage() {
     setModalMode("closed");
     setSelectedUser(null);
     setFormData(emptyForm);
+    setResetPassword("");
   };
 
   // ─── Open Create ──────────────────────────────────────────────────
@@ -217,6 +222,41 @@ export function UsersPage() {
       status: user.status as "active" | "inactive",
     });
     setModalMode("edit");
+  };
+
+  // ─── Open Reset Password ──────────────────────────────────────
+  const openResetPassword = (user: User) => {
+    if (user.id === currentUser?.id) {
+      toast.error("Use as configurações de perfil para alterar sua própria senha");
+      return;
+    }
+    setSelectedUser(user);
+    setResetPassword("");
+    setModalMode("reset-password");
+  };
+
+  // ─── Handle Reset Password ────────────────────────────────────────
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    if (!resetPassword) {
+      toast.error("Digite a nova senha temporária");
+      return;
+    }
+    try {
+      setResetSaving(true);
+      await api.post(`/users/${selectedUser.id}/reset-password`, { temporaryPassword: resetPassword });
+      toast.success("Senha resetada! O usuário deverá trocar no próximo login.");
+      closeModal();
+      fetchUsers();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error("Erro ao resetar senha");
+      }
+    } finally {
+      setResetSaving(false);
+    }
   };
 
   // ─── Open Delete ──────────────────────────────────────────────────
@@ -429,6 +469,11 @@ export function UsersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {user.must_change_password && (
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[10px] px-1.5 py-0">
+                            Temporária
+                          </Badge>
+                        )}
                         <button
                           type="button"
                           className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
@@ -436,6 +481,15 @@ export function UsersPage() {
                           title="Editar"
                         >
                           <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                          onClick={() => openResetPassword(user)}
+                          disabled={user.id === currentUser?.id}
+                          title="Resetar senha"
+                        >
+                          <KeyRound className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
@@ -693,6 +747,67 @@ export function UsersPage() {
               </>
             ) : (
               "Excluir"
+            )}
+          </button>
+        </div>
+      </Modal>
+
+      {/* ═══ RESET PASSWORD MODAL ═════════════════════════════════════ */}
+      <Modal open={modalMode === "reset-password"} onClose={closeModal}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold">Resetar Senha</h2>
+            <p className="text-sm text-muted-foreground dark:text-gray-300">
+              Defina uma nova senha temporária para <strong>{selectedUser?.full_name}</strong>.<br />
+              O usuário será obrigado a trocar a senha no próximo login.
+            </p>
+          </div>
+          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="reset-password">Nova Senha Temporária *</Label>
+            <Input
+              id="reset-password"
+              type="password"
+              value={resetPassword}
+              onChange={(e) => setResetPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+            <p className="text-xs text-muted-foreground dark:text-gray-400">
+              Mínimo 8 caracteres, 1 maiúscula, 1 número, 1 especial
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            onClick={closeModal}
+            disabled={resetSaving}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleResetPassword}
+            disabled={resetSaving}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+          >
+            {resetSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Resetando...
+              </>
+            ) : (
+              <>
+                <RotateCcw className="h-4 w-4" />
+                Resetar Senha
+              </>
             )}
           </button>
         </div>

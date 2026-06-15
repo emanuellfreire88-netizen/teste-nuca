@@ -16,10 +16,9 @@ model User {
   role            String    @default("Viewer") // Admin, Operator, Viewer
   status          String    @default("active") // active, inactive
   profile_photo   String?
+  must_change_password Boolean @default(true)  // User must change password on first login
   two_factor_enabled Boolean @default(false)
   two_factor_secret  String?
-  verification_code  String?   // 6-digit code for email 2FA
-  verification_code_expires DateTime? // When the code expires
   failed_login_attempts Int  @default(0)
   locked_until    DateTime?
   last_login      DateTime?

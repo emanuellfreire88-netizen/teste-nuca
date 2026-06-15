@@ -1,0 +1,703 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useEffect, useState, useCallback } from "react";
+     4→     4→import { useDebounce } from "@/hooks/use-debounce";
+     5→     5→import { api, ApiError } from "@/lib/api";
+     6→     6→import { useAuthStore } from "@/lib/auth-store";
+     7→     7→import { toast } from "sonner";
+     8→     8→import { Button } from "@/components/ui/button";
+     9→     9→import { Input } from "@/components/ui/input";
+    10→    10→import { Label } from "@/components/ui/label";
+    11→    11→import { Badge } from "@/components/ui/badge";
+    12→    12→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+    13→    13→import { Skeleton } from "@/components/ui/skeleton";
+    14→    14→import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+    15→    15→import {
+    16→    16→  Table,
+    17→    17→  TableBody,
+    18→    18→  TableCell,
+    19→    19→  TableHead,
+    20→    20→  TableHeader,
+    21→    21→  TableRow,
+    22→    22→} from "@/components/ui/table";
+    23→    23→import {
+    24→    24→  Users,
+    25→    25→  Plus,
+    26→    26→  Pencil,
+    27→    27→  Trash2,
+    28→    28→  Search,
+    29→    29→  Loader2,
+    30→    30→  ShieldAlert,
+    31→    31→  X,
+    32→    32→} from "lucide-react";
+    33→    33→
+    34→    34→// ─── Types ────────────────────────────────────────────────────────────
+    35→    35→interface User {
+    36→    36→  id: string;
+    37→    37→  full_name: string;
+    38→    38→  email: string;
+    39→    39→  role: "Admin" | "Operator" | "Viewer";
+    40→    40→  status: "active" | "inactive";
+    41→    41→  profile_photo: string | null;
+    42→    42→  two_factor_enabled: boolean;
+    43→    43→  last_login: string | null;
+    44→    44→  created_at: string;
+    45→    45→}
+    46→    46→
+    47→    47→interface UsersResponse {
+    48→    48→  users: User[];
+    49→    49→  pagination: { page: number; limit: number; total: number; totalPages: number };
+    50→    50→}
+    51→    51→
+    52→    52→interface UserResponse {
+    53→    53→  user: User;
+    54→    54→}
+    55→    55→
+    56→    56→interface UserFormData {
+    57→    57→  full_name: string;
+    58→    58→  email: string;
+    59→    59→  password: string;
+    60→    60→  role: "Admin" | "Operator" | "Viewer";
+    61→    61→  status: "active" | "inactive";
+    62→    62→}
+    63→    63→
+    64→    64→const emptyForm: UserFormData = {
+    65→    65→  full_name: "",
+    66→    66→  email: "",
+    67→    67→  password: "",
+    68→    68→  role: "Viewer",
+    69→    69→  status: "active",
+    70→    70→};
+    71→    71→
+    72→    72→// ─── Constants ────────────────────────────────────────────────────────
+    73→    73→const roleBadgeClass: Record<string, string> = {
+    74→    74→  Admin: "bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+    75→    75→  Operator: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+    76→    76→  Viewer: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700",
+    77→    77→};
+    78→    78→
+    79→    79→const statusBadgeClass: Record<string, string> = {
+    80→    80→  active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+    81→    81→  inactive: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 dark:border-red-800",
+    82→    82→};
+    83→    83→
+    84→    84→const roleLabels: Record<string, string> = {
+    85→    85→  Admin: "Administrador",
+    86→    86→  Operator: "Operador",
+    87→    87→  Viewer: "Visualizador",
+    88→    88→};
+    89→    89→
+    90→    90→const statusLabels: Record<string, string> = {
+    91→    91→  active: "Ativo",
+    92→    92→  inactive: "Inativo",
+    93→    93→};
+    94→    94→
+    95→    95→function getInitials(name: string) {
+    96→    96→  return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+    97→    97→}
+    98→    98→
+    99→    99→function formatDate(dateStr: string | null) {
+   100→   100→  if (!dateStr) return "—";
+   101→   101→  const d = new Date(dateStr);
+   102→   102→  return d.toLocaleDateString("pt-BR", {
+   103→   103→    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+   104→   104→  });
+   105→   105→}
+   106→   106→
+   107→   107→// ─── Custom Modal Component (NO Radix) ────────────────────────────────
+   108→   108→function Modal({ open, onClose, children }: {
+   109→   109→  open: boolean;
+   110→   110→  onClose: () => void;
+   111→   111→  children: React.ReactNode;
+   112→   112→}) {
+   113→   113→  // Lock body scroll when modal is open
+   114→   114→  useEffect(() => {
+   115→   115→    if (open) {
+   116→   116→      document.body.style.overflow = "hidden";
+   117→   117→    } else {
+   118→   118→      document.body.style.overflow = "";
+   119→   119→    }
+   120→   120→    return () => { document.body.style.overflow = ""; };
+   121→   121→  }, [open]);
+   122→   122→
+   123→   123→  // Close on Escape key
+   124→   124→  useEffect(() => {
+   125→   125→    if (!open) return;
+   126→   126→    const handler = (e: KeyboardEvent) => {
+   127→   127→      if (e.key === "Escape") onClose();
+   128→   128→    };
+   129→   129→    window.addEventListener("keydown", handler);
+   130→   130→    return () => window.removeEventListener("keydown", handler);
+   131→   131→  }, [open, onClose]);
+   132→   132→
+   133→   133→  if (!open) return null;
+   134→   134→
+   135→   135→  return (
+   136→   136→    <div className="fixed inset-0 z-50 flex items-center justify-center">
+   137→   137→      {/* Overlay - clicking closes the modal */}
+   138→   138→      <div
+   139→   139→        className="absolute inset-0 bg-black/50"
+   140→   140→        onClick={onClose}
+   141→   141→      />
+   142→   142→      {/* Content - clicks inside do NOT close the modal */}
+   143→   143→      <div
+   144→   144→        className="relative z-10 w-full max-w-md mx-4 bg-background rounded-lg border shadow-lg p-6 animate-in fade-in-0 zoom-in-95 duration-200"
+   145→   145→        onClick={(e) => e.stopPropagation()}
+   146→   146→      >
+   147→   147→        {children}
+   148→   148→      </div>
+   149→   149→    </div>
+   150→   150→  );
+   151→   151→}
+   152→   152→
+   153→   153→// ─── Main Component ──────────────────────────────────────────────────
+   154→   154→export function UsersPage() {
+   155→   155→  const currentUser = useAuthStore((s) => s.user);
+   156→   156→  const [users, setUsers] = useState<User[]>([]);
+   157→   157→  const [loading, setLoading] = useState(true);
+   158→   158→  const [search, setSearch] = useState("");
+   159→   159→  const debouncedSearch = useDebounce(search, 300);
+   160→   160→
+   161→   161→  // Modal states
+   162→   162→  const [modalMode, setModalMode] = useState<"closed" | "create" | "edit" | "delete">("closed");
+   163→   163→  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+   164→   164→  const [formData, setFormData] = useState<UserFormData>(emptyForm);
+   165→   165→  const [saving, setSaving] = useState(false);
+   166→   166→
+   167→   167→  const isAdmin = currentUser?.role === "Admin";
+   168→   168→
+   169→   169→  const fetchUsers = useCallback(async () => {
+   170→   170→    try {
+   171→   171→      setLoading(true);
+   172→   172→      const data = await api.get<UsersResponse>("/users?limit=100");
+   173→   173→      setUsers(data.users);
+   174→   174→    } catch {
+   175→   175→      toast.error("Erro ao carregar usuários");
+   176→   176→    } finally {
+   177→   177→      setLoading(false);
+   178→   178→    }
+   179→   179→  }, []);
+   180→   180→
+   181→   181→  useEffect(() => {
+   182→   182→    fetchUsers();
+   183→   183→  }, [fetchUsers]);
+   184→   184→
+   185→   185→  const filteredUsers = users.filter(
+   186→   186→    (u) =>
+   187→   187→      u.full_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+   188→   188→      u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
+   189→   189→  );
+   190→   190→
+   191→   191→  // ─── Helpers ──────────────────────────────────────────────────────
+   192→   192→  const updateField = (field: keyof UserFormData, value: string) => {
+   193→   193→    setFormData((prev) => ({ ...prev, [field]: value }));
+   194→   194→  };
+   195→   195→
+   196→   196→  const closeModal = () => {
+   197→   197→    setModalMode("closed");
+   198→   198→    setSelectedUser(null);
+   199→   199→    setFormData(emptyForm);
+   200→   200→  };
+   201→   201→
+   202→   202→  // ─── Open Create ──────────────────────────────────────────────────
+   203→   203→  const openCreate = () => {
+   204→   204→    setFormData(emptyForm);
+   205→   205→    setSelectedUser(null);
+   206→   206→    setModalMode("create");
+   207→   207→  };
+   208→   208→
+   209→   209→  // ─── Open Edit ────────────────────────────────────────────────────
+   210→   210→  const openEdit = (user: User) => {
+   211→   211→    setSelectedUser(user);
+   212→   212→    setFormData({
+   213→   213→      full_name: user.full_name,
+   214→   214→      email: user.email,
+   215→   215→      password: "",
+   216→   216→      role: user.role,
+   217→   217→      status: user.status as "active" | "inactive",
+   218→   218→    });
+   219→   219→    setModalMode("edit");
+   220→   220→  };
+   221→   221→
+   222→   222→  // ─── Open Delete ──────────────────────────────────────────────────
+   223→   223→  const openDelete = (user: User) => {
+   224→   224→    if (user.id === currentUser?.id) {
+   225→   225→      toast.error("Você não pode excluir seu próprio usuário");
+   226→   226→      return;
+   227→   227→    }
+   228→   228→    setSelectedUser(user);
+   229→   229→    setModalMode("delete");
+   230→   230→  };
+   231→   231→
+   232→   232→  // ─── Handle Create ────────────────────────────────────────────────
+   233→   233→  const handleCreate = async () => {
+   234→   234→    if (!formData.full_name || !formData.email || !formData.password) {
+   235→   235→      toast.error("Preencha todos os campos obrigatórios");
+   236→   236→      return;
+   237→   237→    }
+   238→   238→    try {
+   239→   239→      setSaving(true);
+   240→   240→      await api.post<UserResponse>("/users", formData);
+   241→   241→      toast.success("Usuário criado com sucesso!");
+   242→   242→      closeModal();
+   243→   243→      fetchUsers();
+   244→   244→    } catch (err) {
+   245→   245→      if (err instanceof ApiError) {
+   246→   246→        toast.error(err.message);
+   247→   247→      } else {
+   248→   248→        toast.error("Erro ao criar usuário");
+   249→   249→      }
+   250→   250→    } finally {
+   251→   251→      setSaving(false);
+   252→   252→    }
+   253→   253→  };
+   254→   254→
+   255→   255→  // ─── Handle Edit ──────────────────────────────────────────────────
+   256→   256→  const handleEdit = async () => {
+   257→   257→    if (!selectedUser) {
+   258→   258→      toast.error("Nenhum usuário selecionado");
+   259→   259→      return;
+   260→   260→    }
+   261→   261→    if (!formData.full_name || !formData.email) {
+   262→   262→      toast.error("Nome e e-mail são obrigatórios");
+   263→   263→      return;
+   264→   264→    }
+   265→   265→    try {
+   266→   266→      setSaving(true);
+   267→   267→      const body: Record<string, string> = {
+   268→   268→        full_name: formData.full_name,
+   269→   269→        email: formData.email,
+   270→   270→        role: formData.role,
+   271→   271→        status: formData.status,
+   272→   272→      };
+   273→   273→      if (formData.password) {
+   274→   274→        body.password = formData.password;
+   275→   275→      }
+   276→   276→      await api.put<UserResponse>(`/users/${selectedUser.id}`, body);
+   277→   277→      toast.success("Usuário atualizado com sucesso!");
+   278→   278→      closeModal();
+   279→   279→      fetchUsers();
+   280→   280→    } catch (err) {
+   281→   281→      if (err instanceof ApiError) {
+   282→   282→        toast.error(err.message);
+   283→   283→      } else {
+   284→   284→        toast.error("Erro ao atualizar usuário");
+   285→   285→      }
+   286→   286→    } finally {
+   287→   287→      setSaving(false);
+   288→   288→    }
+   289→   289→  };
+   290→   290→
+   291→   291→  // ─── Handle Delete ────────────────────────────────────────────────
+   292→   292→  const handleDelete = async () => {
+   293→   293→    if (!selectedUser) return;
+   294→   294→    try {
+   295→   295→      setSaving(true);
+   296→   296→      await api.delete(`/users/${selectedUser.id}`);
+   297→   297→      toast.success("Usuário excluído com sucesso!");
+   298→   298→      closeModal();
+   299→   299→      fetchUsers();
+   300→   300→    } catch (err) {
+   301→   301→      if (err instanceof ApiError) {
+   302→   302→        toast.error(err.message);
+   303→   303→      } else {
+   304→   304→        toast.error("Erro ao excluir usuário");
+   305→   305→      }
+   306→   306→    } finally {
+   307→   307→      setSaving(false);
+   308→   308→    }
+   309→   309→  };
+   310→   310→
+   311→   311→  // ─── Non-admin guard ──────────────────────────────────────────────
+   312→   312→  if (!isAdmin) {
+   313→   313→    return (
+   314→   314→      <div className="space-y-6">
+   315→   315→        <div>
+   316→   316→          <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+   317→   317→          <p className="text-muted-foreground dark:text-gray-300 mt-1">
+   318→   318→            Gerenciamento de usuários do sistema
+   319→   319→          </p>
+   320→   320→        </div>
+   321→   321→        <div className="flex flex-col items-center justify-center h-64 rounded-xl border-2 border-dashed border-muted-foreground/25 gap-3">
+   322→   322→          <ShieldAlert className="h-10 w-10 text-muted-foreground" />
+   323→   323→          <p className="text-muted-foreground dark:text-gray-400 text-sm">
+   324→   324→            Acesso restrito a administradores
+   325→   325→          </p>
+   326→   326→        </div>
+   327→   327→      </div>
+   328→   328→    );
+   329→   329→  }
+   330→   330→
+   331→   331→  // ─── Render ────────────────────────────────────────────────────────
+   332→   332→  return (
+   333→   333→    <div className="space-y-6">
+   334→   334→      {/* Header */}
+   335→   335→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   336→   336→        <div>
+   337→   337→          <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+   338→   338→          <p className="text-muted-foreground dark:text-gray-300 mt-1">
+   339→   339→            Gerencie os usuários do sistema
+   340→   340→          </p>
+   341→   341→        </div>
+   342→   342→        <button
+   343→   343→          type="button"
+   344→   344→          onClick={openCreate}
+   345→   345→          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+   346→   346→        >
+   347→   347→          <Plus className="h-4 w-4" />
+   348→   348→          Novo Usuário
+   349→   349→        </button>
+   350→   350→      </div>
+   351→   351→
+   352→   352→      {/* Search */}
+   353→   353→      <div className="relative max-w-sm">
+   354→   354→        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground dark:text-gray-400" />
+   355→   355→        <Input
+   356→   356→          placeholder="Buscar por nome ou e-mail..."
+   357→   357→          value={search}
+   358→   358→          onChange={(e) => setSearch(e.target.value)}
+   359→   359→          className="pl-9"
+   360→   360→        />
+   361→   361→      </div>
+   362→   362→
+   363→   363→      {/* Table */}
+   364→   364→      <Card>
+   365→   365→        <CardHeader className="pb-3">
+   366→   366→          <CardTitle className="text-base flex items-center gap-2">
+   367→   367→            <Users className="h-4 w-4" />
+   368→   368→            Lista de Usuários
+   369→   369→          </CardTitle>
+   370→   370→        </CardHeader>
+   371→   371→        <CardContent className="p-0">
+   372→   372→          {loading ? (
+   373→   373→            <div className="space-y-0">
+   374→   374→              {Array.from({ length: 5 }).map((_, i) => (
+   375→   375→                <div key={i} className="flex items-center gap-4 px-6 py-3">
+   376→   376→                  <Skeleton className="h-9 w-9 rounded-full" />
+   377→   377→                  <Skeleton className="h-4 w-32" />
+   378→   378→                  <Skeleton className="h-4 w-40" />
+   379→   379→                  <Skeleton className="h-5 w-20 rounded-full" />
+   380→   380→                  <Skeleton className="h-5 w-16 rounded-full" />
+   381→   381→                  <Skeleton className="h-4 w-28" />
+   382→   382→                  <Skeleton className="h-8 w-16" />
+   383→   383→                </div>
+   384→   384→              ))}
+   385→   385→            </div>
+   386→   386→          ) : filteredUsers.length === 0 ? (
+   387→   387→            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground dark:text-gray-400">
+   388→   388→              <Users className="h-10 w-10 mb-3" />
+   389→   389→              <p className="text-sm">Nenhum usuário encontrado</p>
+   390→   390→            </div>
+   391→   391→          ) : (
+   392→   392→            <Table>
+   393→   393→              <TableHeader>
+   394→   394→                <TableRow>
+   395→   395→                  <TableHead>Foto</TableHead>
+   396→   396→                  <TableHead>Nome</TableHead>
+   397→   397→                  <TableHead>E-mail</TableHead>
+   398→   398→                  <TableHead>Papel</TableHead>
+   399→   399→                  <TableHead>Status</TableHead>
+   400→   400→                  <TableHead>Último Login</TableHead>
+   401→   401→                  <TableHead className="text-right">Ações</TableHead>
+   402→   402→                </TableRow>
+   403→   403→              </TableHeader>
+   404→   404→              <TableBody>
+   405→   405→                {filteredUsers.map((user) => (
+   406→   406→                  <TableRow key={user.id}>
+   407→   407→                    <TableCell>
+   408→   408→                      <Avatar className="h-9 w-9">
+   409→   409→                        <AvatarImage src={user.profile_photo || undefined} alt={user.full_name} />
+   410→   410→                        <AvatarFallback className="text-xs font-semibold">
+   411→   411→                          {getInitials(user.full_name)}
+   412→   412→                        </AvatarFallback>
+   413→   413→                      </Avatar>
+   414→   414→                    </TableCell>
+   415→   415→                    <TableCell className="font-medium">{user.full_name}</TableCell>
+   416→   416→                    <TableCell className="text-muted-foreground dark:text-gray-300">{user.email}</TableCell>
+   417→   417→                    <TableCell>
+   418→   418→                      <Badge variant="outline" className={roleBadgeClass[user.role]}>
+   419→   419→                        {roleLabels[user.role]}
+   420→   420→                      </Badge>
+   421→   421→                    </TableCell>
+   422→   422→                    <TableCell>
+   423→   423→                      <Badge variant="outline" className={statusBadgeClass[user.status]}>
+   424→   424→                        {statusLabels[user.status]}
+   425→   425→                      </Badge>
+   426→   426→                    </TableCell>
+   427→   427→                    <TableCell className="text-muted-foreground dark:text-gray-300 text-sm">
+   428→   428→                      {formatDate(user.last_login)}
+   429→   429→                    </TableCell>
+   430→   430→                    <TableCell className="text-right">
+   431→   431→                      <div className="flex items-center justify-end gap-1">
+   432→   432→                        <button
+   433→   433→                          type="button"
+   434→   434→                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+   435→   435→                          onClick={() => openEdit(user)}
+   436→   436→                          title="Editar"
+   437→   437→                        >
+   438→   438→                          <Pencil className="h-4 w-4" />
+   439→   439→                        </button>
+   440→   440→                        <button
+   441→   441→                          type="button"
+   442→   442→                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive hover:text-destructive"
+   443→   443→                          onClick={() => openDelete(user)}
+   444→   444→                          disabled={user.id === currentUser?.id}
+   445→   445→                          title={user.id === currentUser?.id ? "Não é possível excluir" : "Excluir"}
+   446→   446→                        >
+   447→   447→                          <Trash2 className="h-4 w-4" />
+   448→   448→                        </button>
+   449→   449→                      </div>
+   450→   450→                    </TableCell>
+   451→   451→                  </TableRow>
+   452→   452→                ))}
+   453→   453→              </TableBody>
+   454→   454→            </Table>
+   455→   455→          )}
+   456→   456→        </CardContent>
+   457→   457→      </Card>
+   458→   458→
+   459→   459→      {/* ═══ CREATE MODAL ═══════════════════════════════════════════════ */}
+   460→   460→      <Modal open={modalMode === "create"} onClose={closeModal}>
+   461→   461→        <div className="flex items-center justify-between mb-4">
+   462→   462→          <div>
+   463→   463→            <h2 className="text-lg font-semibold">Novo Usuário</h2>
+   464→   464→            <p className="text-sm text-muted-foreground dark:text-gray-300">
+   465→   465→              Preencha os dados para criar um novo usuário no sistema.
+   466→   466→            </p>
+   467→   467→          </div>
+   468→   468→          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+   469→   469→            <X className="h-5 w-5" />
+   470→   470→          </button>
+   471→   471→        </div>
+   472→   472→
+   473→   473→        <div className="space-y-4">
+   474→   474→          <div className="space-y-2">
+   475→   475→            <Label htmlFor="create-name">Nome Completo *</Label>
+   476→   476→            <Input
+   477→   477→              id="create-name"
+   478→   478→              value={formData.full_name}
+   479→   479→              onChange={(e) => updateField("full_name", e.target.value)}
+   480→   480→              placeholder="Nome completo do usuário"
+   481→   481→            />
+   482→   482→          </div>
+   483→   483→          <div className="space-y-2">
+   484→   484→            <Label htmlFor="create-email">E-mail *</Label>
+   485→   485→            <Input
+   486→   486→              id="create-email"
+   487→   487→              type="email"
+   488→   488→              value={formData.email}
+   489→   489→              onChange={(e) => updateField("email", e.target.value)}
+   490→   490→              placeholder="usuario@email.com"
+   491→   491→            />
+   492→   492→          </div>
+   493→   493→          <div className="space-y-2">
+   494→   494→            <Label htmlFor="create-password">Senha *</Label>
+   495→   495→            <Input
+   496→   496→              id="create-password"
+   497→   497→              type="password"
+   498→   498→              value={formData.password}
+   499→   499→              onChange={(e) => updateField("password", e.target.value)}
+   500→   500→              placeholder="••••••••"
+   501→   501→            />
+   502→   502→            <p className="text-xs text-muted-foreground dark:text-gray-400">
+   503→   503→              Mínimo 8 caracteres, 1 maiúscula, 1 número, 1 especial
+   504→   504→            </p>
+   505→   505→          </div>
+   506→   506→          <div className="grid grid-cols-2 gap-4">
+   507→   507→            <div className="space-y-2">
+   508→   508→              <Label htmlFor="create-role">Papel</Label>
+   509→   509→              <select
+   510→   510→                id="create-role"
+   511→   511→                value={formData.role}
+   512→   512→                onChange={(e) => updateField("role", e.target.value)}
+   513→   513→                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   514→   514→              >
+   515→   515→                <option value="Admin">Administrador</option>
+   516→   516→                <option value="Operator">Operador</option>
+   517→   517→                <option value="Viewer">Visualizador</option>
+   518→   518→              </select>
+   519→   519→            </div>
+   520→   520→            <div className="space-y-2">
+   521→   521→              <Label htmlFor="create-status">Status</Label>
+   522→   522→              <select
+   523→   523→                id="create-status"
+   524→   524→                value={formData.status}
+   525→   525→                onChange={(e) => updateField("status", e.target.value)}
+   526→   526→                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   527→   527→              >
+   528→   528→                <option value="active">Ativo</option>
+   529→   529→                <option value="inactive">Inativo</option>
+   530→   530→              </select>
+   531→   531→            </div>
+   532→   532→          </div>
+   533→   533→        </div>
+   534→   534→
+   535→   535→        <div className="flex justify-end gap-2 mt-6">
+   536→   536→          <button
+   537→   537→            type="button"
+   538→   538→            onClick={closeModal}
+   539→   539→            disabled={saving}
+   540→   540→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+   541→   541→          >
+   542→   542→            Cancelar
+   543→   543→          </button>
+   544→   544→          <button
+   545→   545→            type="button"
+   546→   546→            onClick={handleCreate}
+   547→   547→            disabled={saving}
+   548→   548→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+   549→   549→          >
+   550→   550→            {saving ? (
+   551→   551→              <>
+   552→   552→                <Loader2 className="h-4 w-4 animate-spin" />
+   553→   553→                Criando...
+   554→   554→              </>
+   555→   555→            ) : (
+   556→   556→              "Criar Usuário"
+   557→   557→            )}
+   558→   558→          </button>
+   559→   559→        </div>
+   560→   560→      </Modal>
+   561→   561→
+   562→   562→      {/* ═══ EDIT MODAL ═════════════════════════════════════════════════ */}
+   563→   563→      <Modal open={modalMode === "edit"} onClose={closeModal}>
+   564→   564→        <div className="flex items-center justify-between mb-4">
+   565→   565→          <div>
+   566→   566→            <h2 className="text-lg font-semibold">Editar Usuário</h2>
+   567→   567→            <p className="text-sm text-muted-foreground dark:text-gray-300">
+   568→   568→              Atualize os dados do usuário. Deixe a senha em branco para manter a atual.
+   569→   569→            </p>
+   570→   570→          </div>
+   571→   571→          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+   572→   572→            <X className="h-5 w-5" />
+   573→   573→          </button>
+   574→   574→        </div>
+   575→   575→
+   576→   576→        <div className="space-y-4">
+   577→   577→          <div className="space-y-2">
+   578→   578→            <Label htmlFor="edit-name">Nome Completo *</Label>
+   579→   579→            <Input
+   580→   580→              id="edit-name"
+   581→   581→              value={formData.full_name}
+   582→   582→              onChange={(e) => updateField("full_name", e.target.value)}
+   583→   583→              placeholder="Nome completo do usuário"
+   584→   584→            />
+   585→   585→          </div>
+   586→   586→          <div className="space-y-2">
+   587→   587→            <Label htmlFor="edit-email">E-mail *</Label>
+   588→   588→            <Input
+   589→   589→              id="edit-email"
+   590→   590→              type="email"
+   591→   591→              value={formData.email}
+   592→   592→              onChange={(e) => updateField("email", e.target.value)}
+   593→   593→              placeholder="usuario@email.com"
+   594→   594→            />
+   595→   595→          </div>
+   596→   596→          <div className="space-y-2">
+   597→   597→            <Label htmlFor="edit-password">Senha (opcional)</Label>
+   598→   598→            <Input
+   599→   599→              id="edit-password"
+   600→   600→              type="password"
+   601→   601→              value={formData.password}
+   602→   602→              onChange={(e) => updateField("password", e.target.value)}
+   603→   603→              placeholder="Deixe em branco para manter a atual"
+   604→   604→            />
+   605→   605→          </div>
+   606→   606→          <div className="grid grid-cols-2 gap-4">
+   607→   607→            <div className="space-y-2">
+   608→   608→              <Label htmlFor="edit-role">Papel</Label>
+   609→   609→              <select
+   610→   610→                id="edit-role"
+   611→   611→                value={formData.role}
+   612→   612→                onChange={(e) => updateField("role", e.target.value)}
+   613→   613→                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   614→   614→              >
+   615→   615→                <option value="Admin">Administrador</option>
+   616→   616→                <option value="Operator">Operador</option>
+   617→   617→                <option value="Viewer">Visualizador</option>
+   618→   618→              </select>
+   619→   619→            </div>
+   620→   620→            <div className="space-y-2">
+   621→   621→              <Label htmlFor="edit-status">Status</Label>
+   622→   622→              <select
+   623→   623→                id="edit-status"
+   624→   624→                value={formData.status}
+   625→   625→                onChange={(e) => updateField("status", e.target.value)}
+   626→   626→                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   627→   627→              >
+   628→   628→                <option value="active">Ativo</option>
+   629→   629→                <option value="inactive">Inativo</option>
+   630→   630→              </select>
+   631→   631→            </div>
+   632→   632→          </div>
+   633→   633→        </div>
+   634→   634→
+   635→   635→        <div className="flex justify-end gap-2 mt-6">
+   636→   636→          <button
+   637→   637→            type="button"
+   638→   638→            onClick={closeModal}
+   639→   639→            disabled={saving}
+   640→   640→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+   641→   641→          >
+   642→   642→            Cancelar
+   643→   643→          </button>
+   644→   644→          <button
+   645→   645→            type="button"
+   646→   646→            onClick={handleEdit}
+   647→   647→            disabled={saving}
+   648→   648→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+   649→   649→          >
+   650→   650→            {saving ? (
+   651→   651→              <>
+   652→   652→                <Loader2 className="h-4 w-4 animate-spin" />
+   653→   653→                Salvando...
+   654→   654→              </>
+   655→   655→            ) : (
+   656→   656→              "Salvar Alterações"
+   657→   657→            )}
+   658→   658→          </button>
+   659→   659→        </div>
+   660→   660→      </Modal>
+   661→   661→
+   662→   662→      {/* ═══ DELETE MODAL ═══════════════════════════════════════════════ */}
+   663→   663→      <Modal open={modalMode === "delete"} onClose={closeModal}>
+   664→   664→        <div className="flex items-center justify-between mb-4">
+   665→   665→          <h2 className="text-lg font-semibold">Excluir Usuário</h2>
+   666→   666→          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+   667→   667→            <X className="h-5 w-5" />
+   668→   668→          </button>
+   669→   669→        </div>
+   670→   670→        <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
+   671→   671→          Tem certeza que deseja excluir o usuário{" "}
+   672→   672→          <strong>{selectedUser?.full_name}</strong>? Esta ação não pode ser desfeita.
+   673→   673→        </p>
+   674→   674→        <div className="flex justify-end gap-2">
+   675→   675→          <button
+   676→   676→            type="button"
+   677→   677→            onClick={closeModal}
+   678→   678→            disabled={saving}
+   679→   679→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+   680→   680→          >
+   681→   681→            Cancelar
+   682→   682→          </button>
+   683→   683→          <button
+   684→   684→            type="button"
+   685→   685→            onClick={handleDelete}
+   686→   686→            disabled={saving}
+   687→   687→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 h-9 px-4 py-2"
+   688→   688→          >
+   689→   689→            {saving ? (
+   690→   690→              <>
+   691→   691→                <Loader2 className="h-4 w-4 animate-spin" />
+   692→   692→                Excluindo...
+   693→   693→              </>
+   694→   694→            ) : (
+   695→   695→              "Excluir"
+   696→   696→            )}
+   697→   697→          </button>
+   698→   698→        </div>
+   699→   699→      </Modal>
+   700→   700→    </div>
+   701→   701→  );
+   702→   702→}
+   703→   703→

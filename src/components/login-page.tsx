@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Loader2, AlertCircle, Eye, EyeOff, KeyRound, ArrowLeft } from "lucide-react";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -18,6 +18,26 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const login = useAuthStore((s) => s.login);
+
+  // Change password state
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [changePasswordToken, setChangePasswordToken] = useState<string | null>(null);
+  const [changePasswordUser, setChangePasswordUser] = useState<{
+    id: string;
+    full_name: string;
+    email: string;
+    role: "Admin" | "Operator" | "Viewer";
+    status: string;
+    profile_photo: string | null;
+    must_change_password: boolean;
+  } | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,10 +54,20 @@ export function LoginPage() {
           role: "Admin" | "Operator" | "Viewer";
           status: string;
           profile_photo: string | null;
+          must_change_password: boolean;
         };
+        mustChangePassword?: boolean;
       }>("/auth/login", { email, password, remember });
 
-      if (data.token && data.user) {
+      if (data.mustChangePassword && data.token && data.user) {
+        // User needs to change password - show change password screen
+        setChangePasswordToken(data.token);
+        setChangePasswordUser(data.user);
+        setMustChangePassword(true);
+        setCurrentPassword(password); // Pre-fill with the temp password
+        setNewPassword("");
+        setConfirmPassword("");
+      } else if (data.token && data.user) {
         login(data.token, data.user);
       }
     } catch (err) {
@@ -50,6 +80,91 @@ export function LoginPage() {
       setLoading(false);
     }
   };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!currentPassword) {
+      setError("Digite sua senha atual.");
+      return;
+    }
+
+    if (!newPassword) {
+      setError("Digite a nova senha.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("As senhas não coincidem.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError("A nova senha deve ter no mínimo 8 caracteres.");
+      return;
+    }
+
+    if (!changePasswordToken) return;
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${changePasswordToken}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new ApiError(data.error || "Erro ao alterar senha", res.status);
+      }
+
+      // Password changed successfully - login
+      if (changePasswordUser) {
+        login(changePasswordToken, {
+          ...changePasswordUser,
+          must_change_password: false,
+        });
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Erro ao alterar senha. Tente novamente.");
+      }
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setMustChangePassword(false);
+    setChangePasswordToken(null);
+    setChangePasswordUser(null);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setError(null);
+  };
+
+  // Password strength indicator
+  const getPasswordStrength = (pwd: string) => {
+    const checks = {
+      length: pwd.length >= 8,
+      uppercase: /[A-Z]/.test(pwd),
+      lowercase: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
+      special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
+    };
+    const score = Object.values(checks).filter(Boolean).length;
+    return { checks, score };
+  };
+
+  const strength = getPasswordStrength(newPassword);
 
   return (
     <div className="min-h-screen flex">
@@ -122,124 +237,318 @@ export function LoginPage() {
         </div>
       </div>
 
-      {/* Right Panel - Login Form */}
+      {/* Right Panel */}
       <div className="flex-1 flex items-center justify-center bg-white dark:bg-[#0d1117] p-6 sm:p-12">
         <div className="w-full max-w-[400px]">
-          {/* Mobile Logo */}
-          <div className="flex flex-col items-center mb-8 lg:hidden">
-            <div className="w-40 mb-3">
-              <Image
-                src="/uploads/nuca-logo.png"
-                alt="Nuca Plataforma"
-                width={1922}
-                height={1080}
-                className="w-full h-auto object-contain"
-                priority
-              />
-            </div>
-            <p className="text-muted-foreground text-sm">
-              Sistema de Gestão Escolar
-            </p>
-          </div>
 
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Bem-vindo de volta
-            </h1>
-            <p className="text-muted-foreground mt-2 text-sm">
-              Insira suas credenciais para acessar o sistema
-            </p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive mb-6 animate-in fade-in slide-in-from-top-1 duration-300">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                E-mail
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                className="h-11 rounded-xl border-muted-foreground/20 bg-muted/30 focus:bg-background transition-colors"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Senha
-                </Label>
+          {!mustChangePassword ? (
+            <>
+              {/* ── LOGIN FORM ────────────────────────────── */}
+              {/* Mobile Logo */}
+              <div className="flex flex-col items-center mb-8 lg:hidden">
+                <div className="w-40 mb-3">
+                  <Image
+                    src="/uploads/nuca-logo.png"
+                    alt="Nuca Plataforma"
+                    width={1922}
+                    height={1080}
+                    className="w-full h-auto object-contain"
+                    priority
+                  />
+                </div>
+                <p className="text-muted-foreground text-sm">
+                  Sistema de Gestão Escolar
+                </p>
               </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  className="h-11 rounded-xl border-muted-foreground/20 bg-muted/30 focus:bg-background transition-colors pr-10"
-                />
+
+              {/* Header */}
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  Bem-vindo de volta
+                </h1>
+                <p className="text-muted-foreground mt-2 text-sm">
+                  Insira suas credenciais para acessar o sistema
+                </p>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive mb-6 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    E-mail
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    className="h-11 rounded-xl border-muted-foreground/20 bg-muted/30 focus:bg-background transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-sm font-medium">
+                      Senha
+                    </Label>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                      className="h-11 rounded-xl border-muted-foreground/20 bg-muted/30 focus:bg-background transition-colors pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remember"
+                      checked={remember}
+                      onCheckedChange={(checked) => setRemember(checked === true)}
+                    />
+                    <Label
+                      htmlFor="remember"
+                      className="text-sm font-normal text-muted-foreground cursor-pointer"
+                    >
+                      Lembrar de mim
+                    </Label>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-200"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Entrando...
+                    </>
+                  ) : (
+                    "Entrar"
+                  )}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              {/* ── CHANGE PASSWORD SCREEN ─────────────────── */}
+              {/* Mobile Logo */}
+              <div className="flex flex-col items-center mb-8 lg:hidden">
+                <div className="w-40 mb-3">
+                  <Image
+                    src="/uploads/nuca-logo.png"
+                    alt="Nuca Plataforma"
+                    width={1922}
+                    height={1080}
+                    className="w-full h-auto object-contain"
+                    priority
+                  />
+                </div>
+              </div>
+
+              {/* Header */}
+              <div className="mb-8 text-center">
+                <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center">
+                  <KeyRound className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  Redefinir senha
+                </h1>
+                <p className="text-muted-foreground mt-2 text-sm">
+                  Você está usando uma senha temporária.<br />
+                  Crie uma nova senha para continuar.
+                </p>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 text-sm text-destructive mb-6 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="current-password" className="text-sm font-medium">
+                    Senha atual
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                      className="h-11 rounded-xl border-muted-foreground/20 bg-muted/30 focus:bg-background transition-colors pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="new-password" className="text-sm font-medium">
+                    Nova senha
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showNewPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      placeholder="Mínimo 8 caracteres"
+                      className="h-11 rounded-xl border-muted-foreground/20 bg-muted/30 focus:bg-background transition-colors pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password" className="text-sm font-medium">
+                    Confirmar nova senha
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      placeholder="Repita a nova senha"
+                      className="h-11 rounded-xl border-muted-foreground/20 bg-muted/30 focus:bg-background transition-colors pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {confirmPassword && newPassword !== confirmPassword && (
+                    <p className="text-xs text-destructive">As senhas não coincidem</p>
+                  )}
+                </div>
+
+                {/* Password strength indicator */}
+                {newPassword && (
+                  <div className="space-y-2 p-3 rounded-lg bg-muted/50">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <div
+                          key={level}
+                          className={`h-1.5 flex-1 rounded-full transition-colors ${
+                            strength.score >= level
+                              ? strength.score <= 2
+                                ? "bg-red-500"
+                                : strength.score <= 3
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
+                              : "bg-muted-foreground/20"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 text-xs">
+                      <span className={strength.checks.length ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                        {strength.checks.length ? "✓" : "○"} Mín. 8 caracteres
+                      </span>
+                      <span className={strength.checks.uppercase ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                        {strength.checks.uppercase ? "✓" : "○"} 1 maiúscula
+                      </span>
+                      <span className={strength.checks.lowercase ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                        {strength.checks.lowercase ? "✓" : "○"} 1 minúscula
+                      </span>
+                      <span className={strength.checks.number ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                        {strength.checks.number ? "✓" : "○"} 1 número
+                      </span>
+                      <span className={strength.checks.special ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                        {strength.checks.special ? "✓" : "○"} 1 especial
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-200"
+                  disabled={changingPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+                >
+                  {changingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Alterando...
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Alterar senha e entrar
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              {/* Back */}
+              <div className="mt-6 text-center">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={handleBackToLogin}
+                  className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Voltar ao login
                 </button>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="remember"
-                  checked={remember}
-                  onCheckedChange={(checked) => setRemember(checked === true)}
-                />
-                <Label
-                  htmlFor="remember"
-                  className="text-sm font-normal text-muted-foreground cursor-pointer"
-                >
-                  Lembrar de mim
-                </Label>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-11 rounded-xl text-sm font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-200"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Entrando...
-                </>
-              ) : (
-                "Entrar"
-              )}
-            </Button>
-          </form>
+            </>
+          )}
 
           {/* Footer */}
           <div className="mt-10 pt-6 border-t border-border/50">

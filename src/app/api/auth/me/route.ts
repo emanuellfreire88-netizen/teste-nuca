@@ -14,6 +14,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         status: true,
         profile_photo: true,
         two_factor_enabled: true,
+        must_change_password: true,
         last_login: true,
         created_at: true,
         updated_at: true,

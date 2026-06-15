@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
     await logAction(user.id, 'login', `Login realizado: ${user.email}`, req);
 
     // Return user info without password or sensitive fields
-    const { password: _, two_factor_secret: __, verification_code: ___, verification_code_expires: ____, ...userWithoutSensitive } = user;
+    const { password: _, two_factor_secret: __, ...userWithoutSensitive } = user;
 
     return NextResponse.json({
       token,
@@ -184,6 +184,7 @@ export async function POST(req: NextRequest) {
         ...userWithoutSensitive,
         last_login: new Date(),
       },
+      mustChangePassword: user.must_change_password,
     });
   } catch (error) {
     console.error('Login error:', error);
