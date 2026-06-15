@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import {
   LayoutDashboard,
   School,
@@ -36,6 +37,7 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  ShieldCheck,
 } from "lucide-react";
 
 export type PageKey =
@@ -172,9 +174,10 @@ export function AppLayout({
   onNavigate: (page: PageKey) => void;
   children: React.ReactNode;
 }) {
-  const { user, logout } = useAuthStore();
+  const { user, logout, updateUser } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [toggling2FA, setToggling2FA] = useState(false);
 
   if (!user) return null;
 
@@ -185,6 +188,38 @@ export function AppLayout({
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleToggle2FA = async () => {
+    if (!user || toggling2FA) return;
+    setToggling2FA(true);
+    try {
+      const newState = !user.two_factor_enabled;
+      const res = await fetch("/api/auth/toggle-2fa", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${useAuthStore.getState().token}`,
+        },
+        body: JSON.stringify({ enabled: newState }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao alterar 2FA");
+      }
+      updateUser({ ...user, two_factor_enabled: newState });
+      const { toast } = await import("sonner");
+      toast.success(
+        newState
+          ? "Autenticação de dois fatores ativada!"
+          : "Autenticação de dois fatores desativada."
+      );
+    } catch (err) {
+      const { toast } = await import("sonner");
+      toast.error(err instanceof Error ? err.message : "Erro ao alterar 2FA");
+    } finally {
+      setToggling2FA(false);
+    }
   };
 
   const toggleTheme = () => {
@@ -265,6 +300,25 @@ export function AppLayout({
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Perfil: {user.role}
                 </p>
+              </div>
+              <DropdownMenuSeparator />
+              {/* 2FA Toggle */}
+              <div className="px-2 py-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">Autenticação em 2 etapas</span>
+                      <span className="text-[11px] text-muted-foreground">Receber código por e-mail</span>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={user.two_factor_enabled}
+                    onCheckedChange={handleToggle2FA}
+                    disabled={toggling2FA}
+                    className="scale-90"
+                  />
+                </div>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
