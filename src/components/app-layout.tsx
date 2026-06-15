@@ -205,13 +205,23 @@ export function AppLayout({
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Erro ao alterar 2FA");
+        // Check if this is an email delivery error
+        if (data.emailError) {
+          const { toast } = await import("sonner");
+          toast.error("Falha no envio de e-mail", {
+            description: data.error,
+            duration: 8000,
+          });
+        } else {
+          throw new Error(data.error || "Erro ao alterar 2FA");
+        }
+        return;
       }
       updateUser({ ...user, two_factor_enabled: newState });
       const { toast } = await import("sonner");
       toast.success(
         newState
-          ? "Autenticação de dois fatores ativada!"
+          ? "Autenticação de dois fatores ativada! Verifique seu e-mail."
           : "Autenticação de dois fatores desativada."
       );
     } catch (err) {

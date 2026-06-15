@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
+import { sendVerificationEmail, generateVerificationCode } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,30 +33,68 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    // Only Admin users can toggle 2FA for themselves
-    // (In the future, we could allow any user to enable/disable their own 2FA)
+    // When enabling 2FA, test email delivery first
+    if (enabled) {
+      const testCode = generateVerificationCode();
+      const testResult = await sendVerificationEmail(user.email, user.full_name, testCode);
+
+      if (!testResult.success) {
+        // Email delivery failed — don't enable 2FA
+        return NextResponse.json(
+          {
+            error: testResult.error || 'Não foi possível enviar o e-mail de teste. Verifique a configuração do serviço de e-mail.',
+            emailError: true,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Test email sent successfully — save this code as the first verification code
+      // and enable 2FA. The user will need to verify this code to complete setup.
+      await db.user.update({
+        where: { id: user.id },
+        data: {
+          two_factor_enabled: true,
+          verification_code: testCode,
+          verification_code_expires: new Date(Date.now() + 10 * 60 * 1000),
+        },
+      });
+
+      await logAction(
+        user.id,
+        '2fa_enabled',
+        `Autenticação de dois fatores ativada para ${user.email}`,
+        req
+      );
+
+      return NextResponse.json({
+        message: 'Autenticação de dois fatores ativada! Um código de verificação foi enviado para seu e-mail.',
+        two_factor_enabled: true,
+        requiresVerification: true,
+        email: user.email,
+      });
+    }
+
+    // Disabling 2FA — no email test needed
     await db.user.update({
       where: { id: user.id },
       data: {
-        two_factor_enabled: enabled,
-        // Clear any pending verification codes when disabling
-        ...(enabled ? {} : {
-          verification_code: null,
-          verification_code_expires: null,
-        }),
+        two_factor_enabled: false,
+        verification_code: null,
+        verification_code_expires: null,
       },
     });
 
     await logAction(
       user.id,
-      enabled ? '2fa_enabled' : '2fa_disabled',
-      `Autenticação de dois fatores ${enabled ? 'ativada' : 'desativada'} para ${user.email}`,
+      '2fa_disabled',
+      `Autenticação de dois fatores desativada para ${user.email}`,
       req
     );
 
     return NextResponse.json({
-      message: `Autenticação de dois fatores ${enabled ? 'ativada' : 'desativada'} com sucesso!`,
-      two_factor_enabled: enabled,
+      message: 'Autenticação de dois fatores desativada.',
+      two_factor_enabled: false,
     });
   } catch (error) {
     console.error('Toggle 2FA error:', error);

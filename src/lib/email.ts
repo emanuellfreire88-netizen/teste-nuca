@@ -2,6 +2,10 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Configurable sender email - defaults to Resend onboarding sender
+// For production, set RESEND_FROM_EMAIL to your verified domain email (e.g., "nuca@seudominio.com")
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Nuca Plataforma <onboarding@resend.dev>';
+
 // In-memory rate limiter for email sending (per email)
 const emailCooldowns = new Map<string, number>();
 const COOLDOWN_MS = 60 * 1000; // 1 minute between emails per address
@@ -37,9 +41,15 @@ export async function sendVerificationEmail(
     return { success: false, error: 'Aguarde 1 minuto antes de solicitar um novo código.' };
   }
 
+  // Validate API key
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[Email] RESEND_API_KEY is not configured');
+    return { success: false, error: 'Serviço de e-mail não configurado. Contate o administrador.' };
+  }
+
   try {
-    const { error } = await resend.emails.send({
-      from: 'Nuca Plataforma <onboarding@resend.dev>',
+    const { error, data } = await resend.emails.send({
+      from: FROM_EMAIL,
       to: [toEmail],
       subject: 'Seu código de verificação - Nuca Plataforma',
       html: `
@@ -101,14 +111,39 @@ export async function sendVerificationEmail(
     });
 
     if (error) {
-      console.error('Resend error:', error);
+      console.error('[Email] Resend API error:', JSON.stringify(error));
+      
+      // Check for common Resend errors and provide helpful messages
+      const errorMessage = error.message || String(error);
+      
+      if (errorMessage.includes('only send testing emails to your own email address') || 
+          errorMessage.includes('validation_error')) {
+        return { 
+          success: false, 
+          error: 'Domínio de e-mail não verificado. Para enviar e-mails para qualquer destinatário, configure um domínio verificado no Resend (resend.com/domains) e defina a variável RESEND_FROM_EMAIL.' 
+        };
+      }
+      
+      if (errorMessage.includes('API key')) {
+        return { success: false, error: 'Chave de API do Resend inválida. Contate o administrador.' };
+      }
+      
       return { success: false, error: 'Erro ao enviar e-mail. Tente novamente.' };
     }
 
+    console.log('[Email] Verification email sent successfully to:', toEmail, 'ID:', data?.id);
     recordEmailSent(toEmail);
     return { success: true };
   } catch (err) {
-    console.error('Email send error:', err);
+    console.error('[Email] Email send exception:', err);
+    
+    // Check for specific error types
+    if (err instanceof Error) {
+      if (err.message.includes('fetch') || err.message.includes('network') || err.message.includes('ECONNREFUSED')) {
+        return { success: false, error: 'Erro de conexão com o serviço de e-mail. Tente novamente.' };
+      }
+    }
+    
     return { success: false, error: 'Erro ao enviar e-mail. Tente novamente.' };
   }
 }
