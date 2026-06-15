@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -841,6 +842,25 @@ export function EventsPage() {
         studentSchoolFilter === "all" ||
         s.school?.id === studentSchoolFilter
     );
+
+  const toggleSelectAll = () => {
+    const allFilteredIds = filteredAvailableStudents.map((s) => s.id);
+    const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedStudentIds.includes(id));
+    if (allSelected) {
+      // Deselect only the filtered ones
+      setSelectedStudentIds((prev) => prev.filter((id) => !allFilteredIds.includes(id)));
+    } else {
+      // Select all filtered ones (merge with already selected)
+      setSelectedStudentIds((prev) => {
+        const existing = new Set(prev);
+        allFilteredIds.forEach((id) => existing.add(id));
+        return Array.from(existing);
+      });
+    }
+  };
+
+  const allFilteredSelected = filteredAvailableStudents.length > 0 && filteredAvailableStudents.every((s) => selectedStudentIds.includes(s.id));
+  const someFilteredSelected = filteredAvailableStudents.some((s) => selectedStudentIds.includes(s.id)) && !allFilteredSelected;
 
   // ── Certificate handler ─────────────────────────────────────────────
 
@@ -2612,16 +2632,31 @@ export function EventsPage() {
               </div>
             ) : (
               <div className="p-2 space-y-1">
+                {/* Select All Row */}
+                <label
+                  className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer border-b mb-1 pb-2"
+                >
+                  <Checkbox
+                    checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">
+                      Selecionar todos
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {filteredAvailableStudents.length} aluno(s) na lista
+                    </p>
+                  </div>
+                </label>
                 {filteredAvailableStudents.map((student) => (
                   <label
                     key={student.id}
                     className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
                   >
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selectedStudentIds.includes(student.id)}
-                      onChange={() => toggleStudentSelection(student.id)}
-                      className="rounded border-muted-foreground"
+                      onCheckedChange={() => toggleStudentSelection(student.id)}
                     />
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={student.photo || undefined} />
