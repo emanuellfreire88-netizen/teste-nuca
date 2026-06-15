@@ -2298,6 +2298,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$re
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$sun$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Sun$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/sun.js [app-client] (ecmascript) <export default as Sun>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$moon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Moon$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/moon.js [app-client] (ecmascript) <export default as Moon>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$chevron$2d$down$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__ChevronDown$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/chevron-down.js [app-client] (ecmascript) <export default as ChevronDown>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$message$2d$square$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__MessageSquare$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/message-square.js [app-client] (ecmascript) <export default as MessageSquare>");
 ;
 var _s = __turbopack_context__.k.signature();
 "use client";
@@ -2354,6 +2355,11 @@ const navItems = [
         label: "Logs",
         icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$file$2d$text$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__FileText$3e$__["FileText"],
         adminOnly: true
+    },
+    {
+        key: "support",
+        label: "Suporte",
+        icon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$message$2d$square$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__MessageSquare$3e$__["MessageSquare"]
     }
 ];
 function UserAvatar({ user }) {
@@ -2366,7 +2372,7 @@ function UserAvatar({ user }) {
                 alt: user.full_name
             }, void 0, false, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 80,
+                lineNumber: 83,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AvatarFallback"], {
@@ -2374,13 +2380,13 @@ function UserAvatar({ user }) {
                 children: initials
             }, void 0, false, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 81,
+                lineNumber: 84,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/app-layout.tsx",
-        lineNumber: 79,
+        lineNumber: 82,
         columnNumber: 5
     }, this);
 }
@@ -2403,24 +2409,24 @@ function SidebarContent({ currentPage, onNavigate, user, onLogout }) {
                         priority: true
                     }, void 0, false, {
                         fileName: "[project]/src/components/app-layout.tsx",
-                        lineNumber: 106,
+                        lineNumber: 109,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/src/components/app-layout.tsx",
-                    lineNumber: 105,
+                    lineNumber: 108,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 104,
+                lineNumber: 107,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Separator"], {
                 className: "bg-white/10 mx-3"
             }, void 0, false, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 117,
+                lineNumber: 120,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ScrollArea"], {
@@ -2439,31 +2445,31 @@ function SidebarContent({ currentPage, onNavigate, user, onLogout }) {
                                     className: "h-5 w-5 shrink-0"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/app-layout.tsx",
-                                    lineNumber: 136,
+                                    lineNumber: 139,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                     children: item.label
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/app-layout.tsx",
-                                    lineNumber: 137,
+                                    lineNumber: 140,
                                     columnNumber: 17
                                 }, this)
                             ]
                         }, item.key, true, {
                             fileName: "[project]/src/components/app-layout.tsx",
-                            lineNumber: 127,
+                            lineNumber: 130,
                             columnNumber: 15
                         }, this);
                     })
                 }, void 0, false, {
                     fileName: "[project]/src/components/app-layout.tsx",
-                    lineNumber: 121,
+                    lineNumber: 124,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 120,
+                lineNumber: 123,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2475,7 +2481,7 @@ function SidebarContent({ currentPage, onNavigate, user, onLogout }) {
                             user: user
                         }, void 0, false, {
                             fileName: "[project]/src/components/app-layout.tsx",
-                            lineNumber: 147,
+                            lineNumber: 150,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2486,7 +2492,7 @@ function SidebarContent({ currentPage, onNavigate, user, onLogout }) {
                                     children: user.full_name
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/app-layout.tsx",
-                                    lineNumber: 149,
+                                    lineNumber: 152,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2494,13 +2500,13 @@ function SidebarContent({ currentPage, onNavigate, user, onLogout }) {
                                     children: user.email
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/app-layout.tsx",
-                                    lineNumber: 152,
+                                    lineNumber: 155,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/app-layout.tsx",
-                            lineNumber: 148,
+                            lineNumber: 151,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -2511,29 +2517,29 @@ function SidebarContent({ currentPage, onNavigate, user, onLogout }) {
                                 className: "h-4 w-4"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/app-layout.tsx",
-                                lineNumber: 159,
+                                lineNumber: 162,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/app-layout.tsx",
-                            lineNumber: 154,
+                            lineNumber: 157,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/app-layout.tsx",
-                    lineNumber: 146,
+                    lineNumber: 149,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 145,
+                lineNumber: 148,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/app-layout.tsx",
-        lineNumber: 102,
+        lineNumber: 105,
         columnNumber: 5
     }, this);
 }
@@ -2566,12 +2572,12 @@ function AppLayout({ currentPage, onNavigate, children }) {
                     onLogout: handleLogout
                 }, void 0, false, {
                     fileName: "[project]/src/components/app-layout.tsx",
-                    lineNumber: 199,
+                    lineNumber: 202,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 198,
+                lineNumber: 201,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sheet$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Sheet"], {
@@ -2587,12 +2593,12 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                 children: "Menu de navegação"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/app-layout.tsx",
-                                lineNumber: 211,
+                                lineNumber: 214,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/app-layout.tsx",
-                            lineNumber: 210,
+                            lineNumber: 213,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(SidebarContent, {
@@ -2602,18 +2608,18 @@ function AppLayout({ currentPage, onNavigate, children }) {
                             onLogout: handleLogout
                         }, void 0, false, {
                             fileName: "[project]/src/components/app-layout.tsx",
-                            lineNumber: 213,
+                            lineNumber: 216,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/app-layout.tsx",
-                    lineNumber: 209,
+                    lineNumber: 212,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 208,
+                lineNumber: 211,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2632,7 +2638,7 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                         className: "h-5 w-5"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/app-layout.tsx",
-                                        lineNumber: 233,
+                                        lineNumber: 236,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2640,13 +2646,13 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                         children: "Abrir menu"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/app-layout.tsx",
-                                        lineNumber: 234,
+                                        lineNumber: 237,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/app-layout.tsx",
-                                lineNumber: 227,
+                                lineNumber: 230,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2656,12 +2662,12 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                     children: navItems.find((i)=>i.key === currentPage)?.label || "Dashboard"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/app-layout.tsx",
-                                    lineNumber: 239,
+                                    lineNumber: 242,
                                     columnNumber: 13
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/app-layout.tsx",
-                                lineNumber: 238,
+                                lineNumber: 241,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -2673,14 +2679,14 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                         className: "h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/app-layout.tsx",
-                                        lineNumber: 246,
+                                        lineNumber: 249,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$moon$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Moon$3e$__["Moon"], {
                                         className: "absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/app-layout.tsx",
-                                        lineNumber: 247,
+                                        lineNumber: 250,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2688,13 +2694,13 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                         children: "Alternar tema"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/app-layout.tsx",
-                                        lineNumber: 248,
+                                        lineNumber: 251,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/app-layout.tsx",
-                                lineNumber: 245,
+                                lineNumber: 248,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenu"], {
@@ -2709,7 +2715,7 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                                     user: user
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/app-layout.tsx",
-                                                    lineNumber: 255,
+                                                    lineNumber: 258,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2717,25 +2723,25 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                                     children: user.full_name
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/app-layout.tsx",
-                                                    lineNumber: 256,
+                                                    lineNumber: 259,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$chevron$2d$down$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__ChevronDown$3e$__["ChevronDown"], {
                                                     className: "h-3.5 w-3.5 text-muted-foreground"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/app-layout.tsx",
-                                                    lineNumber: 259,
+                                                    lineNumber: 262,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/app-layout.tsx",
-                                            lineNumber: 254,
+                                            lineNumber: 257,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/app-layout.tsx",
-                                        lineNumber: 253,
+                                        lineNumber: 256,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuContent"], {
@@ -2750,7 +2756,7 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                                         children: user.full_name
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/app-layout.tsx",
-                                                        lineNumber: 264,
+                                                        lineNumber: 267,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2758,7 +2764,7 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                                         children: user.email
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/app-layout.tsx",
-                                                        lineNumber: 265,
+                                                        lineNumber: 268,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2769,18 +2775,18 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/app-layout.tsx",
-                                                        lineNumber: 266,
+                                                        lineNumber: 269,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/app-layout.tsx",
-                                                lineNumber: 263,
+                                                lineNumber: 266,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuSeparator"], {}, void 0, false, {
                                                 fileName: "[project]/src/components/app-layout.tsx",
-                                                lineNumber: 270,
+                                                lineNumber: 273,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -2791,32 +2797,32 @@ function AppLayout({ currentPage, onNavigate, children }) {
                                                         className: "mr-2 h-4 w-4"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/app-layout.tsx",
-                                                        lineNumber: 272,
+                                                        lineNumber: 275,
                                                         columnNumber: 17
                                                     }, this),
                                                     "Sair da conta"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/app-layout.tsx",
-                                                lineNumber: 271,
+                                                lineNumber: 274,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/app-layout.tsx",
-                                        lineNumber: 262,
+                                        lineNumber: 265,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/components/app-layout.tsx",
-                                lineNumber: 252,
+                                lineNumber: 255,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/app-layout.tsx",
-                        lineNumber: 225,
+                        lineNumber: 228,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -2826,24 +2832,24 @@ function AppLayout({ currentPage, onNavigate, children }) {
                             children: children
                         }, void 0, false, {
                             fileName: "[project]/src/components/app-layout.tsx",
-                            lineNumber: 281,
+                            lineNumber: 284,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/app-layout.tsx",
-                        lineNumber: 280,
+                        lineNumber: 283,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/app-layout.tsx",
-                lineNumber: 223,
+                lineNumber: 226,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/app-layout.tsx",
-        lineNumber: 196,
+        lineNumber: 199,
         columnNumber: 5
     }, this);
 }
@@ -2875,6 +2881,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$auth$2d$store$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/auth-store.ts [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$login$2d$page$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/login-page.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$app$2d$layout$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/app-layout.tsx [app-client] (ecmascript)");
+;
 ;
 ;
 ;
@@ -2980,6 +2987,17 @@ const EventsPage = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modu
     ssr: false
 });
 _c7 = EventsPage;
+const SupportPage = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$shared$2f$lib$2f$app$2d$dynamic$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"])(()=>__turbopack_context__.A("[project]/src/components/support-page.tsx [app-client] (ecmascript, next/dynamic entry, async loader)").then((m)=>({
+            default: m.SupportPage
+        })), {
+    loadableGenerated: {
+        modules: [
+            "[project]/src/components/support-page.tsx [app-client] (ecmascript, next/dynamic entry)"
+        ]
+    },
+    ssr: false
+});
+_c8 = SupportPage;
 // Hydration-safe check: returns false on server, then true on client
 const emptySubscribe = ()=>()=>{};
 function useHydrated() {
@@ -3009,12 +3027,12 @@ function Home() {
                 className: "h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
             }, void 0, false, {
                 fileName: "[project]/src/app/page.tsx",
-                lineNumber: 37,
+                lineNumber: 38,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/app/page.tsx",
-            lineNumber: 36,
+            lineNumber: 37,
             columnNumber: 7
         }, this);
     }
@@ -3022,7 +3040,7 @@ function Home() {
     if (!isAuthenticated) {
         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$login$2d$page$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["LoginPage"], {}, void 0, false, {
             fileName: "[project]/src/app/page.tsx",
-            lineNumber: 44,
+            lineNumber: 45,
             columnNumber: 12
         }, this);
     }
@@ -3032,55 +3050,61 @@ function Home() {
             case "dashboard":
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(DashboardPage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 51,
+                    lineNumber: 52,
                     columnNumber: 16
                 }, this);
             case "schools":
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(SchoolsPage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 53,
+                    lineNumber: 54,
                     columnNumber: 16
                 }, this);
             case "students":
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(StudentsPage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 55,
+                    lineNumber: 56,
                     columnNumber: 16
                 }, this);
             case "attendance":
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(AttendancePage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 57,
+                    lineNumber: 58,
                     columnNumber: 16
                 }, this);
             case "events":
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(EventsPage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 59,
+                    lineNumber: 60,
                     columnNumber: 16
                 }, this);
             case "users":
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(UsersPage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 61,
+                    lineNumber: 62,
                     columnNumber: 16
                 }, this);
             case "reports":
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(ReportsPage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 63,
+                    lineNumber: 64,
                     columnNumber: 16
                 }, this);
             case "logs":
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(LogsPage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 65,
+                    lineNumber: 66,
+                    columnNumber: 16
+                }, this);
+            case "support":
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(SupportPage, {}, void 0, false, {
+                    fileName: "[project]/src/app/page.tsx",
+                    lineNumber: 68,
                     columnNumber: 16
                 }, this);
             default:
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(DashboardPage, {}, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 67,
+                    lineNumber: 70,
                     columnNumber: 16
                 }, this);
         }
@@ -3091,7 +3115,7 @@ function Home() {
         children: renderPage()
     }, void 0, false, {
         fileName: "[project]/src/app/page.tsx",
-        lineNumber: 72,
+        lineNumber: 75,
         columnNumber: 5
     }, this);
 }
@@ -3101,8 +3125,8 @@ _s1(Home, "c3liAKfwHovX7wlcNvjAyw8fZjY=", false, function() {
         useHydrated
     ];
 });
-_c8 = Home;
-var _c, _c1, _c2, _c3, _c4, _c5, _c6, _c7, _c8;
+_c9 = Home;
+var _c, _c1, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9;
 __turbopack_context__.k.register(_c, "DashboardPage");
 __turbopack_context__.k.register(_c1, "SchoolsPage");
 __turbopack_context__.k.register(_c2, "StudentsPage");
@@ -3111,7 +3135,8 @@ __turbopack_context__.k.register(_c4, "UsersPage");
 __turbopack_context__.k.register(_c5, "LogsPage");
 __turbopack_context__.k.register(_c6, "ReportsPage");
 __turbopack_context__.k.register(_c7, "EventsPage");
-__turbopack_context__.k.register(_c8, "Home");
+__turbopack_context__.k.register(_c8, "SupportPage");
+__turbopack_context__.k.register(_c9, "Home");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
 }

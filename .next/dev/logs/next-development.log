@@ -1,2 +1,2 @@
-[00:00:00.759] Server  LOG     ✓ Ready in 573ms
-[00:00:03.880] Server  LOG     ○ Compiling / ...
+[00:00:00.721] Server  LOG     ✓ Ready in 533ms
+[00:00:12.539] Server  WARN    ⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
