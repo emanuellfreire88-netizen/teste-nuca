@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { comparePassword, generateToken, validatePasswordStrength } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
-import { generateVerificationCode, sendVerificationEmail } from '@/lib/email';
 
 // In-memory rate limiter for login attempts
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
@@ -156,43 +155,7 @@ export async function POST(req: NextRequest) {
     // Successful password check - clear rate limit and reset failed attempts
     clearAttempt(clientIp);
 
-    // ── 2FA Check ──────────────────────────────────────────────────────
-    // If 2FA is enabled for this user, send verification code to email
-    if (user.two_factor_enabled) {
-      const code = generateVerificationCode();
-      const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-      await db.user.update({
-        where: { id: user.id },
-        data: {
-          verification_code: code,
-          verification_code_expires: codeExpires,
-          failed_login_attempts: 0,
-          locked_until: null,
-        },
-      });
-
-      // Send verification email
-      const emailResult = await sendVerificationEmail(user.email, user.full_name, code);
-
-      if (!emailResult.success) {
-        return NextResponse.json(
-          { error: emailResult.error || 'Erro ao enviar código de verificação.' },
-          { status: 500 }
-        );
-      }
-
-      // Return a special response indicating 2FA is required
-      // Do NOT return the token yet — user must verify the code first
-      return NextResponse.json({
-        requires2FA: true,
-        userId: user.id,
-        email: user.email,
-        message: 'Código de verificação enviado para seu e-mail.',
-      });
-    }
-
-    // ── No 2FA — login directly ──────────────────────────────────────
+    // ── Login directly ──────────────────────────────────────────────────
     await db.user.update({
       where: { id: user.id },
       data: {
