@@ -1,0 +1,818 @@
+     1→"use client";
+     2→
+     3→import { useEffect, useState, useCallback } from "react";
+     4→import { useDebounce } from "@/hooks/use-debounce";
+     5→import { api, ApiError } from "@/lib/api";
+     6→import { useAuthStore } from "@/lib/auth-store";
+     7→import { toast } from "sonner";
+     8→import { Button } from "@/components/ui/button";
+     9→import { Input } from "@/components/ui/input";
+    10→import { Label } from "@/components/ui/label";
+    11→import { Badge } from "@/components/ui/badge";
+    12→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+    13→import { Skeleton } from "@/components/ui/skeleton";
+    14→import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+    15→import {
+    16→  Table,
+    17→  TableBody,
+    18→  TableCell,
+    19→  TableHead,
+    20→  TableHeader,
+    21→  TableRow,
+    22→} from "@/components/ui/table";
+    23→import {
+    24→  Users,
+    25→  Plus,
+    26→  Pencil,
+    27→  Trash2,
+    28→  Search,
+    29→  Loader2,
+    30→  ShieldAlert,
+    31→  X,
+    32→  KeyRound,
+    33→  RotateCcw,
+    34→} from "lucide-react";
+    35→
+    36→// ─── Types ────────────────────────────────────────────────────────────
+    37→interface User {
+    38→  id: string;
+    39→  full_name: string;
+    40→  email: string;
+    41→  role: "Admin" | "Operator" | "Viewer";
+    42→  status: "active" | "inactive";
+    43→  profile_photo: string | null;
+    44→  must_change_password: boolean;
+    45→  last_login: string | null;
+    46→  created_at: string;
+    47→}
+    48→
+    49→interface UsersResponse {
+    50→  users: User[];
+    51→  pagination: { page: number; limit: number; total: number; totalPages: number };
+    52→}
+    53→
+    54→interface UserResponse {
+    55→  user: User;
+    56→}
+    57→
+    58→interface UserFormData {
+    59→  full_name: string;
+    60→  email: string;
+    61→  password: string;
+    62→  role: "Admin" | "Operator" | "Viewer";
+    63→  status: "active" | "inactive";
+    64→}
+    65→
+    66→const emptyForm: UserFormData = {
+    67→  full_name: "",
+    68→  email: "",
+    69→  password: "",
+    70→  role: "Viewer",
+    71→  status: "active",
+    72→};
+    73→
+    74→// ─── Constants ────────────────────────────────────────────────────────
+    75→const roleBadgeClass: Record<string, string> = {
+    76→  Admin: "bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+    77→  Operator: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+    78→  Viewer: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700",
+    79→};
+    80→
+    81→const statusBadgeClass: Record<string, string> = {
+    82→  active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+    83→  inactive: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 dark:border-red-800",
+    84→};
+    85→
+    86→const roleLabels: Record<string, string> = {
+    87→  Admin: "Administrador",
+    88→  Operator: "Operador",
+    89→  Viewer: "Visualizador",
+    90→};
+    91→
+    92→const statusLabels: Record<string, string> = {
+    93→  active: "Ativo",
+    94→  inactive: "Inativo",
+    95→};
+    96→
+    97→function getInitials(name: string) {
+    98→  return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+    99→}
+   100→
+   101→function formatDate(dateStr: string | null) {
+   102→  if (!dateStr) return "—";
+   103→  const d = new Date(dateStr);
+   104→  return d.toLocaleDateString("pt-BR", {
+   105→    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+   106→  });
+   107→}
+   108→
+   109→// ─── Custom Modal Component (NO Radix) ────────────────────────────────
+   110→function Modal({ open, onClose, children }: {
+   111→  open: boolean;
+   112→  onClose: () => void;
+   113→  children: React.ReactNode;
+   114→}) {
+   115→  // Lock body scroll when modal is open
+   116→  useEffect(() => {
+   117→    if (open) {
+   118→      document.body.style.overflow = "hidden";
+   119→    } else {
+   120→      document.body.style.overflow = "";
+   121→    }
+   122→    return () => { document.body.style.overflow = ""; };
+   123→  }, [open]);
+   124→
+   125→  // Close on Escape key
+   126→  useEffect(() => {
+   127→    if (!open) return;
+   128→    const handler = (e: KeyboardEvent) => {
+   129→      if (e.key === "Escape") onClose();
+   130→    };
+   131→    window.addEventListener("keydown", handler);
+   132→    return () => window.removeEventListener("keydown", handler);
+   133→  }, [open, onClose]);
+   134→
+   135→  if (!open) return null;
+   136→
+   137→  return (
+   138→    <div className="fixed inset-0 z-50 flex items-center justify-center">
+   139→      {/* Overlay - clicking closes the modal */}
+   140→      <div
+   141→        className="absolute inset-0 bg-black/50"
+   142→        onClick={onClose}
+   143→      />
+   144→      {/* Content - clicks inside do NOT close the modal */}
+   145→      <div
+   146→        className="relative z-10 w-full max-w-md mx-4 bg-background rounded-lg border shadow-lg p-6 animate-in fade-in-0 zoom-in-95 duration-200"
+   147→        onClick={(e) => e.stopPropagation()}
+   148→      >
+   149→        {children}
+   150→      </div>
+   151→    </div>
+   152→  );
+   153→}
+   154→
+   155→// ─── Main Component ──────────────────────────────────────────────────
+   156→export function UsersPage() {
+   157→  const currentUser = useAuthStore((s) => s.user);
+   158→  const [users, setUsers] = useState<User[]>([]);
+   159→  const [loading, setLoading] = useState(true);
+   160→  const [search, setSearch] = useState("");
+   161→  const debouncedSearch = useDebounce(search, 300);
+   162→
+   163→  // Modal states
+   164→  const [modalMode, setModalMode] = useState<"closed" | "create" | "edit" | "delete" | "reset-password">("closed");
+   165→  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+   166→  const [formData, setFormData] = useState<UserFormData>(emptyForm);
+   167→  const [saving, setSaving] = useState(false);
+   168→  const [resetPassword, setResetPassword] = useState("");
+   169→  const [resetSaving, setResetSaving] = useState(false);
+   170→
+   171→  const isAdmin = currentUser?.role === "Admin";
+   172→
+   173→  const fetchUsers = useCallback(async () => {
+   174→    try {
+   175→      setLoading(true);
+   176→      const data = await api.get<UsersResponse>("/users?limit=100");
+   177→      setUsers(data.users);
+   178→    } catch {
+   179→      toast.error("Erro ao carregar usuários");
+   180→    } finally {
+   181→      setLoading(false);
+   182→    }
+   183→  }, []);
+   184→
+   185→  useEffect(() => {
+   186→    fetchUsers();
+   187→  }, [fetchUsers]);
+   188→
+   189→  const filteredUsers = users.filter(
+   190→    (u) =>
+   191→      u.full_name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+   192→      u.email.toLowerCase().includes(debouncedSearch.toLowerCase())
+   193→  );
+   194→
+   195→  // ─── Helpers ──────────────────────────────────────────────────────
+   196→  const updateField = (field: keyof UserFormData, value: string) => {
+   197→    setFormData((prev) => ({ ...prev, [field]: value }));
+   198→  };
+   199→
+   200→  const closeModal = () => {
+   201→    setModalMode("closed");
+   202→    setSelectedUser(null);
+   203→    setFormData(emptyForm);
+   204→    setResetPassword("");
+   205→  };
+   206→
+   207→  // ─── Open Create ──────────────────────────────────────────────────
+   208→  const openCreate = () => {
+   209→    setFormData(emptyForm);
+   210→    setSelectedUser(null);
+   211→    setModalMode("create");
+   212→  };
+   213→
+   214→  // ─── Open Edit ────────────────────────────────────────────────────
+   215→  const openEdit = (user: User) => {
+   216→    setSelectedUser(user);
+   217→    setFormData({
+   218→      full_name: user.full_name,
+   219→      email: user.email,
+   220→      password: "",
+   221→      role: user.role,
+   222→      status: user.status as "active" | "inactive",
+   223→    });
+   224→    setModalMode("edit");
+   225→  };
+   226→
+   227→  // ─── Open Reset Password ──────────────────────────────────────
+   228→  const openResetPassword = (user: User) => {
+   229→    if (user.id === currentUser?.id) {
+   230→      toast.error("Use as configurações de perfil para alterar sua própria senha");
+   231→      return;
+   232→    }
+   233→    setSelectedUser(user);
+   234→    setResetPassword("");
+   235→    setModalMode("reset-password");
+   236→  };
+   237→
+   238→  // ─── Handle Reset Password ────────────────────────────────────────
+   239→  const handleResetPassword = async () => {
+   240→    if (!selectedUser) return;
+   241→    if (!resetPassword) {
+   242→      toast.error("Digite a nova senha temporária");
+   243→      return;
+   244→    }
+   245→    try {
+   246→      setResetSaving(true);
+   247→      await api.post(`/users/${selectedUser.id}/reset-password`, { temporaryPassword: resetPassword });
+   248→      toast.success("Senha resetada! O usuário deverá trocar no próximo login.");
+   249→      closeModal();
+   250→      fetchUsers();
+   251→    } catch (err) {
+   252→      if (err instanceof ApiError) {
+   253→        toast.error(err.message);
+   254→      } else {
+   255→        toast.error("Erro ao resetar senha");
+   256→      }
+   257→    } finally {
+   258→      setResetSaving(false);
+   259→    }
+   260→  };
+   261→
+   262→  // ─── Open Delete ──────────────────────────────────────────────────
+   263→  const openDelete = (user: User) => {
+   264→    if (user.id === currentUser?.id) {
+   265→      toast.error("Você não pode excluir seu próprio usuário");
+   266→      return;
+   267→    }
+   268→    setSelectedUser(user);
+   269→    setModalMode("delete");
+   270→  };
+   271→
+   272→  // ─── Handle Create ────────────────────────────────────────────────
+   273→  const handleCreate = async () => {
+   274→    if (!formData.full_name || !formData.email || !formData.password) {
+   275→      toast.error("Preencha todos os campos obrigatórios");
+   276→      return;
+   277→    }
+   278→    try {
+   279→      setSaving(true);
+   280→      await api.post<UserResponse>("/users", formData);
+   281→      toast.success("Usuário criado com sucesso!");
+   282→      closeModal();
+   283→      fetchUsers();
+   284→    } catch (err) {
+   285→      if (err instanceof ApiError) {
+   286→        toast.error(err.message);
+   287→      } else {
+   288→        toast.error("Erro ao criar usuário");
+   289→      }
+   290→    } finally {
+   291→      setSaving(false);
+   292→    }
+   293→  };
+   294→
+   295→  // ─── Handle Edit ──────────────────────────────────────────────────
+   296→  const handleEdit = async () => {
+   297→    if (!selectedUser) {
+   298→      toast.error("Nenhum usuário selecionado");
+   299→      return;
+   300→    }
+   301→    if (!formData.full_name || !formData.email) {
+   302→      toast.error("Nome e e-mail são obrigatórios");
+   303→      return;
+   304→    }
+   305→    try {
+   306→      setSaving(true);
+   307→      const body: Record<string, string> = {
+   308→        full_name: formData.full_name,
+   309→        email: formData.email,
+   310→        role: formData.role,
+   311→        status: formData.status,
+   312→      };
+   313→      if (formData.password) {
+   314→        body.password = formData.password;
+   315→      }
+   316→      await api.put<UserResponse>(`/users/${selectedUser.id}`, body);
+   317→      toast.success("Usuário atualizado com sucesso!");
+   318→      closeModal();
+   319→      fetchUsers();
+   320→    } catch (err) {
+   321→      if (err instanceof ApiError) {
+   322→        toast.error(err.message);
+   323→      } else {
+   324→        toast.error("Erro ao atualizar usuário");
+   325→      }
+   326→    } finally {
+   327→      setSaving(false);
+   328→    }
+   329→  };
+   330→
+   331→  // ─── Handle Delete ────────────────────────────────────────────────
+   332→  const handleDelete = async () => {
+   333→    if (!selectedUser) return;
+   334→    try {
+   335→      setSaving(true);
+   336→      await api.delete(`/users/${selectedUser.id}`);
+   337→      toast.success("Usuário excluído com sucesso!");
+   338→      closeModal();
+   339→      fetchUsers();
+   340→    } catch (err) {
+   341→      if (err instanceof ApiError) {
+   342→        toast.error(err.message);
+   343→      } else {
+   344→        toast.error("Erro ao excluir usuário");
+   345→      }
+   346→    } finally {
+   347→      setSaving(false);
+   348→    }
+   349→  };
+   350→
+   351→  // ─── Non-admin guard ──────────────────────────────────────────────
+   352→  if (!isAdmin) {
+   353→    return (
+   354→      <div className="space-y-6">
+   355→        <div>
+   356→          <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+   357→          <p className="text-muted-foreground dark:text-gray-300 mt-1">
+   358→            Gerenciamento de usuários do sistema
+   359→          </p>
+   360→        </div>
+   361→        <div className="flex flex-col items-center justify-center h-64 rounded-xl border-2 border-dashed border-muted-foreground/25 gap-3">
+   362→          <ShieldAlert className="h-10 w-10 text-muted-foreground" />
+   363→          <p className="text-muted-foreground dark:text-gray-400 text-sm">
+   364→            Acesso restrito a administradores
+   365→          </p>
+   366→        </div>
+   367→      </div>
+   368→    );
+   369→  }
+   370→
+   371→  // ─── Render ────────────────────────────────────────────────────────
+   372→  return (
+   373→    <div className="space-y-6">
+   374→      {/* Header */}
+   375→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   376→        <div>
+   377→          <h1 className="text-2xl font-bold tracking-tight">Usuários</h1>
+   378→          <p className="text-muted-foreground dark:text-gray-300 mt-1">
+   379→            Gerencie os usuários do sistema
+   380→          </p>
+   381→        </div>
+   382→        <button
+   383→          type="button"
+   384→          onClick={openCreate}
+   385→          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+   386→        >
+   387→          <Plus className="h-4 w-4" />
+   388→          Novo Usuário
+   389→        </button>
+   390→      </div>
+   391→
+   392→      {/* Search */}
+   393→      <div className="relative max-w-sm">
+   394→        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground dark:text-gray-400" />
+   395→        <Input
+   396→          placeholder="Buscar por nome ou e-mail..."
+   397→          value={search}
+   398→          onChange={(e) => setSearch(e.target.value)}
+   399→          className="pl-9"
+   400→        />
+   401→      </div>
+   402→
+   403→      {/* Table */}
+   404→      <Card>
+   405→        <CardHeader className="pb-3">
+   406→          <CardTitle className="text-base flex items-center gap-2">
+   407→            <Users className="h-4 w-4" />
+   408→            Lista de Usuários
+   409→          </CardTitle>
+   410→        </CardHeader>
+   411→        <CardContent className="p-0">
+   412→          {loading ? (
+   413→            <div className="space-y-0">
+   414→              {Array.from({ length: 5 }).map((_, i) => (
+   415→                <div key={i} className="flex items-center gap-4 px-6 py-3">
+   416→                  <Skeleton className="h-9 w-9 rounded-full" />
+   417→                  <Skeleton className="h-4 w-32" />
+   418→                  <Skeleton className="h-4 w-40" />
+   419→                  <Skeleton className="h-5 w-20 rounded-full" />
+   420→                  <Skeleton className="h-5 w-16 rounded-full" />
+   421→                  <Skeleton className="h-4 w-28" />
+   422→                  <Skeleton className="h-8 w-16" />
+   423→                </div>
+   424→              ))}
+   425→            </div>
+   426→          ) : filteredUsers.length === 0 ? (
+   427→            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground dark:text-gray-400">
+   428→              <Users className="h-10 w-10 mb-3" />
+   429→              <p className="text-sm">Nenhum usuário encontrado</p>
+   430→            </div>
+   431→          ) : (
+   432→            <Table>
+   433→              <TableHeader>
+   434→                <TableRow>
+   435→                  <TableHead>Foto</TableHead>
+   436→                  <TableHead>Nome</TableHead>
+   437→                  <TableHead>E-mail</TableHead>
+   438→                  <TableHead>Papel</TableHead>
+   439→                  <TableHead>Status</TableHead>
+   440→                  <TableHead>Último Login</TableHead>
+   441→                  <TableHead className="text-right">Ações</TableHead>
+   442→                </TableRow>
+   443→              </TableHeader>
+   444→              <TableBody>
+   445→                {filteredUsers.map((user) => (
+   446→                  <TableRow key={user.id}>
+   447→                    <TableCell>
+   448→                      <Avatar className="h-9 w-9">
+   449→                        <AvatarImage src={user.profile_photo || undefined} alt={user.full_name} />
+   450→                        <AvatarFallback className="text-xs font-semibold">
+   451→                          {getInitials(user.full_name)}
+   452→                        </AvatarFallback>
+   453→                      </Avatar>
+   454→                    </TableCell>
+   455→                    <TableCell className="font-medium">{user.full_name}</TableCell>
+   456→                    <TableCell className="text-muted-foreground dark:text-gray-300">{user.email}</TableCell>
+   457→                    <TableCell>
+   458→                      <Badge variant="outline" className={roleBadgeClass[user.role]}>
+   459→                        {roleLabels[user.role]}
+   460→                      </Badge>
+   461→                    </TableCell>
+   462→                    <TableCell>
+   463→                      <Badge variant="outline" className={statusBadgeClass[user.status]}>
+   464→                        {statusLabels[user.status]}
+   465→                      </Badge>
+   466→                    </TableCell>
+   467→                    <TableCell className="text-muted-foreground dark:text-gray-300 text-sm">
+   468→                      {formatDate(user.last_login)}
+   469→                    </TableCell>
+   470→                    <TableCell className="text-right">
+   471→                      <div className="flex items-center justify-end gap-1">
+   472→                        {user.must_change_password && (
+   473→                          <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800 text-[10px] px-1.5 py-0">
+   474→                            Temporária
+   475→                          </Badge>
+   476→                        )}
+   477→                        <button
+   478→                          type="button"
+   479→                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+   480→                          onClick={() => openEdit(user)}
+   481→                          title="Editar"
+   482→                        >
+   483→                          <Pencil className="h-4 w-4" />
+   484→                        </button>
+   485→                        <button
+   486→                          type="button"
+   487→                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+   488→                          onClick={() => openResetPassword(user)}
+   489→                          disabled={user.id === currentUser?.id}
+   490→                          title="Resetar senha"
+   491→                        >
+   492→                          <KeyRound className="h-4 w-4" />
+   493→                        </button>
+   494→                        <button
+   495→                          type="button"
+   496→                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive hover:text-destructive"
+   497→                          onClick={() => openDelete(user)}
+   498→                          disabled={user.id === currentUser?.id}
+   499→                          title={user.id === currentUser?.id ? "Não é possível excluir" : "Excluir"}
+   500→                        >
+   501→                          <Trash2 className="h-4 w-4" />
+   502→                        </button>
+   503→                      </div>
+   504→                    </TableCell>
+   505→                  </TableRow>
+   506→                ))}
+   507→              </TableBody>
+   508→            </Table>
+   509→          )}
+   510→        </CardContent>
+   511→      </Card>
+   512→
+   513→      {/* ═══ CREATE MODAL ═══════════════════════════════════════════════ */}
+   514→      <Modal open={modalMode === "create"} onClose={closeModal}>
+   515→        <div className="flex items-center justify-between mb-4">
+   516→          <div>
+   517→            <h2 className="text-lg font-semibold">Novo Usuário</h2>
+   518→            <p className="text-sm text-muted-foreground dark:text-gray-300">
+   519→              Preencha os dados para criar um novo usuário no sistema.
+   520→            </p>
+   521→          </div>
+   522→          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+   523→            <X className="h-5 w-5" />
+   524→          </button>
+   525→        </div>
+   526→
+   527→        <div className="space-y-4">
+   528→          <div className="space-y-2">
+   529→            <Label htmlFor="create-name">Nome Completo *</Label>
+   530→            <Input
+   531→              id="create-name"
+   532→              value={formData.full_name}
+   533→              onChange={(e) => updateField("full_name", e.target.value)}
+   534→              placeholder="Nome completo do usuário"
+   535→            />
+   536→          </div>
+   537→          <div className="space-y-2">
+   538→            <Label htmlFor="create-email">E-mail *</Label>
+   539→            <Input
+   540→              id="create-email"
+   541→              type="email"
+   542→              value={formData.email}
+   543→              onChange={(e) => updateField("email", e.target.value)}
+   544→              placeholder="usuario@email.com"
+   545→            />
+   546→          </div>
+   547→          <div className="space-y-2">
+   548→            <Label htmlFor="create-password">Senha *</Label>
+   549→            <Input
+   550→              id="create-password"
+   551→              type="password"
+   552→              value={formData.password}
+   553→              onChange={(e) => updateField("password", e.target.value)}
+   554→              placeholder="••••••••"
+   555→            />
+   556→            <p className="text-xs text-muted-foreground dark:text-gray-400">
+   557→              Mínimo 8 caracteres, 1 maiúscula, 1 número, 1 especial
+   558→            </p>
+   559→          </div>
+   560→          <div className="grid grid-cols-2 gap-4">
+   561→            <div className="space-y-2">
+   562→              <Label htmlFor="create-role">Papel</Label>
+   563→              <select
+   564→                id="create-role"
+   565→                value={formData.role}
+   566→                onChange={(e) => updateField("role", e.target.value)}
+   567→                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   568→              >
+   569→                <option value="Admin">Administrador</option>
+   570→                <option value="Operator">Operador</option>
+   571→                <option value="Viewer">Visualizador</option>
+   572→              </select>
+   573→            </div>
+   574→            <div className="space-y-2">
+   575→              <Label htmlFor="create-status">Status</Label>
+   576→              <select
+   577→                id="create-status"
+   578→                value={formData.status}
+   579→                onChange={(e) => updateField("status", e.target.value)}
+   580→                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   581→              >
+   582→                <option value="active">Ativo</option>
+   583→                <option value="inactive">Inativo</option>
+   584→              </select>
+   585→            </div>
+   586→          </div>
+   587→        </div>
+   588→
+   589→        <div className="flex justify-end gap-2 mt-6">
+   590→          <button
+   591→            type="button"
+   592→            onClick={closeModal}
+   593→            disabled={saving}
+   594→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+   595→          >
+   596→            Cancelar
+   597→          </button>
+   598→          <button
+   599→            type="button"
+   600→            onClick={handleCreate}
+   601→            disabled={saving}
+   602→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+   603→          >
+   604→            {saving ? (
+   605→              <>
+   606→                <Loader2 className="h-4 w-4 animate-spin" />
+   607→                Criando...
+   608→              </>
+   609→            ) : (
+   610→              "Criar Usuário"
+   611→            )}
+   612→          </button>
+   613→        </div>
+   614→      </Modal>
+   615→
+   616→      {/* ═══ EDIT MODAL ═════════════════════════════════════════════════ */}
+   617→      <Modal open={modalMode === "edit"} onClose={closeModal}>
+   618→        <div className="flex items-center justify-between mb-4">
+   619→          <div>
+   620→            <h2 className="text-lg font-semibold">Editar Usuário</h2>
+   621→            <p className="text-sm text-muted-foreground dark:text-gray-300">
+   622→              Atualize os dados do usuário. Deixe a senha em branco para manter a atual.
+   623→            </p>
+   624→          </div>
+   625→          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+   626→            <X className="h-5 w-5" />
+   627→          </button>
+   628→        </div>
+   629→
+   630→        <div className="space-y-4">
+   631→          <div className="space-y-2">
+   632→            <Label htmlFor="edit-name">Nome Completo *</Label>
+   633→            <Input
+   634→              id="edit-name"
+   635→              value={formData.full_name}
+   636→              onChange={(e) => updateField("full_name", e.target.value)}
+   637→              placeholder="Nome completo do usuário"
+   638→            />
+   639→          </div>
+   640→          <div className="space-y-2">
+   641→            <Label htmlFor="edit-email">E-mail *</Label>
+   642→            <Input
+   643→              id="edit-email"
+   644→              type="email"
+   645→              value={formData.email}
+   646→              onChange={(e) => updateField("email", e.target.value)}
+   647→              placeholder="usuario@email.com"
+   648→            />
+   649→          </div>
+   650→          <div className="space-y-2">
+   651→            <Label htmlFor="edit-password">Senha (opcional)</Label>
+   652→            <Input
+   653→              id="edit-password"
+   654→              type="password"
+   655→              value={formData.password}
+   656→              onChange={(e) => updateField("password", e.target.value)}
+   657→              placeholder="Deixe em branco para manter a atual"
+   658→            />
+   659→          </div>
+   660→          <div className="grid grid-cols-2 gap-4">
+   661→            <div className="space-y-2">
+   662→              <Label htmlFor="edit-role">Papel</Label>
+   663→              <select
+   664→                id="edit-role"
+   665→                value={formData.role}
+   666→                onChange={(e) => updateField("role", e.target.value)}
+   667→                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   668→              >
+   669→                <option value="Admin">Administrador</option>
+   670→                <option value="Operator">Operador</option>
+   671→                <option value="Viewer">Visualizador</option>
+   672→              </select>
+   673→            </div>
+   674→            <div className="space-y-2">
+   675→              <Label htmlFor="edit-status">Status</Label>
+   676→              <select
+   677→                id="edit-status"
+   678→                value={formData.status}
+   679→                onChange={(e) => updateField("status", e.target.value)}
+   680→                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   681→              >
+   682→                <option value="active">Ativo</option>
+   683→                <option value="inactive">Inativo</option>
+   684→              </select>
+   685→            </div>
+   686→          </div>
+   687→        </div>
+   688→
+   689→        <div className="flex justify-end gap-2 mt-6">
+   690→          <button
+   691→            type="button"
+   692→            onClick={closeModal}
+   693→            disabled={saving}
+   694→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+   695→          >
+   696→            Cancelar
+   697→          </button>
+   698→          <button
+   699→            type="button"
+   700→            onClick={handleEdit}
+   701→            disabled={saving}
+   702→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+   703→          >
+   704→            {saving ? (
+   705→              <>
+   706→                <Loader2 className="h-4 w-4 animate-spin" />
+   707→                Salvando...
+   708→              </>
+   709→            ) : (
+   710→              "Salvar Alterações"
+   711→            )}
+   712→          </button>
+   713→        </div>
+   714→      </Modal>
+   715→
+   716→      {/* ═══ DELETE MODAL ═══════════════════════════════════════════════ */}
+   717→      <Modal open={modalMode === "delete"} onClose={closeModal}>
+   718→        <div className="flex items-center justify-between mb-4">
+   719→          <h2 className="text-lg font-semibold">Excluir Usuário</h2>
+   720→          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+   721→            <X className="h-5 w-5" />
+   722→          </button>
+   723→        </div>
+   724→        <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
+   725→          Tem certeza que deseja excluir o usuário{" "}
+   726→          <strong>{selectedUser?.full_name}</strong>? Esta ação não pode ser desfeita.
+   727→        </p>
+   728→        <div className="flex justify-end gap-2">
+   729→          <button
+   730→            type="button"
+   731→            onClick={closeModal}
+   732→            disabled={saving}
+   733→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+   734→          >
+   735→            Cancelar
+   736→          </button>
+   737→          <button
+   738→            type="button"
+   739→            onClick={handleDelete}
+   740→            disabled={saving}
+   741→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 h-9 px-4 py-2"
+   742→          >
+   743→            {saving ? (
+   744→              <>
+   745→                <Loader2 className="h-4 w-4 animate-spin" />
+   746→                Excluindo...
+   747→              </>
+   748→            ) : (
+   749→              "Excluir"
+   750→            )}
+   751→          </button>
+   752→        </div>
+   753→      </Modal>
+   754→
+   755→      {/* ═══ RESET PASSWORD MODAL ═════════════════════════════════════ */}
+   756→      <Modal open={modalMode === "reset-password"} onClose={closeModal}>
+   757→        <div className="flex items-center justify-between mb-4">
+   758→          <div>
+   759→            <h2 className="text-lg font-semibold">Resetar Senha</h2>
+   760→            <p className="text-sm text-muted-foreground dark:text-gray-300">
+   761→              Defina uma nova senha temporária para <strong>{selectedUser?.full_name}</strong>.<br />
+   762→              O usuário será obrigado a trocar a senha no próximo login.
+   763→            </p>
+   764→          </div>
+   765→          <button type="button" onClick={closeModal} className="opacity-70 hover:opacity-100">
+   766→            <X className="h-5 w-5" />
+   767→          </button>
+   768→        </div>
+   769→
+   770→        <div className="space-y-4">
+   771→          <div className="space-y-2">
+   772→            <Label htmlFor="reset-password">Nova Senha Temporária *</Label>
+   773→            <Input
+   774→              id="reset-password"
+   775→              type="password"
+   776→              value={resetPassword}
+   777→              onChange={(e) => setResetPassword(e.target.value)}
+   778→              placeholder="••••••••"
+   779→            />
+   780→            <p className="text-xs text-muted-foreground dark:text-gray-400">
+   781→              Mínimo 8 caracteres, 1 maiúscula, 1 número, 1 especial
+   782→            </p>
+   783→          </div>
+   784→        </div>
+   785→
+   786→        <div className="flex justify-end gap-2 mt-6">
+   787→          <button
+   788→            type="button"
+   789→            onClick={closeModal}
+   790→            disabled={resetSaving}
+   791→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+   792→          >
+   793→            Cancelar
+   794→          </button>
+   795→          <button
+   796→            type="button"
+   797→            onClick={handleResetPassword}
+   798→            disabled={resetSaving}
+   799→            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+   800→          >
+   801→            {resetSaving ? (
+   802→              <>
+   803→                <Loader2 className="h-4 w-4 animate-spin" />
+   804→                Resetando...
+   805→              </>
+   806→            ) : (
+   807→              <>
+   808→                <RotateCcw className="h-4 w-4" />
+   809→                Resetar Senha
+   810→              </>
+   811→            )}
+   812→          </button>
+   813→        </div>
+   814→      </Modal>
+   815→    </div>
+   816→  );
+   817→}
+   818→
