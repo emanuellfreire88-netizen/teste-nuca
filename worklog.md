@@ -135,3 +135,37 @@ Stage Summary:
   - DIRECT_URL   = direct URL (SEM -pooler) ← isto era o bug
   - JWT_SECRET
 - 📁 Arquivos modificados: .env, .env.vercel, scripts/sync-neon-to-sqlite.js (novo)
+
+---
+Task ID: DB-RESTORE-PUSH
+Agent: Main Agent
+Task: Diagnosticar e corrigir "não está indo" - deploy da Vercel não funcionava
+
+Work Log:
+- Usuário reportou que o deploy na Vercel não estava funcionando
+- Investigado git status: descoberto que 4 commits locais NÃO haviam sido enviados (push) para o GitHub
+- Origin/main (o que a Vercel via) tinha configuração QUEBRADA:
+  - prisma/schema.prisma com provider = "sqlite" (deveria ser postgresql)
+  - package.json build script antigo: "prisma generate && (prisma db push || true) && next build"
+  - SEM build-vercel.sh
+  - SEM prisma/schema.vercel.prisma
+  - Causa: Prisma gerava client SQLite, mas DATABASE_URL era PostgreSQL → build falhava
+- Validado schema.vercel.prisma: ✓ válido (com DIRECT_URL definida)
+- Testado prisma generate com schema SQLite + DATABASE_URL postgres: ✓ funciona (não valida URL na geração)
+- Feito git push origin main: 4 commits enviados com sucesso (c22c4b9..0de3846)
+- Verificado arquivos críticos agora presentes no origin/main:
+  - build-vercel.sh ✓
+  - prisma/schema.vercel.prisma (provider = postgresql) ✓
+  - package.json (build = "bash build-vercel.sh") ✓
+  - scripts/sync-neon-to-sqlite.js ✓
+- Dev server local confirmado funcionando após push
+
+Stage Summary:
+- ✅ CAUSA RAIZ ENCONTRADA: commits não estavam no GitHub → Vercel buildava código antigo com schema SQLite
+- ✅ Push feito: todos os arquivos de deploy PostgreSQL agora no GitHub
+- ✅ Vercel agora fará build com: schema PostgreSQL + build-vercel.sh + Neon connection
+- ⚠️ Usuário PRECISA confirmar que as 3 variáveis de ambiente estão setadas na Vercel:
+  - DATABASE_URL (pooler, com -pooler)
+  - DIRECT_URL (direta, SEM -pooler) ← bug corrigido anteriormente
+  - JWT_SECRET
+- 📁 Nenhum arquivo modificado (apenas git push)
