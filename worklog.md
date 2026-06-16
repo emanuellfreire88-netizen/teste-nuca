@@ -285,3 +285,27 @@ Stage Summary:
 - ✅ Cobertura máxima: mesmo se VERCEL não estiver setada, o schema será trocado
 - ⚠️ Aguardando usuário enviar screenshot novo do erro atual para diagnóstico preciso
 - 📁 Arquivo modificado: scripts/postinstall.js
+
+---
+Task ID: DB-RESTORE-LOCKFILE
+Agent: Main Agent
+Task: Remover warning de @types/bcryptjs depreciado que ainda aparecia no build da Vercel
+
+Work Log:
+- Usuário reportou que o warning "npm warn deprecated @types/bcryptjs@3.0.0" ainda aparece
+- Investigado: @types/bcryptjs foi removido do package.json (commit 71cb5de) MAS ainda estava nos lock files
+  - package-lock.json: 2 referências
+  - bun.lock: 2 referências
+- Vercel usa lock file para npm install, então continuava instalando o pacote depreciado
+- Regenerado package-lock.json com: npm install --package-lock-only
+- Regenerado bun.lock com: rm bun.lock && bun install
+- Verificado: ambos os lock files agora têm 0 referências a @types/bcryptjs
+- Dev server confirmado funcionando (GET / 200, API respondendo)
+- Lint limpo (0 erros)
+- Commitado e enviado (8101682..c0d7179)
+
+Stage Summary:
+- ✅ Warning de @types/bcryptjs depreciado totalmente eliminado
+- ✅ Lock files regenerados (package-lock.json + bun.lock)
+- ✅ Push enviado, Vercel fará novo deploy sem o warning
+- 📁 Arquivos modificados: package-lock.json, bun.lock

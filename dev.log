@@ -154,3 +154,7 @@ $ next dev -p 3000 -H 0.0.0.0
  GET / 200 in 30ms (compile: 3ms, render: 27ms)
  GET / 200 in 30ms (compile: 1935µs, render: 29ms)
  GET / 200 in 23ms (compile: 2ms, render: 21ms)
+ GET / 200 in 25ms (compile: 2ms, render: 23ms)
+ GET / 200 in 21ms (compile: 1440µs, render: 19ms)
+ GET / 200 in 25ms (compile: 3ms, render: 22ms)
+ GET /api/schools 401 in 11ms (compile: 4ms, render: 7ms)
