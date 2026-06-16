@@ -376,3 +376,65 @@ Stage Summary:
 - ✅ Tooltip customizado com backdrop-blur
 - ✅ Responsivo (grid-cols-2 sm / grid-cols-4 lg)
 - 📁 Arquivo modificado: src/components/dashboard-page.tsx (586 insertions, 175 deletions)
+
+---
+Task ID: SUPPORT-FLOATING-BUTTON
+Agent: Main Agent
+Task: Modificar página de suporte - Admin mantém no sidebar, outros usuários usam botão flutuante
+
+Work Log:
+- Usuário enviou 2 screenshots: referência de chat flutuante + menu lateral atual
+- VLM analisou: referência mostra ícone circular de chat flutuante
+- Explore agent mapeou estrutura: app-layout.tsx (navItems), support-page.tsx, auth-store.ts
+- Confirmado: "Suporte" no navItems sem adminOnly (visível para todos)
+
+Mudanças implementadas:
+
+1. src/components/app-layout.tsx:
+   - Adicionado adminOnly: true ao item "Suporte" no navItems
+   - Importado e montado <FloatingSupportButton /> no final do layout
+
+2. src/components/floating-support-button.tsx (NOVO):
+   - Retorna null para Admin (não mostra nada)
+   - Para Operator/Viewer: botão flutuante (FAB) circular no canto inferior direito
+   - Gradiente from-primary, ícone Headset (lucide-react)
+   - Animação pulsing ring (animate-ping) para chamar atenção
+   - Badge de notificação com contagem de tickets open/in_progress
+   - Polling a cada 60s via /api/support/tickets
+   - Tooltip on hover: "Precisa de ajuda? Abra um chamado"
+   - Spring entrance animation (framer-motion)
+   - Abre Sheet (drawer) lateral direito com SupportPage embedded
+
+3. src/components/support-page.tsx:
+   - Adicionado prop embedded (default false)
+   - Quando embedded=true:
+     - Esconde header próprio (Sheet fornece "Central de Suporte")
+     - Botão "Novo Ticket" compacto inline
+     - flex-1 + min-h-0 para altura correta no Sheet
+   - Bumped z-index do modal create-ticket de z-50 para z-[100]
+     (para renderizar acima do overlay do Sheet)
+
+Verificação (Agent Browser):
+- Criado usuário Viewer de teste (teste@nuca.com / Teste@123)
+- Login como Viewer:
+  ✅ Sidebar NÃO tem "Suporte" (apenas Dashboard, Escolas, Alunos, Frequência, Eventos, Relatórios)
+  ✅ FAB visível no canto inferior direito (gradiente navy, ícone branco)
+  ✅ Click no FAB abre Sheet "Central de Suporte" com:
+     - Header com título e botão Fechar
+     - Botão "Novo Ticket"
+     - Busca e filtros de status (Todos/Aberto/Em Andamento/Resolvido/Fechado)
+  ✅ Click "Novo Ticket" abre modal com:
+     - Campo Assunto
+     - Select Prioridade (Baixa/Normal/Alta/Urgente)
+     - Textarea Descrição
+     - Botões Cancelar / Criar Ticket
+- VLM confirmou visual moderno e funcional
+
+Stage Summary:
+- ✅ Admin: mantém "Suporte" no sidebar (adminOnly: true)
+- ✅ Operator/Viewer: FAB flutuante no canto inferior direito
+- ✅ FAB tem badge de notificação com tickets abertos
+- ✅ Click abre painel lateral (Sheet) com SupportPage completa
+- ✅ Modal de criar ticket funciona dentro do painel (z-index corrigido)
+- ✅ Lint limpo, push enviado (8d07ed6..b4e0b18)
+- 📁 Arquivos: floating-support-button.tsx (novo), app-layout.tsx, support-page.tsx
