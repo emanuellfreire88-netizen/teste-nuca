@@ -5,5 +5,11 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 615ms
- GET / 200 in 2.2s (compile: 2.1s, render: 134ms)
+✓ Ready in 569ms
+ GET / 200 in 2.3s (compile: 2.2s, render: 145ms)
+▲ Next.js 16.1.3
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+
+✓ Starting...
+✓ Ready in 53ms
