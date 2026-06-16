@@ -1672,10 +1672,11 @@ export function EventsPage() {
                                     value: c.total_participations,
                                   })
                                 )}
+                                dataKey="value"
                                 cx="50%"
                                 cy="50%"
                                 outerRadius={70}
-                                label={({ name, percent }) =>
+                                label={({ name, percent }: { name: string; percent: number }) =>
                                   `${name} ${(percent * 100).toFixed(0)}%`
                                 }
                                 labelLine={false}
