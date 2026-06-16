@@ -196,3 +196,38 @@ Stage Summary:
 - ✅ Push enviado para GitHub, Vercel fará novo deploy com script robusto
 - 💡 O banco suspende após ~5 min sem atividade; primeiro request após suspensão pode demorar 5-15s
 - 📁 Arquivo modificado: build-vercel.sh
+
+---
+Task ID: DB-RESTORE-P1012
+Agent: Main Agent
+Task: Corrigir erro P1012 do Prisma no build da Vercel (URL deve começar com file:)
+
+Work Log:
+- Usuário enviou screenshot do erro de build da Vercel
+- VLM analisou: erro P1012 "a URL deve começar com o protocolo 'file:'" no schema.prisma:7 (provider=sqlite)
+- Diagnosticado causa raiz:
+  - package.json tinha "postinstall": "prisma generate"
+  - postinstall roda DEPOIS do npm install MAS ANTES do build-vercel.sh
+  - Nesse momento, schema.prisma ainda era SQLite (provider=sqlite)
+  - Mas DATABASE_URL na Vercel aponta para Neon (PostgreSQL, não começa com file:)
+  - Prisma 6 valida URL contra provider e aborta com P1012
+- Solução criada: scripts/postinstall.js (postinstall inteligente)
+  - Detecta ambiente Vercel ($VERCEL env var)
+  - Se Vercel: copia schema.vercel.prisma -> schema.prisma ANTES de gerar
+  - Se local: mantém SQLite e gera normalmente
+- Testado ambos cenários:
+  - Local (sem VERCEL): ✓ mantém SQLite, client gerado
+  - Vercel (VERCEL=1): ✓ troca para PostgreSQL, client gerado
+- Atualizado package.json: "postinstall": "node scripts/postinstall.js"
+- Commitado e enviado para GitHub (7721394..a5f41fe)
+- build-vercel.sh continua fazendo o cp (idempotente) + db push com cold-start mitigation
+
+Stage Summary:
+- ✅ CAUSA RAIZ DO P1012 CORRIGIDA: postinstall agora troca schema antes de gerar
+- ✅ Script testado em ambos ambientes (local + Vercel simulado)
+- ✅ Push enviado, Vercel fará novo deploy
+- 🔑 Ordem correta do build na Vercel agora:
+  1. npm install → postinstall (detecta Vercel, troca schema para PG, prisma generate) ✓
+  2. npm run build → build-vercel.sh (cp schema PG, db push com retry, next build) ✓
+- 📁 Arquivos criados: scripts/postinstall.js
+- 📁 Arquivos modificados: package.json
