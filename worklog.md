@@ -258,3 +258,30 @@ Stage Summary:
 - ✅ Lint limpo
 - ✅ Push enviado, novo deploy da Vercel triggered
 - 📁 Arquivos modificados: package.json, eslint.config.mjs, .eslintignore (removido)
+
+---
+Task ID: DB-RESTORE-ROBUST
+Agent: Main Agent
+Task: Usuário reportou "ainda está o erro" - tornar postinstall mais robusto
+
+Work Log:
+- Usuário reportou que o erro persiste (sem screenshot novo)
+- Verificado GitHub: todos os arquivos críticos estão no origin/main ✓
+- Hipótese: pode ser que VERCEL env var não esteja definida durante postinstall em alguns cenários
+- Melhorado scripts/postinstall.js com detecção multi-env:
+  - VERCEL (principal)
+  - VERCEL_ENV (fallback)
+  - VERCEL_URL (fallback)
+  - NOW_BUILDER (fallback antigo)
+  - E ULTIMO RECURSO: se DATABASE_URL começar com postgresql:// ou postgres://, troca schema
+- Testado 3 cenários:
+  1. Local SQLite (sem VERCEL, DATABASE_URL=file:) → mantém SQLite ✓
+  2. Vercel simulada (VERCEL=1, DATABASE_URL=postgres) → troca para PG ✓
+  3. Fallback (sem VERCEL, mas DATABASE_URL=postgres) → troca para PG ✓
+- Commitado e enviado (e179602..8101682)
+
+Stage Summary:
+- ✅ postinstall agora detecta Vercel por múltiplas env vars + fallback por DATABASE_URL
+- ✅ Cobertura máxima: mesmo se VERCEL não estiver setada, o schema será trocado
+- ⚠️ Aguardando usuário enviar screenshot novo do erro atual para diagnóstico preciso
+- 📁 Arquivo modificado: scripts/postinstall.js
