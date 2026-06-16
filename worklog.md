@@ -169,3 +169,30 @@ Stage Summary:
   - DIRECT_URL (direta, SEM -pooler) ← bug corrigido anteriormente
   - JWT_SECRET
 - 📁 Nenhum arquivo modificado (apenas git push)
+
+---
+Task ID: DB-RESTORE-NEON-SUSPENDED
+Agent: Main Agent
+Task: Diagnosticar problema Neon+Vercel - banco mostrando SUSPENDED no screenshot do usuário
+
+Work Log:
+- Usuário enviou screenshot mostrando console da Neon
+- VLM analisou a imagem: banco "Primary" (ep-orange-brook-apv361yg) com status SUSPENDED há 5 minutos
+- Diagnosticado: é comportamento NORMAL do plano gratuito da Neon (autosuspend após inatividade)
+- Testado se banco acorda: via HTTP driver acordou em <1s, dados intactos (1 user, 4 schools, 68 students, 1 event, 285 logs)
+- Problema real: durante build da Vercel, `prisma db push` via TCP pode dar timeout no cold start do Neon
+- Melhorado build-vercel.sh com mitigação de cold start:
+  - Loop de probe TCP (6 tentativas, 5s timeout cada) para "acordar" o banco antes do db push
+  - Extrai host do DATABASE_URL via sed
+  - Retry do `prisma db push` (3 tentativas com sleep 5s entre elas)
+  - Se db push falhar mesmo assim, continua o build (schema pode já estar sincronizado)
+- Commitado e enviado para GitHub (push origin main)
+- Banco confirmado ativo após testes
+
+Stage Summary:
+- ✅ SUSPENDED é normal no Neon free tier (não é erro permanente)
+- ✅ Banco acorda automaticamente ao receber conexão, dados intactos
+- ✅ build-vercel.sh melhorado com cold-start mitigation (probe + retry)
+- ✅ Push enviado para GitHub, Vercel fará novo deploy com script robusto
+- 💡 O banco suspende após ~5 min sem atividade; primeiro request após suspensão pode demorar 5-15s
+- 📁 Arquivo modificado: build-vercel.sh
