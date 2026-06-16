@@ -26,15 +26,36 @@ const root = path.join(__dirname, '..');
 const sqliteSchema = path.join(root, 'prisma', 'schema.prisma');
 const pgSchema = path.join(root, 'prisma', 'schema.vercel.prisma');
 
-const isVercel = Boolean(process.env.VERCEL);
+// Detect Vercel build environment. Vercel sets several env vars during build;
+// we check multiple to be robust across different install/cache scenarios.
+const isVercel = Boolean(
+  process.env.VERCEL ||
+  process.env.VERCEL_ENV ||
+  process.env.VERCEL_URL ||
+  process.env.NOW_BUILDER
+);
+
+// Also detect: if DATABASE_URL looks like PostgreSQL but schema is SQLite,
+// we MUST swap — otherwise prisma generate will fail with P1012.
+const dbUrl = process.env.DATABASE_URL || '';
+const isPostgresUrl = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
 
 if (isVercel) {
-  console.log('📦 [postinstall] Vercel environment detected');
+  console.log('📦 [postinstall] Vercel environment detected (VERCEL=' + (process.env.VERCEL || 'unset') + ')');
+  console.log('   DATABASE_URL starts with: ' + (dbUrl ? dbUrl.split('://')[0] + '://' : '(empty)'));
   if (fs.existsSync(pgSchema)) {
     console.log('   → Swapping prisma/schema.prisma → PostgreSQL version');
     fs.copyFileSync(pgSchema, sqliteSchema);
   } else {
     console.warn('   ⚠️ prisma/schema.vercel.prisma not found — keeping SQLite schema');
+  }
+} else if (isPostgresUrl) {
+  // Fallback: even if VERCEL env var isn't detected, if DATABASE_URL is
+  // PostgreSQL we must use the PG schema (otherwise prisma generate fails).
+  console.log('📦 [postinstall] PostgreSQL DATABASE_URL detected (non-Vercel cloud build)');
+  if (fs.existsSync(pgSchema)) {
+    console.log('   → Swapping prisma/schema.prisma → PostgreSQL version');
+    fs.copyFileSync(pgSchema, sqliteSchema);
   }
 }
 
