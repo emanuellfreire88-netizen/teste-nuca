@@ -125,7 +125,7 @@ function formatShortTime(dateStr: string) {
 }
 
 // ─── Main Component ──────────────────────────────────────────────────
-export function SupportPage() {
+export function SupportPage({ embedded = false }: { embedded?: boolean } = {}) {
   const currentUser = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
   const isAdmin = currentUser?.role === "Admin" || currentUser?.role === "Operator";
@@ -340,23 +340,39 @@ export function SupportPage() {
 
   // ─── Render ────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Suporte</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie seus tickets de suporte e conversas
-          </p>
+    <div className={embedded ? "flex flex-col h-full p-4 gap-4" : "space-y-6"}>
+      {/* Header (hidden when embedded — Sheet provides its own) */}
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Suporte</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie seus tickets de suporte e conversas
+            </p>
+          </div>
+          <Button onClick={() => setShowCreate(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Ticket
+          </Button>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="gap-2">
+      )}
+
+      {/* Floating "Novo Ticket" button when embedded */}
+      {embedded && (
+        <Button onClick={() => setShowCreate(true)} className="gap-2 w-fit" size="sm">
           <Plus className="h-4 w-4" />
           Novo Ticket
         </Button>
-      </div>
+      )}
 
       {/* Main Content - Split view */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-220px)]">
+      <div
+        className={
+          embedded
+            ? "grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0"
+            : "grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-220px)]"
+        }
+      >
         {/* Left: Ticket List */}
         <div className={`lg:col-span-1 ${selectedTicket ? "hidden lg:block" : ""}`}>
           <Card className="h-full flex flex-col">
@@ -633,7 +649,7 @@ export function SupportPage() {
 
       {/* ═══ CREATE TICKET MODAL ═══════════════════════════════════ */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCreate(false)} />
           <div
             className="relative z-10 w-full max-w-lg mx-4 bg-background rounded-lg border shadow-lg p-6 animate-in fade-in-0 zoom-in-95 duration-200"

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { FloatingSupportButton } from "@/components/floating-support-button";
 
 import {
   LayoutDashboard,
@@ -67,7 +68,7 @@ const navItems: NavItem[] = [
   { key: "users", label: "Usuários", icon: Users, adminOnly: true },
   { key: "reports", label: "Relatórios", icon: BarChart3 },
   { key: "logs", label: "Logs", icon: FileText, adminOnly: true },
-  { key: "support", label: "Suporte", icon: MessageSquare },
+  { key: "support", label: "Suporte", icon: MessageSquare, adminOnly: true },
 ];
 
 function UserAvatar({ user }: { user: { full_name: string; profile_photo: string | null } }) {
@@ -284,6 +285,9 @@ export function AppLayout({
           <div className="p-6 min-h-full flex flex-col">{children}</div>
         </main>
       </div>
+
+      {/* Floating Support button for non-admin users (Operator/Viewer) */}
+      <FloatingSupportButton />
     </div>
   );
 }
