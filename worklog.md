@@ -69,3 +69,35 @@ Created 4 API route files for the support ticket/chat system following existing 
 - All actions logged via `logAction`
 - Error messages in Portuguese
 - Security headers applied automatically by withAuth/withRole wrappers
+
+---
+Task ID: DB-RESTORE
+Agent: Main Agent
+Task: Restaurar conexão com banco de dados Neon após troca acidental de URL na Vercel
+
+Work Log:
+- Investigado o problema: dados sumiram após troca acidental da URL do banco na Vercel
+- Encontrada a URL da Neon fornecida pelo usuário: `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech`
+- Testada conexão direta com a Neon via driver HTTP (@neondatabase/serverless) - FUNCIONOU
+- Confirmados dados na Neon: 1 usuário, 4 escolas, 68 alunos, 1 evento, 25 participações, 25 frequências, 285 logs
+- Problema: sandbox bloqueia porta 5432 (TCP), mas driver HTTP da Neon funciona
+- Tentado usar @prisma/adapter-neon para Prisma - não funcionou no sandbox (erro de conexão pg)
+- Solução: Sincronizado dados da Neon para SQLite local usando better-sqlite3 + @neondatabase/serverless
+- Criado script de sincronização que lê da Neon via HTTP e escreve no SQLite local
+- Schema Prisma mantido como SQLite para dev local
+- Criado `prisma/schema.vercel.prisma` com PostgreSQL para deploy na Vercel
+- Criado `build-vercel.sh` que detecta ambiente Vercel e troca schema para PostgreSQL
+- Atualizado package.json build script para usar `bash build-vercel.sh`
+- Criado `.env.vercel` com instruções para configurar variáveis de ambiente na Vercel
+- Aplicação verificada funcionando: login, dashboard (68 alunos, 4 escolas), páginas de escolas/alunos/eventos
+
+Stage Summary:
+- ✅ Dados da Neon recuperados e sincronizados localmente
+- ✅ Aplicação funcionando com dados completos (1 user, 4 schools, 68 students, 1 event, 25 participations)
+- ✅ Configuração de deploy Vercel criada (schema.vercel.prisma + build-vercel.sh)
+- ⚠️ Usuário precisa configurar variáveis de ambiente na Vercel:
+  - DATABASE_URL (Neon pooler URL)
+  - DIRECT_URL (Neon direct URL)
+  - JWT_SECRET
+- 📁 Arquivos criados: prisma/schema.vercel.prisma, build-vercel.sh, .env.vercel
+- 📁 Arquivos modificados: .env, prisma/schema.prisma (SQLite), package.json, spawn-server.js
