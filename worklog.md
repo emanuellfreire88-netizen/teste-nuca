@@ -101,3 +101,37 @@ Stage Summary:
   - JWT_SECRET
 - 📁 Arquivos criados: prisma/schema.vercel.prisma, build-vercel.sh, .env.vercel
 - 📁 Arquivos modificados: .env, prisma/schema.prisma (SQLite), package.json, spawn-server.js
+
+---
+Task ID: DB-RESTORE-FIX
+Agent: Main Agent
+Task: Corrigir configuração Neon após usuário fornecer URL novamente (continuação do DB-RESTORE)
+
+Work Log:
+- Verificado estado atual: dev server rodando, SQLite local com dados (1 user, 4 schools, 68 students, 1 event, 25 participations, 25 attendance, 285 logs)
+- Verificado Neon via HTTP driver (@neondatabase/serverless): banco intacto com TODOS os dados reais
+  - users: 1, schools: 4, students: 68, events: 1, event_participants: 25, attendance_records: 25, action_logs: 285
+  - Admin user: emanuell.fp.rocha@gmail.com (Emanuell Freire)
+- Encontrado BUG crítico em .env e .env.vercel: NEON_DIRECT_URL e DIRECT_URL continham "-pooler" no hostname
+  - DIRECT_URL NÃO pode usar pooler (Prisma migrations/db push falham com pooler)
+  - Corrigido: removido "-pooler" do hostname das DIRECT URLs
+- Recriado scripts/sync-neon-to-sqlite.js (estava referenciado no package.json mas o arquivo não existia)
+  - Script usa @neondatabase/serverless (HTTP, funciona no sandbox) para ler da Neon
+  - Escreve no SQLite local via better-sqlite3 em transação síncrona
+  - Testado: 409 rows copiadas com sucesso (Neon → SQLite)
+- Atualizado .env com comentários explicativos e URLs corretas
+- Atualizado .env.vercel com DIRECT_URL correta (sem -pooler) e instruções detalhadas
+- Verificado prisma/schema.vercel.prisma: PostgreSQL + directUrl + @db.Text na descrição ✓
+- Verificado build-vercel.sh: troca schema para PostgreSQL no build da Vercel ✓
+- Dev server confirmado funcionando após sync (APIs respondendo, auth gate operacional)
+
+Stage Summary:
+- ✅ BUG CRÍTICO CORRIGIDO: DIRECT_URL não usa mais pooler (era a causa provável do problema na Vercel)
+- ✅ Dados da Neon confirmados intactos (banco de produção não foi perdido)
+- ✅ SQLite local ressincronizado com dados frescos da Neon (409 rows)
+- ✅ Script de sync recriado e funcional: `bun run sync:neon`
+- ⚠️ Usuário PRECISA atualizar variáveis na Vercel:
+  - DATABASE_URL = pooler URL (com -pooler)
+  - DIRECT_URL   = direct URL (SEM -pooler) ← isto era o bug
+  - JWT_SECRET
+- 📁 Arquivos modificados: .env, .env.vercel, scripts/sync-neon-to-sqlite.js (novo)
