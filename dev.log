@@ -1,10 +1,9 @@
+$ next dev -p 3000 -H 0.0.0.0
 ▲ Next.js 16.1.3 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://0.0.0.0:3000
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 533ms
-⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
- POST /api/auth/login 200 in 903ms (compile: 578ms, render: 325ms)
- POST /api/support/tickets/5e1518e3-6e1e-417e-b76a-854cf6c79a16/messages 201 in 591ms (compile: 575ms, render: 16ms)
+✓ Ready in 615ms
+ GET / 200 in 2.2s (compile: 2.1s, render: 134ms)
