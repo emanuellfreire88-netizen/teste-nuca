@@ -16,7 +16,7 @@ export async function PUT(
 
       const ticket = await db.supportTicket.findUnique({
         where: { id },
-        select: { id: true, protocol: true, user_id: true },
+        select: { id: true, protocol: true, user_id: true, status: true },
       });
 
       if (!ticket) {
@@ -26,13 +26,22 @@ export async function PUT(
         );
       }
 
-      // Non-admin users can only mark their own tickets as read
-      const isAdminOrOperator = _req.user!.role === 'Admin' || _req.user!.role === 'Operator';
-      if (!isAdminOrOperator && ticket.user_id !== _req.user!.userId) {
-        return NextResponse.json(
-          { error: 'Permissão insuficiente' },
-          { status: 403 }
-        );
+      // Only Admin can mark messages as read on any ticket.
+      // Non-admin users can only mark their own ACTIVE tickets as read.
+      const isAdmin = _req.user!.role === 'Admin';
+      if (!isAdmin) {
+        if (ticket.user_id !== _req.user!.userId) {
+          return NextResponse.json(
+            { error: 'Permissão insuficiente' },
+            { status: 403 }
+          );
+        }
+        if (ticket.status === 'resolved' || ticket.status === 'closed') {
+          return NextResponse.json(
+            { error: 'Ticket não disponível' },
+            { status: 403 }
+          );
+        }
       }
 
       // Mark all messages NOT sent by the current user as read

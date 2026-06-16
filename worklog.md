@@ -438,3 +438,99 @@ Stage Summary:
 - ✅ Modal de criar ticket funciona dentro do painel (z-index corrigido)
 - ✅ Lint limpo, push enviado (8d07ed6..b4e0b18)
 - 📁 Arquivos: floating-support-button.tsx (novo), app-layout.tsx, support-page.tsx
+
+---
+Task ID: SUPPORT-OPERATOR-RESTRICT
+Agent: Main Agent
+Task: Remover poder de reabrir e ver chats já respondidos para operadores (manter apenas para admin)
+
+Work Log:
+- Usuário solicitou: operadores não devem poder reabrir tickets nem ver chats já respondidos (resolved/closed)
+- VLM analisou screenshot: mostrava ticket fechado (SUP-2026-0001) com botão "Reabrir" visível para operador
+- Mapeado arquivos afetados:
+  - src/components/support-page.tsx (frontend, linha 131: isAdmin incluía Operator)
+  - src/app/api/support/tickets/route.ts (GET list)
+  - src/app/api/support/tickets/[id]/route.ts (GET single + PUT update)
+  - src/app/api/support/tickets/[id]/messages/route.ts (GET + POST messages)
+  - src/app/api/support/tickets/[id]/read/route.ts (PUT mark read)
+
+Mudanças implementadas:
+
+1. Backend - GET /api/support/tickets (listagem):
+   - isAdminOrOperator → isAdmin (apenas Admin vê todos os tickets)
+   - Non-admin: filtra para ver apenas próprios tickets E apenas status open/in_progress
+   - resolved/closed são ocultados para non-admin mesmo se forem próprios
+
+2. Backend - PUT /api/support/tickets/[id] (atualizar status):
+   - withRole(['Admin', 'Operator']) → withRole(['Admin'])
+   - Apenas Admin pode mudar status, prioridade, assignee (incluindo reabrir)
+   - Operadores não têm mais poder de reabrir
+
+3. Backend - GET /api/support/tickets/[id] (ver ticket individual):
+   - Non-admin: bloqueia acesso a tickets resolved/closed (403 "Ticket não disponível para visualização")
+   - Adicionado select de status na query do ticket
+
+4. Backend - GET/POST /api/support/tickets/[id]/messages:
+   - Non-admin: bloqueia acesso a mensagens de tickets resolved/closed (403)
+   - POST: Non-admin não pode enviar mensagens em resolved/closed (400)
+   - Adicionado select de status na query do ticket
+
+5. Backend - PUT /api/support/tickets/[id]/read:
+   - Non-admin: bloqueia marcar como lido em tickets resolved/closed (403)
+   - Adicionado select de status na query do ticket
+
+6. Frontend - support-page.tsx:
+   - isAdmin = role === "Admin" (removido Operator) - linha 131
+   - Filtros de status: non-admin vê apenas ["all", "open", "in_progress"]
+     (Admin continua vendo todos os 5: all, open, in_progress, resolved, closed)
+   - Input de mensagem: escondido quando status é "resolved" OU "closed" (antes era apenas closed)
+   - Mensagem de ticket fechado/resolvido: "Reabra para continuar" só aparece para Admin
+   - Socket listener "ticket-updated" adicionado:
+     - Atualiza status do ticket selecionado em tempo real
+     - Para non-admin: remove ticket da lista se virar resolved/closed
+   - handleStatusChange agora emite evento socket "ticket-updated" para notificar outros clientes
+   - Dependência do useEffect do socket atualizada: [token, isAdmin]
+
+Verificação (Agent Browser + API):
+- Login como Viewer (teste@nuca.com):
+  ✅ Sidebar NÃO tem "Suporte" (apenas Dashboard, Escolas, Alunos, Frequência, Eventos, Relatórios)
+  ✅ FAB "Abrir suporte" visível no canto inferior direito
+  ✅ Painel abre com filtros: Todos, Aberto, Em Andamento (SEM Resolvido e Fechado)
+  ✅ Sem botões de ação (Reabrir, Fechar, Resolver, Em Andamento) no header do ticket
+  ✅ Input de mensagem disponível para tickets abertos
+
+- Teste de fluxo completo via API:
+  ✅ Viewer criou ticket (SUP-2026-0001, status=open)
+  ✅ Admin fechou ticket via PUT (status=closed, HTTP 200)
+  ✅ Viewer NÃO vê ticket fechado na listagem (Total: 0)
+  ✅ Viewer não acessa ticket fechado diretamente (403 "Ticket não disponível")
+  ✅ Viewer não acessa mensagens do ticket fechado (403)
+  ✅ Viewer não envia mensagem ao ticket fechado (400 "Não é possível enviar mensagens")
+  ✅ Viewer não reabre ticket (403 "Permissão insuficiente")
+  ✅ Admin reabre ticket (200, status=open)
+  ✅ Viewer volta a ver ticket reaberto (Total: 1)
+
+- Login como Admin (emanuell.fp.rocha@gmail.com):
+  ✅ Sidebar tem "Suporte"
+  ✅ Sem FAB (admin não usa FAB)
+  ✅ Todos os 5 filtros de status visíveis
+  ✅ Botões de ação presentes (Em Andamento, Resolver, Fechar, Reabrir conforme status)
+  ✅ Pode reabrir tickets fechados
+
+- Lint: 0 erros, 0 warnings
+- Dev server: sem erros, 403/200 retornados corretamente conforme role
+
+Stage Summary:
+- ✅ Operadores NÃO podem mais reabrir tickets (apenas Admin)
+- ✅ Operadores NÃO veem chats já respondidos (resolved/closed) - filtrado no backend e frontend
+- ✅ Operadores não acessam tickets fechados/resolvidos via URL direta (403)
+- ✅ Operadores não enviam mensagens a tickets fechados/resolvidos (400)
+- ✅ Admin mantém acesso total (todos filtros, todos botões, pode reabrir)
+- ✅ Atualização em tempo real via socket: se admin fechar ticket, operador vê sumir da lista
+- ✅ Lint limpo
+- 📁 Arquivos modificados:
+  - src/app/api/support/tickets/route.ts
+  - src/app/api/support/tickets/[id]/route.ts
+  - src/app/api/support/tickets/[id]/messages/route.ts
+  - src/app/api/support/tickets/[id]/read/route.ts
+  - src/components/support-page.tsx

@@ -33,16 +33,24 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     const skip = (page - 1) * limit;
     const user = req.user!;
-    const isAdminOrOperator = user.role === 'Admin' || user.role === 'Operator';
+    // Only Admin can see all tickets and manage them (reopen, status changes, etc.).
+    // Operator/Viewer see only their own ACTIVE tickets (open/in_progress).
+    // Resolved/closed tickets are hidden from non-admin users.
+    const isAdmin = user.role === 'Admin';
 
     const where: Record<string, unknown> = {};
 
-    // Non-admin users can only see their own tickets
-    if (!isAdminOrOperator) {
+    if (!isAdmin) {
+      // Non-admin: restrict to own tickets AND active status only
       where.user_id = user.userId;
-    }
-
-    if (status) {
+      const allowedStatuses = ['open', 'in_progress'];
+      if (status && allowedStatuses.includes(status)) {
+        where.status = status;
+      } else {
+        where.status = { in: allowedStatuses };
+      }
+    } else if (status) {
+      // Admin: can filter by any status
       where.status = status;
     }
 

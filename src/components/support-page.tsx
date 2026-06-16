@@ -128,7 +128,10 @@ function formatShortTime(dateStr: string) {
 export function SupportPage({ embedded = false }: { embedded?: boolean } = {}) {
   const currentUser = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
-  const isAdmin = currentUser?.role === "Admin" || currentUser?.role === "Operator";
+  // Only Admin can manage tickets (change status, reopen, assign, etc.).
+  // Operators and Viewers are treated as regular users: they can only see
+  // and interact with their own active (open/in_progress) tickets.
+  const isAdmin = currentUser?.role === "Admin";
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,12 +204,40 @@ export function SupportPage({ embedded = false }: { embedded?: boolean } = {}) {
       );
     });
 
+    // Real-time ticket status updates (e.g. admin closes/resolves a ticket)
+    socket.on("ticket-updated", (payload: { ticket_id: string; status?: string }) => {
+      if (!payload?.ticket_id) return;
+      // Update the selected ticket's status if it's the one being viewed
+      setSelectedTicket((prev) =>
+        prev && prev.id === payload.ticket_id && payload.status
+          ? { ...prev, status: payload.status! }
+          : prev
+      );
+      // Update the ticket in the list too
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === payload.ticket_id && payload.status
+            ? { ...t, status: payload.status! }
+            : t
+        )
+      );
+      // For non-admin users: if the ticket becomes resolved/closed, remove it
+      // from the visible list (they shouldn't see answered chats).
+      if (
+        !isAdmin &&
+        payload.status &&
+        (payload.status === "resolved" || payload.status === "closed")
+      ) {
+        setTickets((prev) => prev.filter((t) => t.id !== payload.ticket_id));
+      }
+    });
+
     socketRef.current = socket;
 
     return () => {
       socket.disconnect();
     };
-  }, [token]);
+  }, [token, isAdmin]);
 
   // Join ticket room when selecting a ticket
   useEffect(() => {
@@ -322,6 +353,15 @@ export function SupportPage({ embedded = false }: { embedded?: boolean } = {}) {
       if (selectedTicket?.id === ticketId) {
         setSelectedTicket((prev) => prev ? { ...prev, status: newStatus } : null);
       }
+      // Notify other connected clients (e.g. operator viewing the same ticket)
+      // that the status has changed, so their UI updates in real-time.
+      if (socketRef.current) {
+        socketRef.current.emit("ticket-updated", {
+          ticket_id: ticketId,
+          status: newStatus,
+          updated_by: currentUser?.id,
+        });
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         toast.error(err.message);
@@ -391,7 +431,10 @@ export function SupportPage({ embedded = false }: { embedded?: boolean } = {}) {
                 />
               </div>
               <div className="flex gap-1 flex-wrap">
-                {["all", "open", "in_progress", "resolved", "closed"].map((s) => (
+                {(isAdmin
+                  ? ["all", "open", "in_progress", "resolved", "closed"]
+                  : ["all", "open", "in_progress"]
+                ).map((s) => (
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
@@ -609,8 +652,8 @@ export function SupportPage({ embedded = false }: { embedded?: boolean } = {}) {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input */}
-              {selectedTicket.status !== "closed" ? (
+              {/* Message Input — hidden when ticket is resolved or closed */}
+              {selectedTicket.status !== "closed" && selectedTicket.status !== "resolved" ? (
                 <div className="p-3 border-t">
                   <form
                     onSubmit={(e) => {
@@ -638,7 +681,10 @@ export function SupportPage({ embedded = false }: { embedded?: boolean } = {}) {
               ) : (
                 <div className="p-3 border-t text-center">
                   <p className="text-sm text-muted-foreground">
-                    Este ticket está fechado. {isAdmin && "Reabra para continuar a conversa."}
+                    {selectedTicket.status === "closed"
+                      ? "Este ticket está fechado."
+                      : "Este ticket foi resolvido."}
+                    {isAdmin && " Reabra para continuar a conversa."}
                   </p>
                 </div>
               )}

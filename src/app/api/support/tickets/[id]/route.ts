@@ -71,13 +71,22 @@ export async function GET(
         );
       }
 
-      // Non-admin users can only view their own tickets
-      const isAdminOrOperator = _req.user!.role === 'Admin' || _req.user!.role === 'Operator';
-      if (!isAdminOrOperator && ticket.user_id !== _req.user!.userId) {
-        return NextResponse.json(
-          { error: 'Permissão insuficiente' },
-          { status: 403 }
-        );
+      // Only Admin can view any ticket (including resolved/closed).
+      // Non-admin users can only view their own ACTIVE tickets (open/in_progress).
+      const isAdmin = _req.user!.role === 'Admin';
+      if (!isAdmin) {
+        if (ticket.user_id !== _req.user!.userId) {
+          return NextResponse.json(
+            { error: 'Permissão insuficiente' },
+            { status: 403 }
+          );
+        }
+        if (ticket.status === 'resolved' || ticket.status === 'closed') {
+          return NextResponse.json(
+            { error: 'Ticket não disponível para visualização' },
+            { status: 403 }
+          );
+        }
       }
 
       return NextResponse.json({ ticket });
@@ -92,13 +101,15 @@ export async function GET(
 }
 
 // ---------------------------------------------------------------------------
-// PUT /api/support/tickets/[id] — Update ticket (Admin/Operator only)
+// PUT /api/support/tickets/[id] — Update ticket (Admin only)
+// Only Admin can change status, priority, or assignee (including reopening tickets).
+// Operators no longer have permission to manage ticket status.
 // ---------------------------------------------------------------------------
 export async function PUT(
   req: AuthenticatedRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  return withRole(['Admin', 'Operator'], async (_req: AuthenticatedRequest) => {
+  return withRole(['Admin'], async (_req: AuthenticatedRequest) => {
     try {
       const { id } = await context.params;
       const body = await _req.json();
