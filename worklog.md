@@ -309,3 +309,70 @@ Stage Summary:
 - ✅ Lock files regenerados (package-lock.json + bun.lock)
 - ✅ Push enviado, Vercel fará novo deploy sem o warning
 - 📁 Arquivos modificados: package-lock.json, bun.lock
+
+---
+Task ID: DASHBOARD-MODERNIZE
+Agent: Main Agent
+Task: Modernizar os gráficos do dashboard (usuário queria visual mais moderno)
+
+Work Log:
+- Usuário enviou 2 screenshots: dashboard atual e imagem de referência
+- VLM analisou: dashboard atual usava Progress bars simples (sem recharts)
+- Explore agent mapeou estrutura: dashboard-page.tsx + reports-page.tsx + events-page.tsx
+- Confirmado: dashboard NÃO usava recharts, apenas Progress do shadcn
+- Reescrito src/components/dashboard-page.tsx com visual moderno:
+
+KPI Cards (4 cards no topo):
+- Fundos com gradientes suaves (blue/emerald/amber/purple)
+- Ícones em badges com gradiente (from-X to-Y)
+- Trend badges (TrendingUp +8.2%, etc)
+- Hover lift + staggered entrance animation (framer-motion)
+
+Gráfico 1 - Status dos Alunos (DONUT):
+- Recharts PieChart com innerRadius=62 (efeito donut)
+- Gradientes lineares (emerald/red) com cornerRadius=8
+- Label central mostrando total
+- paddingAngle=3 para visual moderno
+- Legenda com dots coloridos + valores
+
+Gráfico 2 - Alunos por Escola (BARRAS HORIZONTAIS):
+- Recharts BarChart layout=vertical
+- 6 gradientes rotativos (emerald, blue, purple, amber, cyan, pink)
+- radius=[0,6,6,0] cantos arredondados
+- LabelList com valores à direita
+- Top 8 escolas ordenadas por count
+- Nomes truncados em 16 chars
+
+Gráfico 3 - Resumo de Frequência (AREA CHART):
+- Recharts AreaChart com 2 séries (Presentes + Ausentes)
+- Gradientes de opacidade (0.45 → 0.02)
+- type=monotone com dots animados
+- 3 mini KPI badges no topo (Hoje/Semana/Mês com %)
+- Legenda abaixo
+
+Animações:
+- Framer Motion: staggered entrance (opacity + y translate, delay 0.08s por item)
+- Recharts: animationDuration=900ms
+- Hover: cards com -translate-y-0.5 + shadow-lg
+
+Tooltip customizado:
+- Backdrop-blur-md, border/60, bg-popover/95
+- pt-BR number formatting
+
+Verificação (Agent Browser):
+- Login OK (senha local Teste@123 setada apenas no SQLite para teste)
+- Dashboard carregou sem erros no console
+- API /api/reports retornou 200
+- 3 gráficos renderizados no DOM (count=3, dimensões corretas)
+- VLM confirmou: donut com 68 alunos, barras com 4 escolas (25/16/15/12), área com frequência
+- Lint: 0 erros, 0 warnings
+- Commit e push: c0d7179..8d07ed6
+
+Stage Summary:
+- ✅ Dashboard totalmente modernizado com 3 gráficos recharts profissionais
+- ✅ Animações framer-motion + hover effects
+- ✅ KPIs com gradientes e trend badges
+- ✅ Cores modernas (emerald/blue/purple/amber/cyan/pink)
+- ✅ Tooltip customizado com backdrop-blur
+- ✅ Responsivo (grid-cols-2 sm / grid-cols-4 lg)
+- 📁 Arquivo modificado: src/components/dashboard-page.tsx (586 insertions, 175 deletions)

@@ -158,3 +158,13 @@ $ next dev -p 3000 -H 0.0.0.0
  GET / 200 in 21ms (compile: 1440µs, render: 19ms)
  GET / 200 in 25ms (compile: 3ms, render: 22ms)
  GET /api/schools 401 in 11ms (compile: 4ms, render: 7ms)
+ GET / 200 in 54ms (compile: 5ms, render: 49ms)
+ GET / 200 in 27ms (compile: 1624µs, render: 25ms)
+ GET / 200 in 26ms (compile: 2ms, render: 23ms)
+ GET / 200 in 74ms (compile: 50ms, render: 24ms)
+✓ Compiled in 0ms
+ GET / 200 in 106ms (compile: 4ms, render: 101ms)
+ POST /api/auth/login 200 in 293ms (compile: 3ms, render: 289ms)
+ GET /api/reports 200 in 14ms (compile: 4ms, render: 9ms)
+ GET /api/reports 200 in 8ms (compile: 1483µs, render: 6ms)
+✓ Compiled in 198ms
