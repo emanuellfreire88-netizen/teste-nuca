@@ -145,3 +145,6 @@ $ next dev -p 3000 -H 0.0.0.0
  GET / 200 in 49ms (compile: 3ms, render: 47ms)
  GET / 200 in 23ms (compile: 1750µs, render: 21ms)
  GET / 200 in 25ms (compile: 3ms, render: 22ms)
+ GET / 200 in 53ms (compile: 2ms, render: 50ms)
+ GET / 200 in 30ms (compile: 2ms, render: 27ms)
+ GET / 200 in 31ms (compile: 3ms, render: 28ms)
