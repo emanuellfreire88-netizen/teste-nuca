@@ -1,0 +1,712 @@
+     1→     1→"use client";
+     2→     2→
+     3→     3→import { useEffect, useState, useCallback, useRef } from "react";
+     4→     4→import { io, Socket } from "socket.io-client";
+     5→     5→import { api, ApiError } from "@/lib/api";
+     6→     6→import { useAuthStore } from "@/lib/auth-store";
+     7→     7→import { toast } from "sonner";
+     8→     8→import { Button } from "@/components/ui/button";
+     9→     9→import { Input } from "@/components/ui/input";
+    10→    10→import { Label } from "@/components/ui/label";
+    11→    11→import { Badge } from "@/components/ui/badge";
+    12→    12→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+    13→    13→import { Skeleton } from "@/components/ui/skeleton";
+    14→    14→import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+    15→    15→import { ScrollArea } from "@/components/ui/scroll-area";
+    16→    16→import {
+    17→    17→  MessageSquare,
+    18→    18→  Plus,
+    19→    19→  Search,
+    20→    20→  Loader2,
+    21→    21→  Send,
+    22→    22→  Clock,
+    23→    23→  CheckCheck,
+    24→    24→  ChevronLeft,
+    25→    25→  Filter,
+    26→    26→  Ticket,
+    27→    27→  User,
+    28→    28→} from "lucide-react";
+    29→    29→
+    30→    30→// ─── Types ────────────────────────────────────────────────────────────
+    31→    31→interface TicketMessage {
+    32→    32→  id: string;
+    33→    33→  ticket_id: string;
+    34→    34→  sender_id: string;
+    35→    35→  content: string;
+    36→    36→  is_read: boolean;
+    37→    37→  created_at: string;
+    38→    38→  sender: {
+    39→    39→    id: string;
+    40→    40→    full_name: string;
+    41→    41→    email: string;
+    42→    42→    profile_photo: string | null;
+    43→    43→    role: string;
+    44→    44→  };
+    45→    45→}
+    46→    46→
+    47→    47→interface SupportTicket {
+    48→    48→  id: string;
+    49→    49→  protocol: string;
+    50→    50→  subject: string;
+    51→    51→  status: string;
+    52→    52→  priority: string;
+    53→    53→  user_id: string;
+    54→    54→  assigned_to: string | null;
+    55→    55→  created_at: string;
+    56→    56→  updated_at: string;
+    57→    57→  user: {
+    58→    58→    id: string;
+    59→    59→    full_name: string;
+    60→    60→    email: string;
+    61→    61→    profile_photo: string | null;
+    62→    62→  };
+    63→    63→  assignee?: {
+    64→    64→    id: string;
+    65→    65→    full_name: string;
+    66→    66→    email: string;
+    67→    67→  } | null;
+    68→    68→  messages?: TicketMessage[];
+    69→    69→  _count?: {
+    70→    70→    messages: number;
+    71→    71→  };
+    72→    72→}
+    73→    73→
+    74→    74→interface TicketsResponse {
+    75→    75→  tickets: SupportTicket[];
+    76→    76→  pagination: { page: number; limit: number; total: number; totalPages: number };
+    77→    77→}
+    78→    78→
+    79→    79→interface TicketDetailResponse {
+    80→    80→  ticket: SupportTicket;
+    81→    81→}
+    82→    82→
+    83→    83→interface MessagesResponse {
+    84→    84→  messages: TicketMessage[];
+    85→    85→  pagination: { page: number; limit: number; total: number; totalPages: number };
+    86→    86→}
+    87→    87→
+    88→    88→// ─── Constants ────────────────────────────────────────────────────────
+    89→    89→const statusConfig: Record<string, { label: string; class: string }> = {
+    90→    90→  open: { label: "Aberto", class: "bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
+    91→    91→  in_progress: { label: "Em Andamento", class: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800" },
+    92→    92→  resolved: { label: "Resolvido", class: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800" },
+    93→    93→  closed: { label: "Fechado", class: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700" },
+    94→    94→};
+    95→    95→
+    96→    96→const priorityConfig: Record<string, { label: string; class: string }> = {
+    97→    97→  low: { label: "Baixa", class: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700" },
+    98→    98→  normal: { label: "Normal", class: "bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
+    99→    99→  high: { label: "Alta", class: "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200 dark:border-orange-800" },
+   100→   100→  urgent: { label: "Urgente", class: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 dark:border-red-800" },
+   101→   101→};
+   102→   102→
+   103→   103→function getInitials(name: string) {
+   104→   104→  return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+   105→   105→}
+   106→   106→
+   107→   107→function formatTime(dateStr: string) {
+   108→   108→  const d = new Date(dateStr);
+   109→   109→  return d.toLocaleString("pt-BR", {
+   110→   110→    day: "2-digit", month: "2-digit", year: "numeric",
+   111→   111→    hour: "2-digit", minute: "2-digit",
+   112→   112→  });
+   113→   113→}
+   114→   114→
+   115→   115→function formatShortTime(dateStr: string) {
+   116→   116→  const d = new Date(dateStr);
+   117→   117→  const now = new Date();
+   118→   118→  const diff = now.getTime() - d.getTime();
+   119→   119→  const mins = Math.floor(diff / 60000);
+   120→   120→  if (mins < 1) return "Agora";
+   121→   121→  if (mins < 60) return `${mins}min`;
+   122→   122→  const hours = Math.floor(mins / 60);
+   123→   123→  if (hours < 24) return `${hours}h`;
+   124→   124→  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+   125→   125→}
+   126→   126→
+   127→   127→// ─── Main Component ──────────────────────────────────────────────────
+   128→   128→export function SupportPage() {
+   129→   129→  const currentUser = useAuthStore((s) => s.user);
+   130→   130→  const token = useAuthStore((s) => s.token);
+   131→   131→  const isAdmin = currentUser?.role === "Admin" || currentUser?.role === "Operator";
+   132→   132→
+   133→   133→  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+   134→   134→  const [loading, setLoading] = useState(true);
+   135→   135→  const [search, setSearch] = useState("");
+   136→   136→  const [statusFilter, setStatusFilter] = useState<string>("all");
+   137→   137→
+   138→   138→  // Detail view
+   139→   139→  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+   140→   140→  const [messages, setMessages] = useState<TicketMessage[]>([]);
+   141→   141→  const [newMessage, setNewMessage] = useState("");
+   142→   142→  const [sendingMessage, setSendingMessage] = useState(false);
+   143→   143→  const [loadingMessages, setLoadingMessages] = useState(false);
+   144→   144→
+   145→   145→  // Create ticket
+   146→   146→  const [showCreate, setShowCreate] = useState(false);
+   147→   147→  const [createSubject, setCreateSubject] = useState("");
+   148→   148→  const [createContent, setCreateContent] = useState("");
+   149→   149→  const [createPriority, setCreatePriority] = useState("normal");
+   150→   150→  const [creating, setCreating] = useState(false);
+   151→   151→
+   152→   152→  // Socket
+   153→   153→  const socketRef = useRef<Socket | null>(null);
+   154→   154→  const messagesEndRef = useRef<HTMLDivElement>(null);
+   155→   155→
+   156→   156→  const fetchTickets = useCallback(async () => {
+   157→   157→    try {
+   158→   158→      setLoading(true);
+   159→   159→      const params = new URLSearchParams();
+   160→   160→      if (statusFilter !== "all") params.set("status", statusFilter);
+   161→   161→      params.set("limit", "50");
+   162→   162→      const data = await api.get<TicketsResponse>(`/support/tickets?${params.toString()}`);
+   163→   163→      setTickets(data.tickets);
+   164→   164→    } catch {
+   165→   165→      toast.error("Erro ao carregar tickets");
+   166→   166→    } finally {
+   167→   167→      setLoading(false);
+   168→   168→    }
+   169→   169→  }, [statusFilter]);
+   170→   170→
+   171→   171→  useEffect(() => {
+   172→   172→    fetchTickets();
+   173→   173→  }, [fetchTickets]);
+   174→   174→
+   175→   175→  // Socket.IO connection
+   176→   176→  useEffect(() => {
+   177→   177→    if (!token) return;
+   178→   178→
+   179→   179→    const socket = io("/", {
+   180→   180→      auth: { token },
+   181→   181→      transports: ["websocket", "polling"],
+   182→   182→    });
+   183→   183→
+   184→   184→    socket.on("connect", () => {
+   185→   185→      console.log("Chat connected");
+   186→   186→    });
+   187→   187→
+   188→   188→    socket.on("new-message", (msg: TicketMessage) => {
+   189→   189→      setMessages((prev) => {
+   190→   190→        // Avoid duplicate
+   191→   191→        if (prev.some((m) => m.id === msg.id)) return prev;
+   192→   192→        return [...prev, msg];
+   193→   193→      });
+   194→   194→      // Also update ticket list's last message count
+   195→   195→      setTickets((prev) =>
+   196→   196→        prev.map((t) =>
+   197→   197→          t.id === msg.ticket_id
+   198→   198→            ? { ...t, _count: { messages: (t._count?.messages || 0) + 1 } }
+   199→   199→            : t
+   200→   200→        )
+   201→   201→      );
+   202→   202→    });
+   203→   203→
+   204→   204→    socketRef.current = socket;
+   205→   205→
+   206→   206→    return () => {
+   207→   207→      socket.disconnect();
+   208→   208→    };
+   209→   209→  }, [token]);
+   210→   210→
+   211→   211→  // Join ticket room when selecting a ticket
+   212→   212→  useEffect(() => {
+   213→   213→    if (selectedTicket && socketRef.current) {
+   214→   214→      socketRef.current.emit("join-ticket", { ticket_id: selectedTicket.id });
+   215→   215→
+   216→   216→      return () => {
+   217→   217→        socketRef.current?.emit("leave-ticket", { ticket_id: selectedTicket.id });
+   218→   218→      };
+   219→   219→    }
+   220→   220→  }, [selectedTicket]);
+   221→   221→
+   222→   222→  // Fetch messages when selecting a ticket
+   223→   223→  useEffect(() => {
+   224→   224→    if (!selectedTicket) return;
+   225→   225→    const fetchMessages = async () => {
+   226→   226→      setLoadingMessages(true);
+   227→   227→      try {
+   228→   228→        const data = await api.get<MessagesResponse>(`/support/tickets/${selectedTicket.id}/messages?limit=100`);
+   229→   229→        setMessages(data.messages);
+   230→   230→        // Mark as read
+   231→   231→        await api.put(`/support/tickets/${selectedTicket.id}/read`);
+   232→   232→      } catch {
+   233→   233→        toast.error("Erro ao carregar mensagens");
+   234→   234→      } finally {
+   235→   235→        setLoadingMessages(false);
+   236→   236→      }
+   237→   237→    };
+   238→   238→    fetchMessages();
+   239→   239→  }, [selectedTicket]);
+   240→   240→
+   241→   241→  // Auto-scroll to bottom
+   242→   242→  useEffect(() => {
+   243→   243→    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+   244→   244→  }, [messages]);
+   245→   245→
+   246→   246→  const handleCreateTicket = async () => {
+   247→   247→    if (!createSubject || !createContent) {
+   248→   248→      toast.error("Preencha todos os campos");
+   249→   249→      return;
+   250→   250→    }
+   251→   251→    try {
+   252→   252→      setCreating(true);
+   253→   253→      const data = await api.post<TicketDetailResponse>("/support/tickets", {
+   254→   254→        subject: createSubject,
+   255→   255→        content: createContent,
+   256→   256→        priority: createPriority,
+   257→   257→      });
+   258→   258→      toast.success(`Ticket criado! Protocolo: ${data.ticket.protocol}`);
+   259→   259→      setShowCreate(false);
+   260→   260→      setCreateSubject("");
+   261→   261→      setCreateContent("");
+   262→   262→      setCreatePriority("normal");
+   263→   263→      fetchTickets();
+   264→   264→      // Select the new ticket
+   265→   265→      setSelectedTicket(data.ticket);
+   266→   266→    } catch (err) {
+   267→   267→      if (err instanceof ApiError) {
+   268→   268→        toast.error(err.message);
+   269→   269→      } else {
+   270→   270→        toast.error("Erro ao criar ticket");
+   271→   271→      }
+   272→   272→    } finally {
+   273→   273→      setCreating(false);
+   274→   274→    }
+   275→   275→  };
+   276→   276→
+   277→   277→  const handleSendMessage = async () => {
+   278→   278→    if (!newMessage.trim() || !selectedTicket) return;
+   279→   279→    const content = newMessage.trim();
+   280→   280→    setNewMessage("");
+   281→   281→
+   282→   282→    try {
+   283→   283→      setSendingMessage(true);
+   284→   284→      const data = await api.post<{ message: TicketMessage }>(
+   285→   285→        `/support/tickets/${selectedTicket.id}/messages`,
+   286→   286→        { content }
+   287→   287→      );
+   288→   288→
+   289→   289→      // Emit via socket for real-time
+   290→   290→      if (socketRef.current) {
+   291→   291→        socketRef.current.emit("send-message", {
+   292→   292→          ticket_id: selectedTicket.id,
+   293→   293→          content,
+   294→   294→          sender_id: currentUser?.id,
+   295→   295→          sender_name: currentUser?.full_name,
+   296→   296→          sender_role: currentUser?.role,
+   297→   297→        });
+   298→   298→      }
+   299→   299→
+   300→   300→      // Add to messages locally too for instant feedback
+   301→   301→      setMessages((prev) => {
+   302→   302→        if (prev.some((m) => m.id === data.message.id)) return prev;
+   303→   303→        return [...prev, data.message];
+   304→   304→      });
+   305→   305→    } catch (err) {
+   306→   306→      if (err instanceof ApiError) {
+   307→   307→        toast.error(err.message);
+   308→   308→      } else {
+   309→   309→        toast.error("Erro ao enviar mensagem");
+   310→   310→      }
+   311→   311→      setNewMessage(content); // Restore on error
+   312→   312→    } finally {
+   313→   313→      setSendingMessage(false);
+   314→   314→    }
+   315→   315→  };
+   316→   316→
+   317→   317→  const handleStatusChange = async (ticketId: string, newStatus: string) => {
+   318→   318→    try {
+   319→   319→      await api.put(`/support/tickets/${ticketId}`, { status: newStatus });
+   320→   320→      toast.success("Status atualizado!");
+   321→   321→      fetchTickets();
+   322→   322→      if (selectedTicket?.id === ticketId) {
+   323→   323→        setSelectedTicket((prev) => prev ? { ...prev, status: newStatus } : null);
+   324→   324→      }
+   325→   325→    } catch (err) {
+   326→   326→      if (err instanceof ApiError) {
+   327→   327→        toast.error(err.message);
+   328→   328→      }
+   329→   329→    }
+   330→   330→  };
+   331→   331→
+   332→   332→  const filteredTickets = tickets.filter(
+   333→   333→    (t) =>
+   334→   334→      t.subject.toLowerCase().includes(search.toLowerCase()) ||
+   335→   335→      t.protocol.toLowerCase().includes(search.toLowerCase()) ||
+   336→   336→      t.user.full_name.toLowerCase().includes(search.toLowerCase())
+   337→   337→  );
+   338→   338→
+   339→   339→  const currentStatus = selectedTicket ? statusConfig[selectedTicket.status] : null;
+   340→   340→
+   341→   341→  // ─── Render ────────────────────────────────────────────────────────
+   342→   342→  return (
+   343→   343→    <div className="space-y-6">
+   344→   344→      {/* Header */}
+   345→   345→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   346→   346→        <div>
+   347→   347→          <h1 className="text-2xl font-bold tracking-tight">Suporte</h1>
+   348→   348→          <p className="text-muted-foreground mt-1">
+   349→   349→            Gerencie seus tickets de suporte e conversas
+   350→   350→          </p>
+   351→   351→        </div>
+   352→   352→        <Button onClick={() => setShowCreate(true)} className="gap-2">
+   353→   353→          <Plus className="h-4 w-4" />
+   354→   354→          Novo Ticket
+   355→   355→        </Button>
+   356→   356→      </div>
+   357→   357→
+   358→   358→      {/* Main Content - Split view */}
+   359→   359→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-220px)]">
+   360→   360→        {/* Left: Ticket List */}
+   361→   361→        <div className={`lg:col-span-1 ${selectedTicket ? "hidden lg:block" : ""}`}>
+   362→   362→          <Card className="h-full flex flex-col">
+   363→   363→            <CardHeader className="pb-3 space-y-3">
+   364→   364→              <CardTitle className="text-base flex items-center gap-2">
+   365→   365→                <Ticket className="h-4 w-4" />
+   366→   366→                Tickets
+   367→   367→              </CardTitle>
+   368→   368→              <div className="relative">
+   369→   369→                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   370→   370→                <Input
+   371→   371→                  placeholder="Buscar ticket..."
+   372→   372→                  value={search}
+   373→   373→                  onChange={(e) => setSearch(e.target.value)}
+   374→   374→                  className="pl-9 h-9"
+   375→   375→                />
+   376→   376→              </div>
+   377→   377→              <div className="flex gap-1 flex-wrap">
+   378→   378→                {["all", "open", "in_progress", "resolved", "closed"].map((s) => (
+   379→   379→                  <button
+   380→   380→                    key={s}
+   381→   381→                    onClick={() => setStatusFilter(s)}
+   382→   382→                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+   383→   383→                      statusFilter === s
+   384→   384→                        ? "bg-primary text-primary-foreground border-primary"
+   385→   385→                        : "bg-background text-muted-foreground border-border hover:bg-accent"
+   386→   386→                    }`}
+   387→   387→                  >
+   388→   388→                    {s === "all" ? "Todos" : statusConfig[s]?.label || s}
+   389→   389→                  </button>
+   390→   390→                ))}
+   391→   391→              </div>
+   392→   392→            </CardHeader>
+   393→   393→            <CardContent className="flex-1 p-0 overflow-y-auto">
+   394→   394→              {loading ? (
+   395→   395→                <div className="space-y-3 p-3">
+   396→   396→                  {Array.from({ length: 5 }).map((_, i) => (
+   397→   397→                    <div key={i} className="flex gap-3 p-2">
+   398→   398→                      <Skeleton className="h-10 w-10 rounded-full" />
+   399→   399→                      <div className="flex-1 space-y-2">
+   400→   400→                        <Skeleton className="h-4 w-3/4" />
+   401→   401→                        <Skeleton className="h-3 w-1/2" />
+   402→   402→                      </div>
+   403→   403→                    </div>
+   404→   404→                  ))}
+   405→   405→                </div>
+   406→   406→              ) : filteredTickets.length === 0 ? (
+   407→   407→                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+   408→   408→                  <MessageSquare className="h-10 w-10 mb-3" />
+   409→   409→                  <p className="text-sm">Nenhum ticket encontrado</p>
+   410→   410→                </div>
+   411→   411→              ) : (
+   412→   412→                <div className="divide-y">
+   413→   413→                  {filteredTickets.map((ticket) => (
+   414→   414→                    <button
+   415→   415→                      key={ticket.id}
+   416→   416→                      onClick={() => setSelectedTicket(ticket)}
+   417→   417→                      className={`w-full text-left p-3 hover:bg-accent/50 transition-colors ${
+   418→   418→                        selectedTicket?.id === ticket.id ? "bg-accent" : ""
+   419→   419→                      }`}
+   420→   420→                    >
+   421→   421→                      <div className="flex items-start gap-3">
+   422→   422→                        <Avatar className="h-9 w-9 shrink-0">
+   423→   423→                          <AvatarImage src={ticket.user.profile_photo || undefined} />
+   424→   424→                          <AvatarFallback className="text-xs">{getInitials(ticket.user.full_name)}</AvatarFallback>
+   425→   425→                        </Avatar>
+   426→   426→                        <div className="flex-1 min-w-0">
+   427→   427→                          <div className="flex items-center gap-2 mb-0.5">
+   428→   428→                            <span className="text-xs font-mono text-muted-foreground">{ticket.protocol}</span>
+   429→   429→                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusConfig[ticket.status]?.class}`}>
+   430→   430→                              {statusConfig[ticket.status]?.label}
+   431→   431→                            </Badge>
+   432→   432→                          </div>
+   433→   433→                          <p className="text-sm font-medium truncate">{ticket.subject}</p>
+   434→   434→                          <div className="flex items-center gap-2 mt-1">
+   435→   435→                            <span className="text-xs text-muted-foreground truncate">{ticket.user.full_name}</span>
+   436→   436→                            <span className="text-xs text-muted-foreground">•</span>
+   437→   437→                            <span className="text-xs text-muted-foreground">{formatShortTime(ticket.created_at)}</span>
+   438→   438→                          </div>
+   439→   439→                        </div>
+   440→   440→                      </div>
+   441→   441→                    </button>
+   442→   442→                  ))}
+   443→   443→                </div>
+   444→   444→              )}
+   445→   445→            </CardContent>
+   446→   446→          </Card>
+   447→   447→        </div>
+   448→   448→
+   449→   449→        {/* Right: Chat / Detail */}
+   450→   450→        <div className={`lg:col-span-2 ${!selectedTicket ? "hidden lg:block" : ""}`}>
+   451→   451→          {!selectedTicket ? (
+   452→   452→            <Card className="h-full flex items-center justify-center">
+   453→   453→              <div className="text-center text-muted-foreground">
+   454→   454→                <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-20" />
+   455→   455→                <p className="text-lg font-medium">Selecione um ticket</p>
+   456→   456→                <p className="text-sm mt-1">Escolha um ticket à esquerda para ver a conversa</p>
+   457→   457→              </div>
+   458→   458→            </Card>
+   459→   459→          ) : (
+   460→   460→            <Card className="h-full flex flex-col">
+   461→   461→              {/* Chat Header */}
+   462→   462→              <div className="p-4 border-b flex items-center gap-3">
+   463→   463→                <Button
+   464→   464→                  variant="ghost"
+   465→   465→                  size="icon"
+   466→   466→                  className="lg:hidden shrink-0"
+   467→   467→                  onClick={() => setSelectedTicket(null)}
+   468→   468→                >
+   469→   469→                  <ChevronLeft className="h-5 w-5" />
+   470→   470→                </Button>
+   471→   471→                <div className="flex-1 min-w-0">
+   472→   472→                  <div className="flex items-center gap-2 flex-wrap">
+   473→   473→                    <span className="text-sm font-mono text-muted-foreground">{selectedTicket.protocol}</span>
+   474→   474→                    <Badge variant="outline" className={`text-xs ${currentStatus?.class}`}>
+   475→   475→                      {currentStatus?.label}
+   476→   476→                    </Badge>
+   477→   477→                    <Badge variant="outline" className={`text-xs ${priorityConfig[selectedTicket.priority]?.class}`}>
+   478→   478→                      {priorityConfig[selectedTicket.priority]?.label}
+   479→   479→                    </Badge>
+   480→   480→                  </div>
+   481→   481→                  <h3 className="font-semibold truncate mt-0.5">{selectedTicket.subject}</h3>
+   482→   482→                  <p className="text-xs text-muted-foreground">
+   483→   483→                    Por {selectedTicket.user.full_name} • {formatTime(selectedTicket.created_at)}
+   484→   484→                  </p>
+   485→   485→                </div>
+   486→   486→                {/* Admin actions */}
+   487→   487→                {isAdmin && (
+   488→   488→                  <div className="flex gap-1">
+   489→   489→                    {selectedTicket.status === "open" && (
+   490→   490→                      <Button
+   491→   491→                        size="sm"
+   492→   492→                        variant="outline"
+   493→   493→                        className="text-xs"
+   494→   494→                        onClick={() => handleStatusChange(selectedTicket.id, "in_progress")}
+   495→   495→                      >
+   496→   496→                        Em Andamento
+   497→   497→                      </Button>
+   498→   498→                    )}
+   499→   499→                    {selectedTicket.status === "in_progress" && (
+   500→   500→                      <Button
+   501→   501→                        size="sm"
+   502→   502→                        variant="outline"
+   503→   503→                        className="text-xs"
+   504→   504→                        onClick={() => handleStatusChange(selectedTicket.id, "resolved")}
+   505→   505→                      >
+   506→   506→                        Resolver
+   507→   507→                      </Button>
+   508→   508→                    )}
+   509→   509→                    {(selectedTicket.status === "resolved" || selectedTicket.status === "in_progress") && (
+   510→   510→                      <Button
+   511→   511→                        size="sm"
+   512→   512→                        variant="outline"
+   513→   513→                        className="text-xs"
+   514→   514→                        onClick={() => handleStatusChange(selectedTicket.id, "closed")}
+   515→   515→                      >
+   516→   516→                        Fechar
+   517→   517→                      </Button>
+   518→   518→                    )}
+   519→   519→                    {(selectedTicket.status === "closed" || selectedTicket.status === "resolved") && (
+   520→   520→                      <Button
+   521→   521→                        size="sm"
+   522→   522→                        variant="outline"
+   523→   523→                        className="text-xs"
+   524→   524→                        onClick={() => handleStatusChange(selectedTicket.id, "open")}
+   525→   525→                      >
+   526→   526→                        Reabrir
+   527→   527→                      </Button>
+   528→   528→                    )}
+   529→   529→                  </div>
+   530→   530→                )}
+   531→   531→              </div>
+   532→   532→
+   533→   533→              {/* Messages */}
+   534→   534→              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+   535→   535→                {loadingMessages ? (
+   536→   536→                  <div className="space-y-4">
+   537→   537→                    {Array.from({ length: 3 }).map((_, i) => (
+   538→   538→                      <div key={i} className="flex gap-3">
+   539→   539→                        <Skeleton className="h-8 w-8 rounded-full" />
+   540→   540→                        <div className="flex-1 space-y-2">
+   541→   541→                          <Skeleton className="h-3 w-24" />
+   542→   542→                          <Skeleton className="h-16 w-full" />
+   543→   543→                        </div>
+   544→   544→                      </div>
+   545→   545→                    ))}
+   546→   546→                  </div>
+   547→   547→                ) : messages.length === 0 ? (
+   548→   548→                  <div className="text-center text-muted-foreground py-8">
+   549→   549→                    <p className="text-sm">Nenhuma mensagem ainda</p>
+   550→   550→                  </div>
+   551→   551→                ) : (
+   552→   552→                  messages.map((msg) => {
+   553→   553→                    const isOwn = msg.sender_id === currentUser?.id;
+   554→   554→                    return (
+   555→   555→                      <div
+   556→   556→                        key={msg.id}
+   557→   557→                        className={`flex gap-3 ${isOwn ? "flex-row-reverse" : ""}`}
+   558→   558→                      >
+   559→   559→                        <Avatar className="h-8 w-8 shrink-0">
+   560→   560→                          <AvatarImage src={msg.sender.profile_photo || undefined} />
+   561→   561→                          <AvatarFallback className="text-xs">{getInitials(msg.sender.full_name)}</AvatarFallback>
+   562→   562→                        </Avatar>
+   563→   563→                        <div className={`max-w-[75%] ${isOwn ? "text-right" : ""}`}>
+   564→   564→                          <div className="flex items-center gap-2 mb-1">
+   565→   565→                            {!isOwn && (
+   566→   566→                              <span className="text-xs font-medium">{msg.sender.full_name}</span>
+   567→   567→                            )}
+   568→   568→                            <span className="text-[10px] text-muted-foreground">
+   569→   569→                              {formatShortTime(msg.created_at)}
+   570→   570→                            </span>
+   571→   571→                            {isOwn && (
+   572→   572→                              msg.is_read ? (
+   573→   573→                                <CheckCheck className="h-3 w-3 text-blue-500" />
+   574→   574→                              ) : (
+   575→   575→                                <CheckCheck className="h-3 w-3 text-muted-foreground/50" />
+   576→   576→                              )
+   577→   577→                            )}
+   578→   578→                          </div>
+   579→   579→                          <div
+   580→   580→                            className={`rounded-xl px-3.5 py-2.5 text-sm inline-block ${
+   581→   581→                              isOwn
+   582→   582→                                ? "bg-primary text-primary-foreground"
+   583→   583→                                : "bg-muted"
+   584→   584→                            }`}
+   585→   585→                          >
+   586→   586→                            {msg.content}
+   587→   587→                          </div>
+   588→   588→                        </div>
+   589→   589→                      </div>
+   590→   590→                    );
+   591→   591→                  })
+   592→   592→                )}
+   593→   593→                <div ref={messagesEndRef} />
+   594→   594→              </div>
+   595→   595→
+   596→   596→              {/* Message Input */}
+   597→   597→              {selectedTicket.status !== "closed" ? (
+   598→   598→                <div className="p-3 border-t">
+   599→   599→                  <form
+   600→   600→                    onSubmit={(e) => {
+   601→   601→                      e.preventDefault();
+   602→   602→                      handleSendMessage();
+   603→   603→                    }}
+   604→   604→                    className="flex gap-2"
+   605→   605→                  >
+   606→   606→                    <Input
+   607→   607→                      placeholder="Digite sua mensagem..."
+   608→   608→                      value={newMessage}
+   609→   609→                      onChange={(e) => setNewMessage(e.target.value)}
+   610→   610→                      disabled={sendingMessage}
+   611→   611→                      className="flex-1"
+   612→   612→                    />
+   613→   613→                    <Button type="submit" size="icon" disabled={sendingMessage || !newMessage.trim()}>
+   614→   614→                      {sendingMessage ? (
+   615→   615→                        <Loader2 className="h-4 w-4 animate-spin" />
+   616→   616→                      ) : (
+   617→   617→                        <Send className="h-4 w-4" />
+   618→   618→                      )}
+   619→   619→                    </Button>
+   620→   620→                  </form>
+   621→   621→                </div>
+   622→   622→              ) : (
+   623→   623→                <div className="p-3 border-t text-center">
+   624→   624→                  <p className="text-sm text-muted-foreground">
+   625→   625→                    Este ticket está fechado. {isAdmin && "Reabra para continuar a conversa."}
+   626→   626→                  </p>
+   627→   627→                </div>
+   628→   628→              )}
+   629→   629→            </Card>
+   630→   630→          )}
+   631→   631→        </div>
+   632→   632→      </div>
+   633→   633→
+   634→   634→      {/* ═══ CREATE TICKET MODAL ═══════════════════════════════════ */}
+   635→   635→      {showCreate && (
+   636→   636→        <div className="fixed inset-0 z-50 flex items-center justify-center">
+   637→   637→          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCreate(false)} />
+   638→   638→          <div
+   639→   639→            className="relative z-10 w-full max-w-lg mx-4 bg-background rounded-lg border shadow-lg p-6 animate-in fade-in-0 zoom-in-95 duration-200"
+   640→   640→            onClick={(e) => e.stopPropagation()}
+   641→   641→          >
+   642→   642→            <div className="flex items-center justify-between mb-4">
+   643→   643→              <div>
+   644→   644→                <h2 className="text-lg font-semibold">Novo Ticket de Suporte</h2>
+   645→   645→                <p className="text-sm text-muted-foreground">
+   646→   646→                  Descreva seu problema e receba um protocolo de acompanhamento.
+   647→   647→                </p>
+   648→   648→              </div>
+   649→   649→              <button onClick={() => setShowCreate(false)} className="opacity-70 hover:opacity-100">
+   650→   650→                ✕
+   651→   651→              </button>
+   652→   652→            </div>
+   653→   653→
+   654→   654→            <div className="space-y-4">
+   655→   655→              <div className="space-y-2">
+   656→   656→                <Label>Assunto *</Label>
+   657→   657→                <Input
+   658→   658→                  placeholder="Ex: Não consigo registrar frequência"
+   659→   659→                  value={createSubject}
+   660→   660→                  onChange={(e) => setCreateSubject(e.target.value)}
+   661→   661→                />
+   662→   662→              </div>
+   663→   663→              <div className="space-y-2">
+   664→   664→                <Label>Prioridade</Label>
+   665→   665→                <select
+   666→   666→                  value={createPriority}
+   667→   667→                  onChange={(e) => setCreatePriority(e.target.value)}
+   668→   668→                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   669→   669→                >
+   670→   670→                  <option value="low">Baixa</option>
+   671→   671→                  <option value="normal">Normal</option>
+   672→   672→                  <option value="high">Alta</option>
+   673→   673→                  <option value="urgent">Urgente</option>
+   674→   674→                </select>
+   675→   675→              </div>
+   676→   676→              <div className="space-y-2">
+   677→   677→                <Label>Descrição *</Label>
+   678→   678→                <textarea
+   679→   679→                  placeholder="Descreva detalhadamente o problema..."
+   680→   680→                  value={createContent}
+   681→   681→                  onChange={(e) => setCreateContent(e.target.value)}
+   682→   682→                  rows={4}
+   683→   683→                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+   684→   684→                />
+   685→   685→              </div>
+   686→   686→            </div>
+   687→   687→
+   688→   688→            <div className="flex justify-end gap-2 mt-6">
+   689→   689→              <Button variant="outline" onClick={() => setShowCreate(false)} disabled={creating}>
+   690→   690→                Cancelar
+   691→   691→              </Button>
+   692→   692→              <Button onClick={handleCreateTicket} disabled={creating || !createSubject || !createContent}>
+   693→   693→                {creating ? (
+   694→   694→                  <>
+   695→   695→                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   696→   696→                    Criando...
+   697→   697→                  </>
+   698→   698→                ) : (
+   699→   699→                  <>
+   700→   700→                    <Ticket className="mr-2 h-4 w-4" />
+   701→   701→                    Criar Ticket
+   702→   702→                  </>
+   703→   703→                )}
+   704→   704→              </Button>
+   705→   705→            </div>
+   706→   706→          </div>
+   707→   707→        </div>
+   708→   708→      )}
+   709→   709→    </div>
+   710→   710→  );
+   711→   711→}
+   712→   712→

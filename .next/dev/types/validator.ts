@@ -128,6 +128,33 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../../src/app/api/auth/resend-2fa/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/auth/resend-2fa">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/auth/resend-2fa/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../src/app/api/auth/toggle-2fa/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/auth/toggle-2fa">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/auth/toggle-2fa/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../src/app/api/auth/verify-2fa/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/auth/verify-2fa">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/auth/verify-2fa/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../../src/app/api/events/[id]/participants/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/events/[id]/participants">> = Specific

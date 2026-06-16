@@ -176,7 +176,7 @@ export function SupportPage() {
   useEffect(() => {
     if (!token) return;
 
-    const socket = io("/", {
+    const socket = io("/?XTransformPort=3003", {
       auth: { token },
       transports: ["websocket", "polling"],
     });
@@ -211,10 +211,10 @@ export function SupportPage() {
   // Join ticket room when selecting a ticket
   useEffect(() => {
     if (selectedTicket && socketRef.current) {
-      socketRef.current.emit("join-ticket", { ticket_id: selectedTicket.id });
+      socketRef.current.emit("join-ticket", selectedTicket.id);
 
       return () => {
-        socketRef.current?.emit("leave-ticket", { ticket_id: selectedTicket.id });
+        socketRef.current?.emit("leave-ticket", selectedTicket.id);
       };
     }
   }, [selectedTicket]);

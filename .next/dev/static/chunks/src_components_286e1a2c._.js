@@ -366,7 +366,7 @@ function SupportPage() {
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "SupportPage.useEffect": ()=>{
             if (!token) return;
-            const socket = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$socket$2e$io$2d$client$2f$build$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["io"])("/", {
+            const socket = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$socket$2e$io$2d$client$2f$build$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["io"])("/?XTransformPort=3003", {
                 auth: {
                     token
                 },
@@ -421,14 +421,10 @@ function SupportPage() {
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "SupportPage.useEffect": ()=>{
             if (selectedTicket && socketRef.current) {
-                socketRef.current.emit("join-ticket", {
-                    ticket_id: selectedTicket.id
-                });
+                socketRef.current.emit("join-ticket", selectedTicket.id);
                 return ({
                     "SupportPage.useEffect": ()=>{
-                        socketRef.current?.emit("leave-ticket", {
-                            ticket_id: selectedTicket.id
-                        });
+                        socketRef.current?.emit("leave-ticket", selectedTicket.id);
                     }
                 })["SupportPage.useEffect"];
             }

@@ -1,2 +1,8 @@
 [00:00:00.721] Server  LOG     ✓ Ready in 533ms
 [00:00:12.539] Server  WARN    ⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
+[00:04:28.086] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:04:44.220] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:05:08.402] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:05:38.224] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:06:40.489] Server  WARN    ⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
+[00:06:43.317] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold

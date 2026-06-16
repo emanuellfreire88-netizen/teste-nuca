@@ -1,0 +1,3 @@
+$ bun --hot index.ts
+[chat-service] Socket.IO server listening on port 3003
+[chat-service] Health check → http://localhost:3003/health

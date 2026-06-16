@@ -1,4 +1,9 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
   "/api/auth/login/route": "app/api/auth/login/route.js",
-  "/api/support/tickets/[id]/messages/route": "app/api/support/tickets/[id]/messages/route.js"
+  "/api/reports/route": "app/api/reports/route.js",
+  "/api/support/tickets/[id]/messages/route": "app/api/support/tickets/[id]/messages/route.js",
+  "/api/support/tickets/[id]/read/route": "app/api/support/tickets/[id]/read/route.js",
+  "/api/support/tickets/route": "app/api/support/tickets/route.js",
+  "/page": "app/page.js"
 }
