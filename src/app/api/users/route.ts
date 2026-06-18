@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { hashPassword, validatePasswordStrength, sanitizeInput } from '@/lib/auth';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { ciContains } from '@/lib/search';
 
 const validRoles = ['Admin', 'Operator', 'Viewer'];
 
@@ -20,8 +21,8 @@ export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
 
     if (search) {
       where.OR = [
-        { full_name: { contains: search } },
-        { email: { contains: search } },
+        { full_name: ciContains(search) },
+        { email: ciContains(search) },
       ];
     }
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { ciContains } from '@/lib/search';
 
 const VALID_CATEGORIES = ['sports', 'cultural', 'party', 'academic', 'other'];
 
@@ -24,7 +25,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const where: Record<string, unknown> = {};
 
     if (search) {
-      where.title = { contains: search };
+      where.title = ciContains(search);
     }
 
     if (status) {

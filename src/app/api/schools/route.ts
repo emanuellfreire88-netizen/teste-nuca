@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
+import { ciContains } from '@/lib/search';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -17,7 +18,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const where: Record<string, unknown> = {};
 
     if (search) {
-      where.name = { contains: search };
+      where.name = ciContains(search);
     }
 
     const [schools, total] = await Promise.all([

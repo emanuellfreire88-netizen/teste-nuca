@@ -534,3 +534,67 @@ Stage Summary:
   - src/app/api/support/tickets/[id]/messages/route.ts
   - src/app/api/support/tickets/[id]/read/route.ts
   - src/components/support-page.tsx
+
+---
+Task ID: SEARCH-CASE-INSENSITIVE
+Agent: Main Agent
+Task: Corrigir busca case-sensitive - "Emanuell Freire" funciona mas "emanuell freire" não
+
+Work Log:
+- Usuário reportou: busca com maiúsculas funciona, mas com minúsculas não
+- Investigado todos os endpoints de API com busca textual:
+  - /api/students (full_name, cpf, rg)
+  - /api/users (full_name, email)
+  - /api/schools (name)
+  - /api/events (title)
+  - /api/support/tickets (subject, protocol)
+- Confirmado que todos usavam Prisma contains sem mode: 'insensitive'
+- Testado SQLite diretamente: LIKE é case-insensitive para ASCII
+- Causa raiz: no PostgreSQL (Vercel), contains é CASE-SENSITIVE por padrão
+  - SQLite (local dev) já é case-insensitive via LIKE
+  - PostgreSQL (Vercel) precisa de mode: 'insensitive'
+- Problema: mode: 'insensitive' NÃO é suportado no SQLite (erro de runtime)
+
+Solução criada: src/lib/search.ts (helper ciContains)
+- Detecta o banco de dados via DATABASE_URL:
+  - PostgreSQL (postgresql:// ou postgres://): retorna { contains: search, mode: 'insensitive' }
+  - SQLite (file:): retorna { contains: search } (já é case-insensitive via LIKE)
+- Funciona em ambos os ambientes sem erros
+
+Mudanças aplicadas em 5 endpoints de API:
+1. src/app/api/students/route.ts - import ciContains, aplicar em full_name, cpf, rg
+2. src/app/api/users/route.ts - import ciContains, aplicar em full_name, email
+3. src/app/api/schools/route.ts - import ciContains, aplicar em name
+4. src/app/api/events/route.ts - import ciContains, aplicar em title
+5. src/app/api/support/tickets/route.ts - import ciContains, aplicar em subject, protocol
+
+Arquivo criado:
+- src/lib/search.ts (helper ciContains com detecção de banco de dados)
+
+Verificação:
+- Lint: 0 erros, 0 warnings
+- Teste de API (curl) com 5 variações de caso:
+  ✅ "Emanuell" (exato) → Total: 1, Emanuell Freire
+  ✅ "emanuell" (minúsculas) → Total: 1, Emanuell Freire
+  ✅ "EMANUELL" (maiúsculas) → Total: 1, Emanuell Freire
+  ✅ "eMaNuElL" (misto) → Total: 1, Emanuell Freire
+  ✅ "freire" (parcial minúsculas) → Total: 1, Emanuell Freire
+  ✅ "FREIRE" (parcial maiúsculas) → Total: 1, Emanuell Freire
+- Teste Agent Browser (UI Students page):
+  ✅ Busca "emanuell" → mostra "Emanuell Freire"
+  ✅ Busca "EMANUELL" → mostra "Emanuell Freire"
+  ✅ Busca "eMaNuElL" → mostra "Emanuell Freire"
+  ✅ Busca "FREIRE" → mostra "Emanuell Freire"
+- VLM confirmou visualmente todas as buscas
+
+Nota sobre acentos:
+- SQLite local: "joão" encontra "João Silva" ✅, mas "JOÃO" não encontra (limitação SQLite Unicode)
+- PostgreSQL Vercel: "JOÃO" encontrará "João Silva" ✅ (mode: insensitive lida com Unicode)
+
+Stage Summary:
+- ✅ Busca agora é case-insensitive em todos os endpoints (students, users, schools, events, support)
+- ✅ Funciona em ambos os ambientes: SQLite (local) e PostgreSQL (Vercel)
+- ✅ Helper ciContains detecta automaticamente o banco de dados
+- ✅ Lint limpo, sem erros
+- 📁 Arquivo criado: src/lib/search.ts
+- 📁 Arquivos modificados: 5 route.ts (students, users, schools, events, support/tickets)

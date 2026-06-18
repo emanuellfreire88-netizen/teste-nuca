@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { ciContains } from '@/lib/search';
 
 // ---------------------------------------------------------------------------
 // Protocol number generator: SUP-YYYY-NNNN
@@ -56,8 +57,8 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     if (search) {
       where.OR = [
-        { subject: { contains: search } },
-        { protocol: { contains: search } },
+        { subject: ciContains(search) },
+        { protocol: ciContains(search) },
       ];
     }
 

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
+import { ciContains } from '@/lib/search';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -22,9 +23,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     if (search) {
       where.OR = [
-        { full_name: { contains: search } },
-        { cpf: { contains: search } },
-        { rg: { contains: search } },
+        { full_name: ciContains(search) },
+        { cpf: ciContains(search) },
+        { rg: ciContains(search) },
       ];
     }
 
