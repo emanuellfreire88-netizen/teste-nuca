@@ -34,10 +34,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       date: { gte: startDate },
     };
 
-    // ── Overall Ranking ──
-    // Group EventParticipant by student_id, count, sort desc, limit 20
+    // ── Overall Ranking (only students who ATTENDED) ──
     const participations = await db.eventParticipant.findMany({
       where: {
+        attended: true, // ← only count attendees
         event: {
           ...eventWhere,
         },
@@ -76,8 +76,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       .sort((a, b) => b.total_events - a.total_events)
       .slice(0, 20);
 
-    // ── School Ranking ──
-    // Group by school via student relation, count participations, sort desc
+    // ── School Ranking (only ATTENDED participations) ──
     const schoolParticipationMap = new Map<string, { school_name: string; total_participations: number }>();
     for (const p of participations) {
       const schoolName = p.student.school?.name || 'Sem escola';
@@ -93,24 +92,28 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const schoolRanking = Array.from(schoolParticipationMap.values())
       .sort((a, b) => b.total_participations - a.total_participations);
 
-    // ── Category Ranking ──
+    // ── Category Ranking (only ATTENDED participations) ──
     const events = await db.event.findMany({
       where: eventWhere,
       select: {
         category: true,
-        _count: { select: { participants: true } },
+        participants: {
+          where: { attended: true }, // ← only attendees
+          select: { id: true },
+        },
       },
     });
 
     const categoryMap = new Map<string, { total_events: number; total_participations: number }>();
     for (const e of events) {
       const cat = e.category || 'other';
+      const attendedCount = e.participants.length;
       const existing = categoryMap.get(cat);
       if (existing) {
         existing.total_events++;
-        existing.total_participations += e._count.participants;
+        existing.total_participations += attendedCount;
       } else {
-        categoryMap.set(cat, { total_events: 1, total_participations: e._count.participants });
+        categoryMap.set(cat, { total_events: 1, total_participations: attendedCount });
       }
     }
 
@@ -120,31 +123,38 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       total_participations: val.total_participations,
     }));
 
-    // ── Period Stats ──
+    // ── Period Stats (only ATTENDED participations) ──
     const periodEvents = await db.event.findMany({
       where: periodEventWhere,
       select: {
         id: true,
         date: true,
-        _count: { select: { participants: true } },
+        participants: {
+          where: { attended: true }, // ← only attendees
+          select: { id: true },
+        },
       },
       orderBy: { date: 'asc' },
     });
 
     const totalEvents = periodEvents.length;
-    const totalParticipations = periodEvents.reduce((sum, e) => sum + e._count.participants, 0);
+    const totalParticipations = periodEvents.reduce(
+      (sum, e) => sum + e.participants.length,
+      0
+    );
 
     // Evolution by month
     const monthMap = new Map<string, { events: number; participations: number }>();
     for (const e of periodEvents) {
       const d = new Date(e.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const attendedCount = e.participants.length;
       const existing = monthMap.get(key);
       if (existing) {
         existing.events++;
-        existing.participations += e._count.participants;
+        existing.participations += attendedCount;
       } else {
-        monthMap.set(key, { events: 1, participations: e._count.participants });
+        monthMap.set(key, { events: 1, participations: attendedCount });
       }
     }
 
@@ -152,30 +162,82 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       .map(([periodKey, val]) => ({ period: periodKey, ...val }))
       .sort((a, b) => a.period.localeCompare(b.period));
 
-    // ── Most Popular Events ──
+    // ── Most Popular Events (by ATTENDED count) ──
     const popularEvents = await db.event.findMany({
       where: eventWhere,
       select: {
         id: true,
         title: true,
         category: true,
-        _count: { select: { participants: true } },
+        participants: {
+          where: { attended: true }, // ← only attendees
+          select: { id: true },
+        },
       },
-      orderBy: { participants: { _count: 'desc' } },
-      take: 5,
     });
 
-    const mostPopularEvents = popularEvents.map((e) => ({
-      id: e.id,
-      title: e.title,
-      category: e.category,
-      participant_count: e._count.participants,
-    }));
+    const mostPopularEvents = popularEvents
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        category: e.category,
+        participant_count: e.participants.length,
+      }))
+      .sort((a, b) => b.participant_count - a.participant_count)
+      .slice(0, 5);
 
-    // ── Never Participated ──
+    // ── Never Participated (students who never ATTENDED) ──
     const totalStudents = await db.student.count({ where: { status: 'active' } });
     const studentsWithParticipations = new Set(participations.map((p) => p.student_id));
     const neverParticipated = totalStudents - studentsWithParticipations.size;
+
+    // ── NEW: Absent Students (registered but did NOT attend) ──
+    const absences = await db.eventParticipant.findMany({
+      where: {
+        attended: false,
+        event: {
+          ...eventWhere,
+        },
+      },
+      select: {
+        student_id: true,
+        student: {
+          select: {
+            id: true,
+            full_name: true,
+            photo: true,
+            school: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const absenceMap = new Map<
+      string,
+      { student: typeof absences[0]['student']; count: number }
+    >();
+    for (const a of absences) {
+      const existing = absenceMap.get(a.student_id);
+      if (existing) {
+        existing.count++;
+      } else {
+        absenceMap.set(a.student_id, { student: a.student, count: 1 });
+      }
+    }
+
+    const absentRanking = Array.from(absenceMap.entries())
+      .map(([, val]) => ({
+        student_id: val.student.id,
+        full_name: val.student.full_name,
+        photo: val.student.photo,
+        school_name: val.student.school?.name || null,
+        total_absences: val.count,
+      }))
+      .sort((a, b) => b.total_absences - a.total_absences)
+      .slice(0, 10);
+
+    const totalAbsences = absences.length;
+    const totalAbsentStudents = absenceMap.size;
 
     // ── Badge Alerts ──
     // Check students who just reached 5 or 10 events but don't have the badge yet
@@ -234,6 +296,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       most_popular_events: mostPopularEvents,
       never_participated: Math.max(0, neverParticipated),
       badge_alerts: badgeAlerts,
+      // NEW: absence data
+      total_absences: totalAbsences,
+      total_absent_students: totalAbsentStudents,
+      absent_ranking: absentRanking,
     });
   } catch (error) {
     console.error('Dashboard error:', error);

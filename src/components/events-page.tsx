@@ -229,6 +229,15 @@ interface DashboardData {
     badge_type: string;
     new: boolean;
   }>;
+  total_absences: number;
+  total_absent_students: number;
+  absent_ranking: Array<{
+    student_id: string;
+    full_name: string;
+    photo: string | null;
+    school_name: string | null;
+    total_absences: number;
+  }>;
 }
 
 interface BadgeData {
@@ -1390,12 +1399,12 @@ export function EventsPage() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-lg bg-blue-100 p-2">
-                        <Users className="h-5 w-5 text-blue-600" />
+                      <div className="rounded-lg bg-emerald-100 p-2">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
-                          Total de Participacoes
+                          Total de Presencas
                         </p>
                         <p className="text-2xl font-bold">
                           {dashboardData.period_stats.total_participations}
@@ -1408,11 +1417,11 @@ export function EventsPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center gap-3">
                       <div className="rounded-lg bg-purple-100 p-2">
-                        <CheckCircle2 className="h-5 w-5 text-purple-600" />
+                        <Users className="h-5 w-5 text-purple-600" />
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
-                          Alunos que Participaram
+                          Alunos Presentes
                         </p>
                         <p className="text-2xl font-bold">
                           {dashboardData.overall_ranking.length}
@@ -1429,10 +1438,10 @@ export function EventsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
-                          Nunca Participaram
+                          Faltas Registradas
                         </p>
                         <p className="text-2xl font-bold">
-                          {dashboardData.never_participated}
+                          {dashboardData.total_absences}
                         </p>
                       </div>
                     </div>
@@ -1472,7 +1481,7 @@ export function EventsPage() {
                             type="monotone"
                             dataKey="participations"
                             stroke="#3b82f6"
-                            name="Participacoes"
+                            name="Presencas"
                             strokeWidth={2}
                           />
                         </LineChart>
@@ -1491,7 +1500,7 @@ export function EventsPage() {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <School className="h-5 w-5" />
-                      Ranking por Escola
+                      Ranking por Escola (Presencas)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1512,7 +1521,7 @@ export function EventsPage() {
                           <Tooltip />
                           <Bar
                             dataKey="total_participations"
-                            name="Participacoes"
+                            name="Presencas"
                             radius={[0, 4, 4, 0]}
                           >
                             {dashboardData.school_ranking
@@ -1545,7 +1554,7 @@ export function EventsPage() {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <Trophy className="h-5 w-5" />
-                      Ranking de Alunos (Top 10)
+                      Ranking de Alunos - Presencas (Top 10)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1618,7 +1627,7 @@ export function EventsPage() {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <Medal className="h-5 w-5" />
-                      Ranking por Categoria
+                      Ranking por Categoria (Presencas)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1642,7 +1651,7 @@ export function EventsPage() {
                                 </span>
                               </div>
                               <span className="text-sm font-medium">
-                                {cat.total_participations} participacoes
+                                {cat.total_participations} presenca(s)
                               </span>
                             </div>
                             <Progress
@@ -1764,6 +1773,92 @@ export function EventsPage() {
                     <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                       <Star className="h-8 w-8 mb-2" />
                       <p className="text-sm">Sem eventos populares</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ── Alunos que Faltaram (Absent Students) ── */}
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <XCircle className="h-5 w-5 text-red-500" />
+                      Alunos que Faltaram
+                    </CardTitle>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="bg-red-50 text-red-700 border-red-200"
+                      >
+                        {dashboardData.total_absent_students} aluno(s) com falta
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="bg-amber-50 text-amber-700 border-amber-200"
+                      >
+                        {dashboardData.never_participated} nunca participaram
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData.absent_ranking.length > 0 ? (
+                    <div className="max-h-96 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">#</TableHead>
+                            <TableHead>Aluno</TableHead>
+                            <TableHead>Escola</TableHead>
+                            <TableHead className="text-center">
+                              Faltas
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dashboardData.absent_ranking.map((student, index) => (
+                            <TableRow key={student.student_id}>
+                              <TableCell className="font-medium text-muted-foreground">
+                                {index + 1}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-7 w-7">
+                                    <AvatarImage
+                                      src={student.photo || undefined}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                      {getInitials(student.full_name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm font-medium">
+                                    {student.full_name}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {student.school_name || "—"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-red-100 text-red-800"
+                                >
+                                  {student.total_absences}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <CheckCircle2 className="h-8 w-8 mb-2 text-emerald-500" />
+                      <p className="text-sm">
+                        Nenhuma falta registrada. Todos presentes!
+                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -2756,6 +2851,9 @@ function EventDetailView({
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
+  const [participantFilter, setParticipantFilter] = useState<
+    "all" | "present" | "absent"
+  >("all");
 
   if (loading || !event) {
     return (
@@ -2792,6 +2890,14 @@ function EventDetailView({
   }
 
   const participants = event.participants || [];
+  const presentParticipants = participants.filter((p) => p.attended);
+  const absentParticipants = participants.filter((p) => !p.attended);
+  const filteredParticipants =
+    participantFilter === "present"
+      ? presentParticipants
+      : participantFilter === "absent"
+        ? absentParticipants
+        : participants;
 
   const handleSaveNotes = async (studentId: string) => {
     setNotesSaving(true);
@@ -2938,19 +3044,69 @@ function EventDetailView({
       {/* Participants */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Participantes
-              <Badge variant="secondary" className="ml-1">
-                {participants.length}
-              </Badge>
-            </CardTitle>
-            {onAddStudents && (
-              <Button size="sm" onClick={onAddStudents}>
-                <UserPlus className="mr-1 h-4 w-4" />
-                Adicionar Alunos
-              </Button>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Participantes
+                <Badge variant="secondary" className="ml-1">
+                  {participants.length}
+                </Badge>
+              </CardTitle>
+              {onAddStudents && (
+                <Button size="sm" onClick={onAddStudents}>
+                  <UserPlus className="mr-1 h-4 w-4" />
+                  Adicionar Alunos
+                </Button>
+              )}
+            </div>
+            {participants.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                >
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  {presentParticipants.length} presente(s)
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="bg-red-50 text-red-700 border-red-200"
+                >
+                  <XCircle className="mr-1 h-3 w-3" />
+                  {absentParticipants.length} faltou/faltaram
+                </Badge>
+                <div className="ml-auto flex items-center gap-1 rounded-lg border p-0.5">
+                  <Button
+                    size="sm"
+                    variant={participantFilter === "all" ? "secondary" : "ghost"}
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setParticipantFilter("all")}
+                  >
+                    Todos
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={
+                      participantFilter === "present" ? "secondary" : "ghost"
+                    }
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setParticipantFilter("present")}
+                  >
+                    Presentes
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={
+                      participantFilter === "absent" ? "secondary" : "ghost"
+                    }
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setParticipantFilter("absent")}
+                  >
+                    Faltaram
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -2973,11 +3129,29 @@ function EventDetailView({
                 </Button>
               )}
             </div>
+          ) : filteredParticipants.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              {participantFilter === "present" ? (
+                <>
+                  <CheckCircle2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm">
+                    Nenhum aluno marcado como presente neste evento
+                  </p>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm">
+                    Nenhuma falta registrada neste evento. Todos presentes!
+                  </p>
+                </>
+              )}
+            </div>
           ) : (
             <>
               {/* Mobile: Cards */}
               <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
-                {participants.map((participant) => (
+                {filteredParticipants.map((participant) => (
                   <div
                     key={participant.id}
                     className="flex items-start gap-3 rounded-lg border p-3"
@@ -3087,7 +3261,7 @@ function EventDetailView({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {participants.map((participant) => (
+                    {filteredParticipants.map((participant) => (
                       <TableRow key={participant.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">

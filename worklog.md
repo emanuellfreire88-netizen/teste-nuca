@@ -598,3 +598,43 @@ Stage Summary:
 - ✅ Lint limpo, sem erros
 - 📁 Arquivo criado: src/lib/search.ts
 - 📁 Arquivos modificados: 5 route.ts (students, users, schools, events, support/tickets)
+
+---
+Task ID: events-attended-only
+Agent: main
+Task: Na parte de eventos, colocar participacao e rank apenas para os presentes (attended=true) e adicionar uma parte que mostra os que faltaram.
+
+Work Log:
+- Updated `/home/z/my-project/src/app/api/events/dashboard/route.ts`:
+  - Filtered `participations` query to `attended: true` (affects overall_ranking + school_ranking)
+  - Changed `events` query for category ranking to fetch `participants: { where: { attended: true } }` instead of `_count`
+  - Changed `periodEvents` query to fetch attended participants and count manually
+  - Changed `popularEvents` to fetch attended participants, sort in JS, take 5
+  - `never_participated` now means "students who never ATTENDED"
+  - Added NEW fields: `total_absences`, `total_absent_students`, `absent_ranking` (top 10 students with most absences)
+- Updated `/home/z/my-project/src/components/events-page.tsx`:
+  - Extended `DashboardData` interface with absence fields
+  - Renamed stat cards: "Total de Participacoes" -> "Total de Presencas", "Alunos que Participaram" -> "Alunos Presentes", "Nunca Participaram" -> "Faltas Registradas"
+  - Updated ranking card titles to include "(Presencas)" suffix
+  - Updated chart legends from "Participacoes" to "Presencas"
+  - Added NEW "Alunos que Faltaram" card section with absence ranking table (top 10) + badges for total_absent_students and never_participated
+  - Enhanced EventDetailView: added `participantFilter` state ("all" | "present" | "absent")
+  - Added present/absent count summary badges in participant card header
+  - Added 3 filter buttons (Todos / Presentes / Faltaram) to toggle participant list
+  - Added empty state messages for present/absent filters
+  - Replaced `participants.map` with `filteredParticipants.map` in both mobile cards and desktop table
+- Seeded test data (3 events, 10 students, 24 participants with 15 attended + 9 absent) to verify
+- Verified dashboard API returns correct counts: total_participations=15, total_absences=9, 6 unique attendees, 4 unique absent students
+- Agent Browser verification confirmed:
+  - Dashboard tab "Participacao" shows attendance-only stats and rankings
+  - New "Alunos que Faltaram" section renders with absence ranking (Sofia Almeida 3 faltas = #1)
+  - Event detail view shows "8 participantes, 6 presente(s), 2 faltou/faltaram" summary
+  - Filter buttons work: "Presentes" shows 6, "Faltaram" shows 2, "Todos" shows 8
+- Lint passed, no console/runtime errors
+
+Stage Summary:
+- Backend dashboard now counts ONLY attendees (attended=true) for all participation/ranking metrics
+- New absence data exposed: total_absences, total_absent_students, absent_ranking
+- Frontend dashboard has a new "Alunos que Faltaram" section with ranking table
+- Event detail view has present/absent summary badges + 3-way filter (Todos/Presentes/Faltaram)
+- All changes verified via API tests and Agent Browser

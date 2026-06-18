@@ -1,15 +1,10 @@
 [chat-service] Installing dependencies...
 bun install v1.3.14 (0d9b296a)
 
-Checked 22 installs across 23 packages (no changes) [2.00ms]
++ socket.io@4.8.3
+
+22 packages installed [86.00ms]
 [chat-service] Running bun run dev...
 $ bun --hot index.ts
-46 |     }
-47 |   }
-48 |   let er;
-49 |   if (args.length > 0)
-50 |     er = args[0];
-51 |     throw er;
- error: script "dev" was terminated by signal SIGTERM (Polite quit request)
- at emitError (node:events:51:13)
-error: script "dev" was terminated by signal SIGTERM (Polite quit request)
+[chat-service] Socket.IO server listening on port 3003
+[chat-service] Health check → http://localhost:3003/health
