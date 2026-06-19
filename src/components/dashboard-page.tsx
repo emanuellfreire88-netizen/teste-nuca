@@ -6,7 +6,6 @@ import { api } from "@/lib/api";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -16,14 +15,9 @@ import {
   School,
   ClipboardCheck,
   UserCheck,
-  TrendingUp,
-  TrendingDown,
   Users,
   CalendarDays,
-  Activity,
-  Sparkles,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import {
   ResponsiveContainer,
   PieChart,
@@ -37,7 +31,6 @@ import {
   AreaChart,
   Area,
   CartesianGrid,
-  LabelList,
 } from "recharts";
 
 interface ReportData {
@@ -57,51 +50,34 @@ interface ReportData {
   };
 }
 
-// ===== Modern Color Palette =====
-const CHART_COLORS = {
-  emerald: "#10b981",
-  emeraldSoft: "#34d399",
-  red: "#ef4444",
-  redSoft: "#f87171",
-  amber: "#f59e0b",
-  amberSoft: "#fbbf24",
-  purple: "#8b5cf6",
-  purpleSoft: "#a78bfa",
-  blue: "#3b82f6",
-  blueSoft: "#60a5fa",
-  cyan: "#06b6d4",
-  cyanSoft: "#22d3ee",
-};
-
-// Modern gradient palette for bars (rotating)
-const SCHOOL_GRADIENTS = [
-  { from: "#10b981", to: "#34d399" }, // emerald
-  { from: "#3b82f6", to: "#60a5fa" }, // blue
-  { from: "#8b5cf6", to: "#a78bfa" }, // purple
-  { from: "#f59e0b", to: "#fbbf24" }, // amber
-  { from: "#06b6d4", to: "#22d3ee" }, // cyan
-  { from: "#ec4899", to: "#f472b6" }, // pink
-];
+// ===== Restrained palette — single accent color, neutrals for the rest =====
+const ACCENT = "var(--primary)";
+const MUTED = "var(--muted-foreground)";
+const MUTED_SOFT = "var(--muted)";
+const BORDER = "var(--border)";
+const FOREGROUND = "var(--foreground)";
+const SUCCESS = "#16a34a";
+const DANGER = "#dc2626";
 
 const attendancePercentage = (present: number, total: number) =>
   total > 0 ? Math.round((present / total) * 100) : 0;
 
-// ===== Custom Tooltip =====
-function ModernTooltip({ active, payload, label }: any) {
+// ===== Compact, professional tooltip =====
+function TooltipBox({ active, payload, label }: any) {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="rounded-xl border border-border/60 bg-popover/95 px-3 py-2 shadow-xl backdrop-blur-md">
+    <div className="rounded-md border border-border bg-popover px-2.5 py-1.5 shadow-md text-xs">
       {label && (
-        <p className="mb-1 text-xs font-semibold text-foreground">{label}</p>
+        <p className="font-medium text-foreground mb-0.5">{label}</p>
       )}
       {payload.map((entry: any, idx: number) => (
-        <div key={idx} className="flex items-center gap-2 text-xs">
+        <div key={idx} className="flex items-center gap-1.5">
           <span
-            className="h-2 w-2 rounded-full"
+            className="h-2 w-2 rounded-sm"
             style={{ backgroundColor: entry.color || entry.fill }}
           />
           <span className="text-muted-foreground">{entry.name}:</span>
-          <span className="font-semibold text-foreground">
+          <span className="font-medium text-foreground">
             {entry.value.toLocaleString("pt-BR")}
           </span>
         </div>
@@ -143,16 +119,8 @@ export function DashboardPage() {
   // ===== Derived chart data =====
   const statusData = useMemo(
     () => [
-      {
-        name: "Ativos",
-        value: data?.students.active ?? 0,
-        color: CHART_COLORS.emerald,
-      },
-      {
-        name: "Inativos",
-        value: data?.students.inactive ?? 0,
-        color: CHART_COLORS.red,
-      },
+      { name: "Ativos", value: data?.students.active ?? 0, color: SUCCESS },
+      { name: "Inativos", value: data?.students.inactive ?? 0, color: DANGER },
     ],
     [data]
   );
@@ -199,7 +167,6 @@ export function DashboardPage() {
     [data]
   );
 
-  // ===== KPI cards config (modernized) =====
   const activePct = attendancePercentage(
     data?.students.active ?? 0,
     data?.students.total ?? 0
@@ -209,495 +176,309 @@ export function DashboardPage() {
     data?.attendance.today.total ?? 0
   );
 
-  const statCards = [
+  const stats = [
     {
-      title: "Total de Alunos",
+      label: "Alunos",
       value: data?.students.total ?? 0,
-      icon: GraduationCap,
-      gradient: "from-blue-500/20 via-blue-500/10 to-transparent",
-      iconBg: "from-blue-500 to-blue-600",
       sub: `${data?.schools.total ?? 0} escolas`,
-      trend: "+8.2%",
-      trendUp: true,
+      icon: GraduationCap,
     },
     {
-      title: "Alunos Ativos",
+      label: "Ativos",
       value: data?.students.active ?? 0,
-      icon: UserCheck,
-      gradient: "from-emerald-500/20 via-emerald-500/10 to-transparent",
-      iconBg: "from-emerald-500 to-emerald-600",
       sub: `${activePct}% do total`,
-      trend: "+2.4%",
-      trendUp: true,
+      icon: UserCheck,
     },
     {
-      title: "Total de Escolas",
+      label: "Escolas",
       value: data?.schools.total ?? 0,
-      icon: School,
-      gradient: "from-amber-500/20 via-amber-500/10 to-transparent",
-      iconBg: "from-amber-500 to-amber-600",
       sub: "cadastradas",
-      trend: "+1",
-      trendUp: true,
+      icon: School,
     },
     {
-      title: "Frequência Hoje",
+      label: "Frequência hoje",
       value: todayPct,
       suffix: "%",
-      icon: ClipboardCheck,
-      gradient: "from-purple-500/20 via-purple-500/10 to-transparent",
-      iconBg: "from-purple-500 to-purple-600",
       sub: `${data?.attendance.today.present ?? 0} presentes`,
-      trend: todayPct >= 75 ? "Boa" : "Atenção",
-      trendUp: todayPct >= 75,
+      icon: ClipboardCheck,
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Welcome header with subtle gradient accent */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background p-6"
-      >
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="relative">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Olá, {firstName}! 👋
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Bem-vindo(a) ao painel de gestão escolar. Aqui está um resumo geral.
-          </p>
-        </div>
-      </motion.div>
+      {/* ===== Page header — clean, no gradients ===== */}
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Visão geral
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Olá, {firstName}. Resumo geral da plataforma.
+        </p>
+      </div>
 
-      {/* ===== Modern KPI Cards ===== */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((card, idx) => {
-          const Icon = card.icon;
+      {/* ===== Stats row — flat, no gradients ===== */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((s) => {
+          const Icon = s.icon;
           return (
-            <motion.div
-              key={card.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: idx * 0.08 }}
-            >
-              <Card
-                className={`relative overflow-hidden border-border/60 bg-gradient-to-br ${card.gradient} transition-all hover:shadow-lg hover:-translate-y-0.5`}
-              >
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${card.iconBg} text-white shadow-md`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div
-                      className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        card.trendUp
-                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                          : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                      }`}
-                    >
-                      {card.trendUp ? (
-                        <TrendingUp className="h-3 w-3" />
-                      ) : (
-                        <Activity className="h-3 w-3" />
-                      )}
-                      {card.trend}
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    {loading ? (
-                      <Skeleton className="h-8 w-20" />
-                    ) : (
-                      <p className="text-3xl font-bold tracking-tight">
-                        {card.value.toLocaleString("pt-BR")}
-                        {card.suffix || ""}
-                      </p>
-                    )}
-                    <p className="mt-1 text-sm font-medium text-foreground/80">
-                      {card.title}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {card.sub}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <Card key={s.label} className="border-border/70">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-medium text-muted-foreground">
+                    {s.label}
+                  </span>
+                  <Icon className="h-4 w-4 text-muted-foreground/60" />
+                </div>
+                <div className="mt-3 flex items-baseline gap-1">
+                  {loading ? (
+                    <Skeleton className="h-7 w-16" />
+                  ) : (
+                    <span className="text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+                      {s.value.toLocaleString("pt-BR")}
+                      {s.suffix || ""}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground/80">
+                  {s.sub}
+                </p>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
 
-      {/* ===== Row 1: Donut chart + Schools bar chart ===== */}
+      {/* ===== Row 1: Donut + Schools bar ===== */}
       <div className="grid gap-4 lg:grid-cols-5">
-        {/* Donut: Active vs Inactive */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="lg:col-span-2"
-        >
-          <Card className="h-full border-border/60">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Users className="h-4 w-4 text-primary" />
-                    Status dos Alunos
-                  </CardTitle>
-                  <CardDescription className="mt-1 text-xs">
-                    Distribuição ativos vs inativos
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-[240px] w-full rounded-xl" />
-              ) : (
-                <div className="relative">
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart>
-                      <defs>
-                        <linearGradient
-                          id="grad-emerald"
-                          x1="0"
-                          y1="0"
-                          x2="1"
-                          y2="1"
-                        >
-                          <stop
-                            offset="0%"
-                            stopColor={CHART_COLORS.emeraldSoft}
-                          />
-                          <stop
-                            offset="100%"
-                            stopColor={CHART_COLORS.emerald}
-                          />
-                        </linearGradient>
-                        <linearGradient
-                          id="grad-red"
-                          x1="0"
-                          y1="0"
-                          x2="1"
-                          y2="1"
-                        >
-                          <stop offset="0%" stopColor={CHART_COLORS.redSoft} />
-                          <stop offset="100%" stopColor={CHART_COLORS.red} />
-                        </linearGradient>
-                      </defs>
-                      <Pie
-                        data={statusData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={62}
-                        outerRadius={92}
-                        paddingAngle={3}
-                        cornerRadius={8}
-                        startAngle={90}
-                        endAngle={-270}
-                      >
-                        <Cell fill="url(#grad-emerald)" stroke="none" />
-                        <Cell fill="url(#grad-red)" stroke="none" />
-                      </Pie>
-                      <Tooltip
-                        content={<ModernTooltip />}
-                        cursor={{ stroke: "transparent" }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  {/* Center label */}
-                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-bold tracking-tight">
-                      {(data?.students.total ?? 0).toLocaleString("pt-BR")}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Total
-                    </span>
-                  </div>
-                  {/* Legend */}
-                  <div className="mt-3 flex items-center justify-center gap-6">
-                    {statusData.map((s) => (
-                      <div
-                        key={s.name}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: s.color }}
-                        />
-                        <span className="text-muted-foreground">{s.name}</span>
-                        <span className="font-semibold">{s.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Bar chart: Students per school */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="lg:col-span-3"
-        >
-          <Card className="h-full border-border/60">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                Alunos por Escola
-              </CardTitle>
-              <CardDescription className="mt-1 text-xs">
-                Top {Math.min(schoolsData.length, 8)} escolas com mais alunos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-[240px] w-full rounded-xl" />
-              ) : schoolsData.length === 0 ? (
-                <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
-                  Nenhuma escola cadastrada
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart
-                    data={schoolsData}
-                    layout="vertical"
-                    margin={{ top: 0, right: 24, left: 0, bottom: 0 }}
-                    barCategoryGap={12}
-                  >
-                    <defs>
-                      {SCHOOL_GRADIENTS.map((g, i) => (
-                        <linearGradient
-                          key={i}
-                          id={`grad-school-${i}`}
-                          x1="0"
-                          y1="0"
-                          x2="1"
-                          y2="0"
-                        >
-                          <stop offset="0%" stopColor={g.from} />
-                          <stop offset="100%" stopColor={g.to} />
-                        </linearGradient>
-                      ))}
-                    </defs>
-                    <CartesianGrid
-                      horizontal={false}
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--border) / 0.4)"
-                    />
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={110}
-                      tickFormatter={(v: string) =>
-                        v.length > 16 ? v.slice(0, 14) + "…" : v
-                      }
-                    />
-                    <Tooltip
-                      content={<ModernTooltip />}
-                      cursor={{ fill: "hsl(var(--muted) / 0.3)" }}
-                    />
-                    <Bar
-                      dataKey="value"
-                      name="Alunos"
-                      radius={[0, 6, 6, 0]}
-                      animationDuration={900}
-                    >
-                      {schoolsData.map((_, i) => (
-                        <Cell
-                          key={i}
-                          fill={`url(#grad-school-${i % SCHOOL_GRADIENTS.length})`}
-                        />
-                      ))}
-                      <LabelList
-                        dataKey="value"
-                        position="right"
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          fill: "hsl(var(--foreground))",
-                        }}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* ===== Row 2: Attendance area chart ===== */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.4 }}
-      >
-        <Card className="border-border/60">
+        {/* Donut: Status */}
+        <Card className="lg:col-span-2 border-border/70">
           <CardHeader className="pb-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
-                  Resumo de Frequência
-                </CardTitle>
-                <CardDescription className="mt-1 text-xs">
-                  Presentes e ausentes por período
-                </CardDescription>
-              </div>
-              {/* Mini KPI badges */}
-              <div className="flex flex-wrap gap-2">
-                {attendanceData.map((item) => (
-                  <div
-                    key={item.name}
-                    className="rounded-lg border bg-muted/30 px-3 py-1.5 text-center"
-                  >
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <CalendarDays className="h-3 w-3" />
-                      {item.name}
-                    </div>
-                    <div className="text-sm font-bold text-foreground">
-                      {item.taxa}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground/70" />
+              Status dos alunos
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <Skeleton className="h-[260px] w-full rounded-xl" />
+              <Skeleton className="h-[220px] w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart
-                  data={attendanceData}
-                  margin={{ top: 16, right: 16, left: -16, bottom: 0 }}
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={88}
+                      paddingAngle={2}
+                      stroke="none"
+                      startAngle={90}
+                      endAngle={-270}
+                    >
+                      <Cell fill={SUCCESS} />
+                      <Cell fill={DANGER} />
+                    </Pie>
+                    <Tooltip content={<TooltipBox />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center label */}
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-semibold tabular-nums text-foreground">
+                    {(data?.students.total ?? 0).toLocaleString("pt-BR")}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Total
+                  </span>
+                </div>
+                {/* Legend */}
+                <div className="mt-2 flex items-center justify-center gap-5">
+                  {statusData.map((s) => (
+                    <div key={s.name} className="flex items-center gap-1.5 text-xs">
+                      <span
+                        className="h-2 w-2 rounded-sm"
+                        style={{ backgroundColor: s.color }}
+                      />
+                      <span className="text-muted-foreground">{s.name}</span>
+                      <span className="font-medium text-foreground tabular-nums">
+                        {s.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Bar: Students per school */}
+        <Card className="lg:col-span-3 border-border/70">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
+              <School className="h-4 w-4 text-muted-foreground/70" />
+              Alunos por escola
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-[220px] w-full" />
+            ) : schoolsData.length === 0 ? (
+              <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
+                Nenhuma escola cadastrada
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={schoolsData}
+                  layout="vertical"
+                  margin={{ top: 0, right: 28, left: 0, bottom: 0 }}
+                  barCategoryGap={10}
                 >
-                  <defs>
-                    <linearGradient
-                      id="grad-present"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor={CHART_COLORS.emerald}
-                        stopOpacity={0.45}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={CHART_COLORS.emerald}
-                        stopOpacity={0.02}
-                      />
-                    </linearGradient>
-                    <linearGradient
-                      id="grad-absent"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor={CHART_COLORS.red}
-                        stopOpacity={0.35}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={CHART_COLORS.red}
-                        stopOpacity={0.02}
-                      />
-                    </linearGradient>
-                  </defs>
                   <CartesianGrid
+                    horizontal={false}
                     strokeDasharray="3 3"
-                    stroke="hsl(var(--border) / 0.4)"
-                    vertical={false}
+                    stroke={BORDER}
+                    opacity={0.6}
                   />
                   <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                    type="number"
+                    tick={{ fontSize: 11, fill: MUTED }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: MUTED }}
                     axisLine={false}
                     tickLine={false}
+                    width={110}
+                    tickFormatter={(v: string) =>
+                      v.length > 16 ? v.slice(0, 14) + "…" : v
+                    }
                   />
                   <Tooltip
-                    content={<ModernTooltip />}
-                    cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+                    content={<TooltipBox />}
+                    cursor={{ fill: MUTED_SOFT, opacity: 0.4 }}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="Presentes"
-                    stroke={CHART_COLORS.emerald}
-                    strokeWidth={2.5}
-                    fill="url(#grad-present)"
-                    animationDuration={900}
-                    dot={{
-                      r: 4,
-                      fill: CHART_COLORS.emerald,
-                      strokeWidth: 2,
-                      stroke: "hsl(var(--background))",
-                    }}
-                    activeDot={{ r: 6 }}
+                  <Bar
+                    dataKey="value"
+                    name="Alunos"
+                    fill={ACCENT}
+                    radius={[0, 4, 4, 0]}
+                    animationDuration={600}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="Ausentes"
-                    stroke={CHART_COLORS.red}
-                    strokeWidth={2.5}
-                    fill="url(#grad-absent)"
-                    animationDuration={900}
-                    dot={{
-                      r: 4,
-                      fill: CHART_COLORS.red,
-                      strokeWidth: 2,
-                      stroke: "hsl(var(--background))",
-                    }}
-                    activeDot={{ r: 6 }}
-                  />
-                </AreaChart>
+                </BarChart>
               </ResponsiveContainer>
             )}
-            {/* Legend */}
-            <div className="mt-3 flex items-center justify-center gap-6">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS.emerald }} />
-                <span className="text-muted-foreground">Presentes</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS.red }} />
-                <span className="text-muted-foreground">Ausentes</span>
-              </div>
-            </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
+
+      {/* ===== Row 2: Attendance ===== */}
+      <Card className="border-border/70">
+        <CardHeader className="pb-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-muted-foreground/70" />
+              Resumo de frequência
+            </CardTitle>
+            {/* Period badges */}
+            <div className="flex flex-wrap gap-2">
+              {attendanceData.map((item) => (
+                <div
+                  key={item.name}
+                  className="rounded-md border border-border/70 bg-muted/40 px-2.5 py-1"
+                >
+                  <div className="text-[10px] text-muted-foreground">
+                    {item.name}
+                  </div>
+                  <div className="text-sm font-semibold tabular-nums text-foreground">
+                    {item.taxa}%
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-[240px] w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart
+                data={attendanceData}
+                margin={{ top: 12, right: 12, left: -12, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="grad-present" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={SUCCESS} stopOpacity={0.2} />
+                    <stop offset="100%" stopColor={SUCCESS} stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="grad-absent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={DANGER} stopOpacity={0.18} />
+                    <stop offset="100%" stopColor={DANGER} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={BORDER}
+                  opacity={0.6}
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 12, fill: MUTED }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: MUTED }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  content={<TooltipBox />}
+                  cursor={{ stroke: BORDER, strokeWidth: 1 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="Presentes"
+                  stroke={SUCCESS}
+                  strokeWidth={2}
+                  fill="url(#grad-present)"
+                  animationDuration={600}
+                  dot={{ r: 3, fill: SUCCESS, strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="Ausentes"
+                  stroke={DANGER}
+                  strokeWidth={2}
+                  fill="url(#grad-absent)"
+                  animationDuration={600}
+                  dot={{ r: 3, fill: DANGER, strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+          {/* Legend */}
+          <div className="mt-3 flex items-center justify-center gap-5">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: SUCCESS }} />
+              <span className="text-muted-foreground">Presentes</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: DANGER }} />
+              <span className="text-muted-foreground">Ausentes</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

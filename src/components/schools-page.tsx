@@ -388,71 +388,85 @@ export function SchoolsPage() {
         />
       ) : (
         <>
-          {/* Header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* Header — clean, no oversized title */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Escolas</h1>
-              <p className="text-muted-foreground mt-1">
-                Gerencie as escolas cadastradas na plataforma
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                Escolas
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {filteredSchools.length}{" "}
+                {filteredSchools.length === 1
+                  ? "escola cadastrada"
+                  : "escolas cadastradas"}
               </p>
             </div>
             {canEdit && (
-              <Button type="button" onClick={handleOpenCreate} className="shrink-0">
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Escola
+              <Button
+                type="button"
+                onClick={handleOpenCreate}
+                className="shrink-0 h-9"
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                Nova escola
               </Button>
             )}
           </div>
 
-          {/* Search */}
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar escola pelo nome..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
+          {/* Search + count row */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+              <Input
+                placeholder="Buscar escola..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
           </div>
 
           {/* Loading skeleton */}
           {schoolsLoading ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i}>
-                    <CardHeader className="pb-3">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-2/3" />
+            <Card className="border-border/70">
+              <CardContent className="p-0">
+                <div className="divide-y divide-border/60">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 p-4">
+                      <Skeleton className="h-10 w-10 rounded-md shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="h-3 w-1/2" />
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+                      <Skeleton className="h-6 w-12 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           ) : filteredSchools.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground text-sm">
+            <Card className="border-border/70">
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <Building2 className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm font-medium text-foreground">
                   {searchQuery
-                    ? "Nenhuma escola encontrada com esse nome"
+                    ? "Nenhuma escola encontrada"
                     : "Nenhuma escola cadastrada"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {searchQuery
+                    ? "Tente outro termo de busca"
+                    : "Comece cadastrando a primeira escola"}
                 </p>
                 {canEdit && !searchQuery && (
                   <Button
                     type="button"
                     variant="outline"
-                    className="mt-4"
+                    className="mt-4 h-9"
                     onClick={handleOpenCreate}
                   >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Cadastrar primeira escola
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Cadastrar escola
                   </Button>
                 )}
               </CardContent>
@@ -460,43 +474,43 @@ export function SchoolsPage() {
           ) : (
             <>
               {/* Mobile: Cards */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
+              <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
                 {filteredSchools.map((school) => (
                   <Card
                     key={school.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    className="cursor-pointer hover:border-border transition-colors"
                     onClick={() => handleViewDetail(school)}
                   >
-                    <CardHeader className="pb-3">
+                    <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-base line-clamp-1">
+                        <h3 className="text-sm font-medium text-foreground line-clamp-1">
                           {school.name}
-                        </CardTitle>
-                        <Badge variant="secondary" className="shrink-0">
-                          <GraduationCap className="h-3 w-3 mr-1" />
+                        </h3>
+                        <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground shrink-0">
+                          <GraduationCap className="h-3 w-3" />
                           {school.student_count ?? 0}
-                        </Badge>
+                        </span>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                      {school.address && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <MapPin className="h-3.5 w-3.5 shrink-0" />
-                          <span className="line-clamp-1">{school.address}</span>
-                        </div>
-                      )}
-                      {school.phone && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Phone className="h-3.5 w-3.5 shrink-0" />
-                          <span>{school.phone}</span>
-                        </div>
-                      )}
-                      {school.director_name && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <User className="h-3.5 w-3.5 shrink-0" />
-                          <span>{school.director_name}</span>
-                        </div>
-                      )}
+                      <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+                        {school.address && (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            <span className="line-clamp-1">{school.address}</span>
+                          </div>
+                        )}
+                        {school.phone && (
+                          <div className="flex items-center gap-1.5">
+                            <Phone className="h-3 w-3 shrink-0" />
+                            <span>{school.phone}</span>
+                          </div>
+                        )}
+                        {school.director_name && (
+                          <div className="flex items-center gap-1.5">
+                            <User className="h-3 w-3 shrink-0" />
+                            <span>{school.director_name}</span>
+                          </div>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -504,16 +518,26 @@ export function SchoolsPage() {
 
               {/* Desktop: Table */}
               <div className="hidden lg:block">
-                <Card>
+                <Card className="border-border/70">
                   <CardContent className="p-0">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Endereço</TableHead>
-                          <TableHead>Telefone</TableHead>
-                          <TableHead>Diretor(a)</TableHead>
-                          <TableHead className="text-center">Alunos</TableHead>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+                            Escola
+                          </TableHead>
+                          <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+                            Endereço
+                          </TableHead>
+                          <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+                            Contato
+                          </TableHead>
+                          <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+                            Diretor(a)
+                          </TableHead>
+                          <TableHead className="text-right text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+                            Alunos
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -523,22 +547,34 @@ export function SchoolsPage() {
                             className="cursor-pointer"
                             onClick={() => handleViewDetail(school)}
                           >
-                            <TableCell className="font-medium">
+                            <TableCell className="font-medium text-foreground">
                               {school.name}
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {school.address || "—"}
+                            <TableCell className="text-muted-foreground text-sm">
+                              {school.address || (
+                                <span className="text-muted-foreground/50">
+                                  Não informado
+                                </span>
+                              )}
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {school.phone || "—"}
+                            <TableCell className="text-muted-foreground text-sm">
+                              {school.phone || (
+                                <span className="text-muted-foreground/50">
+                                  —
+                                </span>
+                              )}
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {school.director_name || "—"}
+                            <TableCell className="text-muted-foreground text-sm">
+                              {school.director_name || (
+                                <span className="text-muted-foreground/50">
+                                  —
+                                </span>
+                              )}
                             </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant="secondary">
+                            <TableCell className="text-right">
+                              <span className="tabular-nums font-medium text-foreground">
                                 {school.student_count ?? 0}
-                              </Badge>
+                              </span>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -548,8 +584,7 @@ export function SchoolsPage() {
                 </Card>
               </div>
             </>
-          )}
-        </>
+          )}        </>
       )}
 
       {/* Create / Edit Dialog (shared by both views) */}
