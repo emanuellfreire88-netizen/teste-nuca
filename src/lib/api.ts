@@ -96,11 +96,24 @@ export const api = {
 
   delete: <T>(path: string, body?: unknown) => request<T>("DELETE", path, body),
 
-  /** Upload a file to the given API path. Returns parsed JSON response. */
-  upload: async <T>(path: string, file: File): Promise<T> => {
+  /**
+   * Upload a file to the given API path. Returns parsed JSON response.
+   * Optional `fields` allows appending extra string form fields alongside
+   * the file (e.g. school_id for bulk imports).
+   */
+  upload: async <T>(
+    path: string,
+    file: File,
+    fields?: Record<string, string>
+  ): Promise<T> => {
     const token = useAuthStore.getState().token;
     const formData = new FormData();
     formData.append("file", file);
+    if (fields) {
+      for (const [key, value] of Object.entries(fields)) {
+        formData.append(key, value);
+      }
+    }
 
     const url = `${BASE_URL}${path}`;
     const headers: HeadersInit = {};

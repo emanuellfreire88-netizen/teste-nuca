@@ -911,3 +911,50 @@ Stage Summary:
 - ✅ Tabela de usuários mostra coluna "Escolas" com contagem por operador
 - ✅ Refresh de /auth/me on mount mantém school_ids atualizado no store
 - ⚠️ Nota: adapter Neon HTTP não suporta transações/nested writes — todos os writes de UserSchool são individuais
+
+---
+Task ID: STUDENTS-BULK-IMPORT
+Agent: Main Agent
+Task: Implementar importação em lote de alunos via planilha (CSV/XLSX) — o usuário perguntou "conseguimos fazer upload nos alunos?"
+
+Work Log:
+- Investigado o estado atual: NÃO existia importação em lote; apenas upload de foto individual do aluno (PhotoUpload) e criação individual via POST /api/students
+- Confirmado que o pacote `xlsx` (SheetJS ^0.18.5) já estava instalado — suporta CSV e XLSX
+- Estendido `src/lib/api.ts`: adicionado parâmetro opcional `fields` ao método `api.upload()` para anexar campos extras ao FormData (mantém retrocompatibilidade com o upload de foto)
+- Criado `src/app/api/students/import/route.ts` (POST, Admin-only via withRole):
+  - Aceita multipart/form-data com `file` (CSV/XLSX) + `school_id` opcional (escola padrão)
+  - Valida formato (.csv/.xlsx), tamanho (máx 5 MB), até 1000 linhas
+  - Parse com xlsx; para CSV usa `buffer.toString('utf-8')` + `type:'string'` + `codepage:65001` para preservar acentos (xlsx defaulta para latin-1 em buffers CSV, o que mutilava ã/é/ç)
+  - Mapeamento flexível de cabeçalhos (PT-BR + EN, case-insensitive): nome/nome_completo/aluno → full_name, cpf, rg, data_nascimento/nascimento, tipo_sanguineo/sangue, turma/classe, serie/ano, telefone/celular/whatsapp, endereco/rua, responsavel/mae/pai, responsavel_telefone, responsavel_email, emergencia, escola/nome_escola/unidade → school_name
+  - Aceita datas em YYYY-MM-DD ou DD/MM/YYYY
+  - CPF normalizado para 11 dígitos; valida comprimento
+  - Resolução de escola por linha: coluna "escola" sobrescreve a escola padrão; lookup por nome (case-insensitive)
+  - Pré-carrega todos os CPFs existentes (uma query IN) para evitar N+1; dedup também dentro do próprio lote
+  - Insert em $transaction; fallback 1-por-1 se a transação falhar (preserva sucessos parciais)
+  - Retorna { result: { total, created, skipped, errors:[{row,name,reason}] } }
+  - Loga ação via logAction('create_student', ...)
+- Adicionado componente `ImportStudentsDialog` em `src/components/students-page.tsx`:
+  - Modal com instruções, botão "Baixar modelo (.csv)" (gera CSV template com BOM UTF-8 + linha de exemplo), seletor de escola padrão, dropzone (drag&drop ou clique) com validação client-side de formato/tamanho
+  - Tela de resultado: 4 cards (Total/Importados/Ignorados/Com erro) coloridos + tabela de erros (linha, aluno, motivo) com scroll
+  - Botões "Importar outro arquivo" e "Concluir"
+- Adicionado botão "Importar" (variant outline, ícone FileUp) no header da lista de alunos, ao lado de "Novo Aluno" (Admin-only, via canCreate)
+- Adicionado estado `importDialogOpen` e render do dialog no StudentsList
+- Importados ícones do lucide-react: FileSpreadsheet, Download, AlertTriangle, FileUp
+- Verificado com Agent Browser (logado como admin temporário verify@nuca.test, deletado depois):
+  1. Botão "Importar" aparece ao lado de "Novo Aluno" (Admin)
+  2. Dialog abre corretamente (VLM confirmou layout limpo, sem overlap)
+  3. Download do modelo CSV funciona
+  4. Upload de CSV com 3 alunos (2 com CPF, 1 sem; escolas com acento "Escola Benício"/"Escola Conceição") → 3 importados, escolas atribuídas corretamente por linha, acentos preservados, CPFs normalizados
+  5. Re-import do mesmo arquivo → 1 importado (Carla, sem CPF), 2 ignorados (Ana/Bruno, "CPF já cadastrado"), tabela de erros mostra motivo por linha
+  6. Lint limpo, dev server sem erros
+- Limpeza pós-teste: removidos 4 alunos de teste (Ana, Bruno, Carla x2) e o usuário admin temporário verify@nuca.test do banco Neon; DB voltou ao baseline (70 alunos, 2 usuários reais)
+
+Stage Summary:
+- ✅ Feature completa de upload/importação em lote de alunos via CSV ou XLSX
+- ✅ Botão "Importar" visível apenas para Admin, ao lado de "Novo Aluno"
+- ✅ Mapeamento flexível de colunas (PT-BR + EN), preserva acentos, valida CPF/datas
+- ✅ Dedup de CPF (DB + dentro do lote), escola por linha ou padrão, modelo CSV para download
+- ✅ Tela de resultado detalhada com cards + tabela de erros
+- ✅ Verificado end-to-end no navegador (upload, import, dedup, resultados)
+- 📁 Arquivos criados: src/app/api/students/import/route.ts
+- 📁 Arquivos modificados: src/lib/api.ts (api.upload com fields opcional), src/components/students-page.tsx (ImportStudentsDialog + botão + ícones)
