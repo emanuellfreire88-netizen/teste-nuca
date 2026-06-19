@@ -779,3 +779,51 @@ Stage Summary:
 - Usuário agora verá "v2.5" no rodapé do login para confirmar que está na versão nova
 - O script de auto-reload garante que mesmo com cache agressivo, o browser vai recarregar a versão nova automaticamente
 - Tudo verificado end-to-end: login, dashboard, usuários (CRUD), suporte — todos funcionando
+
+---
+Task ID: redesign-login-professional-2026-06-19
+Agent: Main Agent (Z.ai Code)
+Task: "Vamos mudar a tela de login, deixar mais profissional, está com cara de amador e IA"
+
+Work Log:
+- Analisado o design anterior: painel esquerdo com gradiente azul escuro, blobs blur coloridos, grid pattern overlay, 3 ícones decorativos (Gestão de Alunos, Controle de Frequência, Relatórios Detalhados), logo gigante, tagline genérica — todos elementos que dão "cara de IA/template amador"
+- Design novo inspirado em SaaS profissionais (Linear, Vercel, Stripe):
+  - Top bar com brand mark (N em quadrado azul) + status "Sistema operando normalmente" com ponto verde
+  - Layout single-column centralizado (sem split panel)
+  - Heading "Acessar sua conta" (26px, semibold, tracking negativo)
+  - Subtítulo sóbrio "Use suas credenciais para entrar na plataforma"
+  - Inputs 10px height, bordas sutis, focus ring discreto
+  - Botão "Entrar" sólido sem sombras exageradas
+  - Hint discreta sobre esquecimento de senha
+  - Footer minimalista com copyright + versão
+  - Tela de redefinir senha redesenhada com badge "SENHA TEMPORÁRIA", checklist de requisitos com check icons circulares verdes
+- Elementos removidos (cara de IA):
+  - Gradiente azul escuro no painel esquerdo
+  - 3 blobs blur coloridos (blue-400, cyan-400, indigo-400)
+  - Grid pattern overlay
+  - 3 ícones decorativos com labels
+  - Logo gigante com drop-shadow-2xl
+  - Tagline "Plataforma completa para gestão escolar..."
+  - Divisão split 55%/45%
+- Elementos mantidos (lógica funcional):
+  - Login via API
+  - Fluxo must-change-password completo
+  - Validação de força de senha
+  - Show/hide password toggles
+  - Checkbox "Manter conectado"
+- Verificação Agent Browser:
+  - Página carrega com top bar, formulário centralizado, footer ✓
+  - VLM confirmou: "profissional", layout "limpo e minimalista"
+  - Login emanuell.fp.rocha@gmail.com / Emanuel@2026 → Dashboard ✓
+  - Sem erros no console ✓
+- Lint: 0 erros, 0 warnings ✓
+- Commit ab44e0f pushed para origin/main
+
+Stage Summary:
+- ✅ Tela de login redesenhada com visual profissional SaaS-style
+- ✅ Removidos todos elementos "cara de IA" (gradientes, blobs, ícones decorativos)
+- ✅ Layout clean com top bar, formulário centralizado, footer minimalista
+- ✅ Tela de redefinir senha também redesenhada com checklist profissional
+- ✅ Toda lógica funcional preservada (login, must-change-password, validação)
+- ✅ VLM confirmou design profissional
+- ✅ Login testado end-to-end funcionando
