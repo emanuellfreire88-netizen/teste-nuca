@@ -193,16 +193,28 @@ export function LoginPage() {
 
       {/* ── Main content ─────────────────────────────────── */}
       <main className="flex-1 flex items-center justify-center px-6 py-10">
-        <div className="w-full max-w-[400px]">
+        <div className="w-full max-w-[420px]">
           {!mustChangePassword ? (
             <>
               {/* ── LOGIN ────────────────────────────────────── */}
-              <div className="mb-8">
+              {/* Centered logo + heading */}
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="w-44 h-auto mb-6">
+                  <Image
+                    src="/uploads/nuca-logo.png"
+                    alt="Nuca — Núcleo de Cidadania de Adolescentes"
+                    width={1922}
+                    height={1080}
+                    className="w-full h-auto object-contain"
+                    priority
+                  />
+                </div>
                 <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-foreground">
                   Acessar sua conta
                 </h1>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Use suas credenciais para entrar na plataforma.
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-[320px]">
+                  Use suas credenciais para entrar na plataforma de gestão
+                  escolar.
                 </p>
               </div>
 
@@ -316,10 +328,21 @@ export function LoginPage() {
           ) : (
             <>
               {/* ── CHANGE PASSWORD ─────────────────────────── */}
-              <div className="mb-7">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center">
-                    <KeyRound className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              {/* Centered logo + heading */}
+              <div className="flex flex-col items-center text-center mb-7">
+                <div className="w-40 h-auto mb-6">
+                  <Image
+                    src="/uploads/nuca-logo.png"
+                    alt="Nuca — Núcleo de Cidadania de Adolescentes"
+                    width={1922}
+                    height={1080}
+                    className="w-full h-auto object-contain"
+                    priority
+                  />
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center">
+                    <KeyRound className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                   </div>
                   <span className="text-xs font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
                     Senha temporária
@@ -328,7 +351,7 @@ export function LoginPage() {
                 <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-foreground">
                   Redefinir senha
                 </h1>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-[320px]">
                   Você está usando uma senha temporária. Crie uma nova senha
                   para continuar.
                 </p>
@@ -518,7 +541,7 @@ export function LoginPage() {
               </form>
 
               {/* Back */}
-              <div className="mt-6">
+              <div className="mt-6 text-center">
                 <button
                   type="button"
                   onClick={handleBackToLogin}
@@ -539,7 +562,7 @@ export function LoginPage() {
           © {new Date().getFullYear()} Nuca Plataforma
         </span>
         <span className="hidden sm:inline">
-          v2.6 · {new Date().toISOString().slice(0, 10)}
+          v2.7 · {new Date().toISOString().slice(0, 10)}
         </span>
       </footer>
     </div>
