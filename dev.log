@@ -209,3 +209,5 @@ Bulk insert transaction error: Error: Transactions are not supported in HTTP mod
  GET /api/auth/me 200 in 681ms (compile: 5ms, render: 676ms)
  GET /api/reports 200 in 695ms (compile: 5ms, render: 690ms)
  GET /api/reports 200 in 705ms (compile: 1949µs, render: 703ms)
+ GET / 200 in 85ms (compile: 8ms, render: 76ms)
+ GET / 200 in 39ms (compile: 8ms, render: 31ms)
