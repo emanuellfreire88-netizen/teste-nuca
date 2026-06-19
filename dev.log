@@ -181,3 +181,6 @@ Bulk insert transaction error: Error: Transactions are not supported in HTTP mod
  GET /api/students?page=1&limit=10 200 in 466ms (compile: 8ms, render: 459ms)
  GET /api/schools 200 in 702ms (compile: 1996µs, render: 700ms)
  GET /api/students?page=1&limit=10 200 in 935ms (compile: 5ms, render: 930ms)
+ GET / 200 in 268ms (compile: 60ms, render: 208ms)
+ GET / 200 in 269ms (compile: 223ms, render: 47ms)
+ GET / 200 in 46ms (compile: 9ms, render: 38ms)
