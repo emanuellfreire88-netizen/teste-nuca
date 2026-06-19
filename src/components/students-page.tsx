@@ -43,10 +43,8 @@ import {
   XCircle,
   Loader2,
   CalendarDays,
-  FileSpreadsheet,
-  Download,
-  AlertTriangle,
   FileUp,
+  AlertTriangle,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1317,79 +1315,76 @@ function ImportStudentsDialog({
   };
 
   return (
-    <Modal open={open} onClose={handleClose} maxWidth="max-w-3xl">
-      <div className="flex items-center justify-between px-6 py-4 border-b">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <FileUp className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold">Importar Alunos</h2>
-            <p className="text-sm text-muted-foreground">
-              Importe vários alunos de uma vez via planilha (.csv ou .xlsx)
-            </p>
-          </div>
+    <Modal open={open} onClose={handleClose} maxWidth="max-w-2xl">
+      <div className="flex items-center justify-between px-5 py-4 border-b">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight">Importar alunos</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Planilha CSV ou Excel · até 1.000 linhas
+          </p>
         </div>
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="icon"
+          className="h-8 w-8"
           onClick={handleClose}
           disabled={importing}
         >
-          ✕
+          <XCircle className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+      <div className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
         {result ? (
           // ── Results view ──
           <div className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-lg border p-3 text-center">
-                <div className="text-2xl font-bold">{result.total}</div>
-                <div className="text-xs text-muted-foreground">Total de linhas</div>
-              </div>
-              <div className="rounded-lg border p-3 text-center border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30">
-                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+            {/* Summary line */}
+            <div className="flex items-center gap-3">
+              {result.created > 0 && result.errors.length - result.skipped === 0 ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 shrink-0" />
+              )}
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-2xl font-semibold tabular-nums">
                   {result.created}
-                </div>
-                <div className="text-xs text-muted-foreground">Importados</div>
-              </div>
-              <div className="rounded-lg border p-3 text-center border-amber-200 bg-amber-50 dark:bg-amber-950/30">
-                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {result.skipped}
-                </div>
-                <div className="text-xs text-muted-foreground">Ignorados</div>
-              </div>
-              <div className="rounded-lg border p-3 text-center border-red-200 bg-red-50 dark:bg-red-950/30">
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {result.errors.length - result.skipped}
-                </div>
-                <div className="text-xs text-muted-foreground">Com erro</div>
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  de {result.total} alunos importados
+                </span>
+                {result.skipped > 0 && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400">
+                    · {result.skipped} ignorado(s)
+                  </span>
+                )}
+                {result.errors.length - result.skipped > 0 && (
+                  <span className="text-xs text-red-600 dark:text-red-400">
+                    · {result.errors.length - result.skipped} com erro
+                  </span>
+                )}
               </div>
             </div>
 
             {result.errors.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  Detalhes ({result.errors.length})
-                </h3>
-                <div className="rounded-md border max-h-64 overflow-y-auto">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Linhas não importadas
+                </p>
+                <div className="rounded-md border max-h-72 overflow-y-auto">
                   <Table>
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
-                        <TableHead className="w-16">Linha</TableHead>
-                        <TableHead>Aluno</TableHead>
-                        <TableHead>Motivo</TableHead>
+                        <TableHead className="w-14 text-xs">Linha</TableHead>
+                        <TableHead className="text-xs">Aluno</TableHead>
+                        <TableHead className="text-xs">Motivo</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {result.errors.map((e, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-mono text-xs">
-                            {e.row || "-"}
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {e.row || "—"}
                           </TableCell>
                           <TableCell className="text-sm">{e.name}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
@@ -1403,7 +1398,7 @@ function ImportStudentsDialog({
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-1">
               <Button
                 type="button"
                 variant="outline"
@@ -1412,7 +1407,7 @@ function ImportStudentsDialog({
                   setFile(null);
                 }}
               >
-                Importar outro arquivo
+                Importar outro
               </Button>
               <Button type="button" onClick={handleClose}>
                 Concluir
@@ -1422,46 +1417,10 @@ function ImportStudentsDialog({
         ) : (
           // ── Upload form ──
           <>
-            {/* Step 1: instructions + template */}
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-              <div className="flex items-start gap-3">
-                <FileSpreadsheet className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                <div className="space-y-1 text-sm">
-                  <p className="font-medium">Como funciona:</p>
-                  <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
-                    <li>
-                      A planilha deve ter uma linha de cabeçalho com os nomes
-                      das colunas.
-                    </li>
-                    <li>
-                      A coluna <code className="bg-background px-1 rounded">nome</code> é obrigatória. As
-                      demais são opcionais.
-                    </li>
-                    <li>
-                      Use a coluna <code className="bg-background px-1 rounded">escola</code> para
-                      definir a escola de cada aluno, ou selecione uma escola
-                      padrão abaixo.
-                    </li>
-                    <li>CPFs já cadastrados serão ignorados automaticamente.</li>
-                  </ul>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadTemplate}
-                className="ml-8"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Baixar modelo (.csv)
-              </Button>
-            </div>
-
-            {/* Step 2: default school */}
-            <div className="space-y-2">
-              <Label htmlFor="import-school">
-                Escola padrão <span className="text-muted-foreground font-normal">(opcional se a coluna "escola" estiver no arquivo)</span>
+            {/* School */}
+            <div className="space-y-1.5">
+              <Label htmlFor="import-school" className="text-sm">
+                Escola
               </Label>
               <select
                 id="import-school"
@@ -1476,69 +1435,89 @@ function ImportStudentsDialog({
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-muted-foreground">
+                Aplicada a alunos sem a coluna “escola” no arquivo.
+              </p>
             </div>
 
-            {/* Step 3: file dropzone */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                const f = e.dataTransfer.files?.[0];
-                if (f) handleFileSelected(f);
-              }}
-              onClick={() => inputRef.current?.click()}
-              className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
-                dragOver
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/30 hover:border-muted-foreground/50"
-              }`}
-            >
-              <input
-                ref={inputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleFileSelected(f);
-                  e.target.value = "";
+            {/* File dropzone */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Arquivo</Label>
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
                 }}
-              />
-              {file ? (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handleFileSelected(f);
+                }}
+                onClick={() => inputRef.current?.click()}
+                className={`group cursor-pointer rounded-md border border-dashed px-4 py-5 transition-colors ${
+                  dragOver
+                    ? "border-primary bg-primary/5"
+                    : file
+                    ? "border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20"
+                    : "border-input hover:border-foreground/30 hover:bg-muted/40"
+                }`}
+              >
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFileSelected(f);
+                    e.target.value = "";
+                  }}
+                />
+                {file ? (
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB · clique para substituir
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(file.size / 1024).toFixed(1)} KB · clique para trocar
-                    </p>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <Upload className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm">
+                        <span className="font-medium text-foreground">Clique para selecionar</span>
+                        <span className="text-muted-foreground"> ou arraste o arquivo</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        .csv ou .xlsx · máx 5 MB
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    <Upload className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">
-                      Arraste um arquivo aqui ou clique para selecionar
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Formatos aceitos: .csv, .xlsx (máx. 5 MB)
-                    </p>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Colunas: nome <span className="text-red-500">*</span> · cpf · rg · data_nascimento · turma · serie · escola …
+                </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownloadTemplate();
+                  }}
+                  className="text-xs font-medium text-primary hover:underline shrink-0 ml-2"
+                >
+                  Baixar modelo
+                </button>
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-3 border-t">
               <Button
                 type="button"
                 variant="outline"
@@ -1555,13 +1534,10 @@ function ImportStudentsDialog({
                 {importing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Importando...
+                    Importando…
                   </>
                 ) : (
-                  <>
-                    <FileUp className="h-4 w-4 mr-2" />
-                    Importar alunos
-                  </>
+                  <>Importar</>
                 )}
               </Button>
             </div>

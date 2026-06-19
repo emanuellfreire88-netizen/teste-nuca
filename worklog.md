@@ -958,3 +958,40 @@ Stage Summary:
 - ✅ Verificado end-to-end no navegador (upload, import, dedup, resultados)
 - 📁 Arquivos criados: src/app/api/students/import/route.ts
 - 📁 Arquivos modificados: src/lib/api.ts (api.upload com fields opcional), src/components/students-page.tsx (ImportStudentsDialog + botão + ícones)
+
+---
+Task ID: IMPORT-DESIGN-POLISH
+Agent: Main Agent
+Task: Redesignar o diálogo de Importar Alunos — usuário disse "está com cara de IA, deixe mais profissional"
+
+Work Log:
+- Analisada screenshot enviada pelo usuário + VLM para identificar o que dava "cara de IA":
+  - Badges circulares decorativos (h-10 w-10 rounded-full bg-primary/10 no cabeçalho; h-12 w-12 no dropzone) — padrão decorativo genérico
+  - Box "Como funciona:" com bg-muted/30 + lista de bullets — tutorial verboso, over-explaining
+  - Botão "Baixar modelo" com ml-8 indentado de forma estranha
+  - Dropzone com ícone circular grande empilhado — genérico
+  - Excesso de elementos decorativos competindo pela atenção
+- Redesign completo do componente ImportStudentsDialog (mantida toda a lógica de estado/handlers):
+  - Cabeçalho: removido o badge circular decorativo; título + subtítulo limpo + botão close (XCircle) discreto
+  - Largura reduzida de max-w-3xl para max-w-2xl (mais focado)
+  - Campo "Escola": label simples + helper text discreto abaixo (1 linha) em vez do parágrafo longo entre parênteses
+  - Dropzone: layout horizontal (ícone + texto lado a lado) em vez de empilhado com círculo grande; borda dashed mais sutil (border-input); estado selecionado com borda esmeralda sutil
+  - Lista de colunas aceitas como helper text inline (1 linha) + link "Baixar modelo" como texto sutil à direita (não botão outlined)
+  - Rodapé com border-t separador e botões "Cancelar" / "Importar" (texto puro, sem ícone no botão primário)
+  - Result view: removidos os 4 cards coloridos (verde/amarelo/vermelho) — substituídos por UMA linha de resumo "X de Y alunos importados" + ícone de status (CheckCircle2 verde se tudo ok, AlertTriangle âmbar se houve erros) + badges de ignorado/erro discretos
+  - Tabela de erros mantida, com header em uppercase tracking-wide (estilo label profissional)
+- Limpeza de imports: removidos FileSpreadsheet e Download (não usados); mantidos AlertTriangle (re-adicionado para o ícone de status no resultado), FileUp (botão Importar na lista), XCircle (close)
+- Verificado com Agent Browser (login admin temp, abrir diálogo, upload CSV, importar):
+  - VLM confirmou: "mais profissional e limpo que diálogo genérico de IA", "sem elementos decorativos desnecessários", "hierarquia visual clara", "espaçamento consistente"
+  - Estado vazio: layout limpo, ícones mínimos funcionais
+  - Estado com arquivo selecionado: checkmark esmeralda + nome do arquivo, sutil
+  - Estado de resultado: "2 de 2 alunos importados" com ícone de sucesso, sem cards coloridos excessivos
+- Lint limpo, dev server sem erros
+- Limpeza: removidos 2 alunos de teste (Teste Silva, Teste Santos) e usuário admin temporário do Neon
+
+Stage Summary:
+- ✅ Diálogo redesignado — sem "cara de IA"
+- ✅ Removidos: badges circulares decorativos, box de tutorial com bullets, indentação ml-8 estranha, ícones circulares grandes no dropzone, 4 cards coloridos no resultado
+- ✅ Adicionados: layout horizontal no dropzone, helper texts concisos, link sutil "Baixar modelo", linha de resumo única com ícone de status no resultado
+- ✅ VLM confirmou design profissional e limpo
+- 📁 Arquivo modificado: src/components/students-page.tsx (ImportStudentsDialog redesenhado)
