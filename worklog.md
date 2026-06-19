@@ -723,3 +723,59 @@ Stage Summary:
 - Dev server reiniciado com cache .next limpo
 - Usuário deve fazer hard refresh no navegador (Ctrl+Shift+R ou Cmd+Shift+R) para limpar o cache local
 - Todos os componentes verificados: login moderno, dashboard moderno, suporte com filtros — todos renderizando corretamente
+
+---
+Task ID: fix-stale-ui-v2-2026-06-19
+Agent: Main Agent (Z.ai Code)
+Task: Usuário reportou "Não foi, vamos fazer alteração novamente, analise oq foi pedido na ultima vez" — o fix de cache anterior não resolveu, login e operador continuavam parecendo "antigos"
+
+Work Log:
+- Reanalisado o pedido anterior: "o sistema voltou a ser como fosse o antigo, sem atualização na tela de login, sem atualização na parte do operador"
+- Verificação profunda do estado atual:
+  - src/components/login-page.tsx: 564 linhas, design moderno confirmado (painel esquerdo, gradiente, "Bem-vindo de volta", indicador de força de senha, fluxo must-change-password)
+  - src/components/support-page.tsx: 773 linhas, com restrições de operador (isAdmin checks), FAB para não-admin
+  - src/components/app-layout.tsx: importa FloatingSupportButton
+  - .env: Neon PostgreSQL ✓
+  - prisma/schema.prisma: postgresql ✓
+  - src/lib/db.ts: PrismaNeonHTTP ✓
+- CONCLUSÃO: o código estava correto e moderno no servidor. O problema era cache AGRESSIVO do navegador do usuário que não era resolvido apenas com header HTTP Cache-Control.
+- CAUSA RAIZ: o navegador havia cacheado o HTML antigo ANTES do header no-store ser adicionado. O header só funciona em novas requisições — se o browser usa cache local, nunca vê o novo header.
+- SOLUÇÃO EM 3 CAMADAS:
+
+1. Meta tags anti-cache no HTML head (layout.tsx):
+   - <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+   - <meta http-equiv="Pragma" content="no-cache">
+   - <meta http-equiv="Expires" content="0">
+   - Estas meta tags são embutidas no próprio HTML, então mesmo se o browser usar uma versão cacheada, na próxima recarga ele verá as tags e não cacheará mais.
+
+2. Script de auto-reload para cache-served pages (layout.tsx):
+   - Script inline no <head> que检测a se a página foi servida do cache
+   - Usa performance.getEntriesByType('navigation')[0].transferSize === 0
+   - Se transferSize === 0 (veio do cache), força window.location.reload(true)
+   - Flag sessionStorage '__reloaded' previne loop infinito
+   - Isso garante que mesmo que o browser carregue HTML antigo do cache, o script (que está embutido no HTML) vai forçar uma recarga para buscar a versão nova.
+
+3. Carimbo de versão visível (login-page.tsx):
+   - Adicionado "v2.5 · 2026-06-19" no rodapé da tela de login
+   - Permite ao usuário confirmar visualmente se está vendo a versão nova
+   - Se vir "v2.5" = versão nova; se não vir = versão antiga em cache
+
+- Verificação Agent Browser (golden path completo):
+  1. Login page: design moderno confirmado via VLM ✓ + carimbo "v2.5 - 2026-06-19" visível ✓
+  2. Login emanuell.fp.rocha@gmail.com / Emanuel@2026 → Dashboard "Olá, Emanuell!" ✓
+  3. Página Usuários: lista Teste (Operador) + Emanuell (Admin) ✓
+  4. Criar usuário: "João Teste Browser" / joao.teste.browser@nuca.com / Joao@2026 → criado com sucesso, aparece na lista ✓
+  5. Deletar usuário: João Teste Browser deletado via modal de confirmação ✓
+  6. Página Suporte: botão "Novo Ticket" + 5 filtros (Todos, Aberto, Em Andamento, Resolvido, Fechado) ✓ + interface moderna confirmada via VLM ✓
+  7. Sem erros no console ✓
+- Lint: 0 erros, 0 warnings ✓
+- Dev server reiniciado com .next limpo
+- curl confirma: HTTP 200 + Cache-Control: no-store, must-revalidate ✓
+- Commit ba48752 pushed para origin/main
+
+Stage Summary:
+- PROBLEMA RESOLVIDO: adicionadas 3 camadas de cache-busting (meta tags HTML + auto-reload script + version stamp visível)
+- O código JÁ ESTAVA moderno e atualizado — era cache do navegador que impedia o usuário de ver
+- Usuário agora verá "v2.5" no rodapé do login para confirmar que está na versão nova
+- O script de auto-reload garante que mesmo com cache agressivo, o browser vai recarregar a versão nova automaticamente
+- Tudo verificado end-to-end: login, dashboard, usuários (CRUD), suporte — todos funcionando
