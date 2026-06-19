@@ -32,8 +32,24 @@ model User {
   support_tickets SupportTicket[]  @relation("TicketCreator")
   support_messages SupportMessage[]
   assigned_tickets SupportTicket[] @relation("TicketAssignee")
+  user_schools    UserSchool[]
 
   @@map("users")
+}
+
+/// Junction table linking an Operator user to the School(s) they can access.
+/// Admins implicitly have access to all schools (no rows needed).
+model UserSchool {
+  id        String   @id @default(uuid())
+  user_id   String
+  school_id String
+  created_at DateTime @default(now())
+
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  school School @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, school_id])
+  @@map("user_schools")
 }
 
 model School {
@@ -52,6 +68,7 @@ model School {
 
   students      Student[]
   events        Event[]
+  user_schools  UserSchool[]
 
   @@map("schools")
 }

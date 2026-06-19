@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { canUserAccessSchool } from '@/lib/user-schools';
 
 export async function GET(
   req: AuthenticatedRequest,
@@ -26,6 +27,19 @@ export async function GET(
         );
       }
 
+      // Non-admins can only view students in schools they have access to
+      const canAccess = await canUserAccessSchool(
+        _req.user!.userId,
+        _req.user!.role,
+        student.school_id
+      );
+      if (!canAccess) {
+        return NextResponse.json(
+          { error: 'Aluno não encontrado' },
+          { status: 404 }
+        );
+      }
+
       return NextResponse.json({ student });
     } catch (error) {
       console.error('Get student error:', error);
@@ -41,7 +55,7 @@ export async function PUT(
   req: AuthenticatedRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  return withRole(['Admin', 'Operator'], async (_req: AuthenticatedRequest) => {
+  return withRole(['Admin'], async (_req: AuthenticatedRequest) => {
     try {
       const { id } = await context.params;
       const body = await _req.json();

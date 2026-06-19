@@ -147,7 +147,9 @@ export function SchoolsPage() {
   const user = useAuthStore((s) => s.user);
   const role = user?.role || "Viewer";
   const isAdmin = role === "Admin";
-  const canEdit = role === "Admin" || role === "Operator";
+  // Only admins can create/edit schools. Operators have read-only access
+  // to the schools they are assigned to (filtering happens server-side).
+  const canEdit = isAdmin;
 
   // View state
   const [view, setView] = useState<"list" | "detail">("list");

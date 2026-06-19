@@ -41,6 +41,7 @@ export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
           last_login: true,
           created_at: true,
           updated_at: true,
+          user_schools: { select: { school_id: true } },
         },
         orderBy: { created_at: 'desc' },
         skip,
@@ -49,8 +50,15 @@ export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       db.user.count({ where }),
     ]);
 
+    // Flatten user_schools → school_ids for convenience on the client
+    const usersWithSchools = users.map((u) => ({
+      ...u,
+      school_ids: u.user_schools.map((us) => us.school_id),
+      user_schools: undefined,
+    }));
+
     return NextResponse.json({
-      users,
+      users: usersWithSchools,
       pagination: {
         page,
         limit,
@@ -70,7 +78,7 @@ export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
 export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
-    const { full_name, email, password, role, status, profile_photo } = body;
+    const { full_name, email, password, role, status, profile_photo, school_ids } = body;
 
     if (!full_name || !email || !password) {
       return NextResponse.json(
@@ -123,6 +131,28 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
 
     const hashedPassword = await hashPassword(password);
 
+    // Validate school_ids (only relevant for non-admin roles, but we accept it always)
+    const validSchoolIds: string[] = Array.isArray(school_ids)
+      ? school_ids.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+      : [];
+
+    // If school_ids were provided, verify they all exist
+    if (validSchoolIds.length > 0) {
+      const existingSchools = await db.school.findMany({
+        where: { id: { in: validSchoolIds } },
+        select: { id: true },
+      });
+      if (existingSchools.length !== validSchoolIds.length) {
+        return NextResponse.json(
+          { error: 'Uma ou mais escolas selecionadas não existem' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // NOTE: Neon HTTP adapter does not support transactions, so we cannot use
+    // Prisma's nested writes (user.create with user_schools.create). Create
+    // the user first, then link the schools in a separate call.
     const user = await db.user.create({
       data: {
         full_name: sanitizeInput(full_name),
@@ -146,9 +176,23 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       },
     });
 
+    // Link the operator/viewer to their allowed schools. The Neon HTTP
+    // adapter does not support createMany or transactions, so we insert
+    // each link individually.
+    for (const sid of validSchoolIds) {
+      await db.userSchool.create({
+        data: { user_id: user.id, school_id: sid },
+      });
+    }
+
     await logAction(req.user!.userId, 'create_user', `Usuário criado: ${email}`, req);
 
-    return NextResponse.json({ user }, { status: 201 });
+    return NextResponse.json({
+      user: {
+        ...user,
+        school_ids: validSchoolIds,
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error('Create user error:', error);
     return NextResponse.json(

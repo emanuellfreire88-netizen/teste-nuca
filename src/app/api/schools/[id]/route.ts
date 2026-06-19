@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { canUserAccessSchool } from '@/lib/user-schools';
 
 export async function GET(
   req: AuthenticatedRequest,
@@ -10,6 +11,16 @@ export async function GET(
   return withAuth(async (_req: AuthenticatedRequest) => {
     try {
       const { id } = await context.params;
+
+      // Non-admins can only fetch schools they are linked to
+      const canAccess = await canUserAccessSchool(_req.user!.userId, _req.user!.role, id);
+      if (!canAccess) {
+        return NextResponse.json(
+          { error: 'Escola não encontrada' },
+          { status: 404 }
+        );
+      }
+
       const school = await db.school.findUnique({
         where: { id },
         include: {
@@ -41,7 +52,7 @@ export async function PUT(
   req: AuthenticatedRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  return withRole(['Admin', 'Operator'], async (_req: AuthenticatedRequest) => {
+  return withRole(['Admin'], async (_req: AuthenticatedRequest) => {
     try {
       const { id } = await context.params;
       const body = await _req.json();

@@ -770,7 +770,7 @@ function StudentProfile({
 }) {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "Admin";
-  const canEdit = user?.role === "Admin" || user?.role === "Operator";
+  const canEdit = user?.role === "Admin";
 
   const totalRecords = attendanceRecords.length;
   const presentCount = attendanceRecords.filter(
@@ -1182,7 +1182,7 @@ function StudentsList({
   onNavigate: (view: "list" | "profile", studentId?: string) => void;
 }) {
   const user = useAuthStore((s) => s.user);
-  const canCreate = user?.role === "Admin" || user?.role === "Operator";
+  const canCreate = user?.role === "Admin";
 
   const [students, setStudents] = useState<Student[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
@@ -1487,8 +1487,7 @@ function StudentsList({
                           >
                             <CalendarDays className="h-4 w-4" />
                           </Button>
-                          {(user?.role === "Admin" ||
-                            user?.role === "Operator") && (
+                          {user?.role === "Admin" && (
                             <Button
                               type="button"
                               variant="ghost"
@@ -1589,8 +1588,7 @@ function StudentsList({
                     <CalendarDays className="h-3.5 w-3.5 mr-1" />
                     Eventos
                   </Button>
-                  {(user?.role === "Admin" ||
-                    user?.role === "Operator") && (
+                  {user?.role === "Admin" && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -1681,7 +1679,7 @@ export function StudentsPage() {
 
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "Admin";
-  const canEdit = user?.role === "Admin" || user?.role === "Operator";
+  const canEdit = user?.role === "Admin";
 
   const handleNavigate = async (
     newView: "list" | "profile",

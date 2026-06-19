@@ -9,6 +9,8 @@ export interface User {
   status: string;
   profile_photo: string | null;
   must_change_password: boolean;
+  /** Schools this user is allowed to access. Empty array for Admins (they see all). */
+  school_ids?: string[];
 }
 
 interface AuthState {

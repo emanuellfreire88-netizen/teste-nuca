@@ -10,41 +10,9 @@ This information is used to shape Next.js' roadmap and prioritize features.
 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
 https://nextjs.org/telemetry
 
-✓ Ready in 1091ms
-$ next dev -p 3000 -H 0.0.0.0
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 989ms
+✓ Ready in 1029ms
 ○ Compiling / ...
- GET / 200 in 6.4s (compile: 6.1s, render: 260ms)
- HEAD / 200 in 29ms (compile: 6ms, render: 23ms)
- GET / 200 in 42ms (compile: 4ms, render: 38ms)
- GET / 200 in 34ms (compile: 4ms, render: 30ms)
- GET / 200 in 48ms (compile: 6ms, render: 42ms)
- POST /api/auth/login 200 in 2.1s (compile: 598ms, render: 1540ms)
- GET /api/reports 200 in 1172ms (compile: 216ms, render: 956ms)
- GET /api/reports 200 in 247ms (compile: 2ms, render: 245ms)
- GET /api/support/tickets?limit=50 200 in 1037ms (compile: 148ms, render: 889ms)
- GET /api/support/tickets?limit=50 200 in 445ms (compile: 1994µs, render: 443ms)
- GET / 200 in 60ms (compile: 11ms, render: 49ms)
- GET / 200 in 32ms (compile: 5ms, render: 27ms)
- GET / 200 in 36ms (compile: 6ms, render: 31ms)
- GET / 200 in 43ms (compile: 10ms, render: 34ms)
- GET / 200 in 35ms (compile: 4ms, render: 31ms)
- GET / 200 in 33ms (compile: 4ms, render: 29ms)
- GET / 200 in 49ms (compile: 6ms, render: 44ms)
- GET / 200 in 25ms (compile: 4ms, render: 21ms)
- GET / 200 in 31ms (compile: 3ms, render: 28ms)
- GET / 200 in 37ms (compile: 7ms, render: 31ms)
- GET / 200 in 63ms (compile: 11ms, render: 52ms)
- GET / 200 in 84ms (compile: 55ms, render: 29ms)
-✓ Compiled in 184ms
- GET / 200 in 85ms (compile: 54ms, render: 32ms)
-[?25h
+ GET / 200 in 6.8s (compile: 6.5s, render: 258ms)
 $ next dev -p 3000 -H 0.0.0.0
 ▲ Next.js 16.1.3 (Turbopack)
 - Local:         http://localhost:3000
@@ -57,84 +25,88 @@ This information is used to shape Next.js' roadmap and prioritize features.
 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
 https://nextjs.org/telemetry
 
-✓ Ready in 1049ms
+✓ Ready in 1121ms
 ○ Compiling / ...
- GET / 200 in 6.8s (compile: 6.5s, render: 257ms)
- HEAD / 200 in 31ms (compile: 6ms, render: 25ms)
- GET / 200 in 45ms (compile: 9ms, render: 36ms)
- POST /api/auth/login 200 in 2.1s (compile: 588ms, render: 1493ms)
- GET /api/reports 200 in 1126ms (compile: 157ms, render: 969ms)
- GET /api/reports 200 in 235ms (compile: 2ms, render: 233ms)
- GET /api/users?limit=100 200 in 918ms (compile: 154ms, render: 764ms)
- GET /api/users?limit=100 200 in 238ms (compile: 2ms, render: 236ms)
- POST /api/users 201 in 1434ms (compile: 4ms, render: 1430ms)
- GET /api/users?limit=100 200 in 709ms (compile: 3ms, render: 707ms)
- DELETE /api/users/f3d107eb-dcc5-4f75-a139-a23c0ee9ed75 200 in 2.6s (compile: 887ms, render: 1680ms)
- GET /api/users?limit=100 200 in 663ms (compile: 3ms, render: 660ms)
- GET /api/support/tickets?limit=50 200 in 1071ms (compile: 213ms, render: 858ms)
- GET /api/support/tickets?limit=50 200 in 477ms (compile: 1998µs, render: 475ms)
-[?25h
-$ next dev -p 3000 -H 0.0.0.0
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-Attention: Next.js now collects completely anonymous telemetry regarding usage.
-This information is used to shape Next.js' roadmap and prioritize features.
-You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-https://nextjs.org/telemetry
-
-✓ Ready in 1025ms
-○ Compiling / ...
- HEAD / 200 in 6.3s (compile: 6.0s, render: 239ms)
- GET / 200 in 90ms (compile: 13ms, render: 77ms)
- GET / 200 in 39ms (compile: 8ms, render: 31ms)
- GET / 200 in 40ms (compile: 8ms, render: 31ms)
- GET / 200 in 33ms (compile: 4ms, render: 29ms)
- GET / 200 in 31ms (compile: 4ms, render: 28ms)
- GET / 200 in 34ms (compile: 7ms, render: 27ms)
- GET / 200 in 55ms (compile: 9ms, render: 46ms)
- GET / 200 in 33ms (compile: 4ms, render: 30ms)
- GET / 200 in 31ms (compile: 4ms, render: 27ms)
- GET / 200 in 43ms (compile: 11ms, render: 32ms)
-✓ Compiled in 481ms
- GET / 200 in 421ms (compile: 202ms, render: 218ms)
- GET / 200 in 36ms (compile: 4ms, render: 32ms)
- GET / 200 in 46ms (compile: 11ms, render: 35ms)
- POST /api/auth/login 200 in 2.7s (compile: 591ms, render: 2.1s)
- GET /api/reports 200 in 1154ms (compile: 203ms, render: 951ms)
- GET /api/reports 200 in 248ms (compile: 2ms, render: 246ms)
- GET / 200 in 81ms (compile: 17ms, render: 64ms)
- GET / 200 in 82ms (compile: 47ms, render: 35ms)
- GET / 200 in 41ms (compile: 8ms, render: 32ms)
- GET / 200 in 30ms (compile: 3ms, render: 26ms)
- GET / 200 in 263ms (compile: 83ms, render: 181ms)
- GET / 200 in 311ms (compile: 105ms, render: 206ms)
- POST /api/auth/login 200 in 1432ms (compile: 3ms, render: 1429ms)
- GET /api/reports 200 in 896ms (compile: 3ms, render: 893ms)
- GET /api/reports 200 in 229ms (compile: 1679µs, render: 228ms)
- GET / 200 in 33ms (compile: 6ms, render: 27ms)
- GET / 200 in 31ms (compile: 4ms, render: 27ms)
- GET / 200 in 38ms (compile: 5ms, render: 33ms)
- GET / 200 in 47ms (compile: 16ms, render: 31ms)
- POST /api/auth/login 200 in 1377ms (compile: 2ms, render: 1375ms)
- GET /api/reports 200 in 715ms (compile: 1842µs, render: 713ms)
- GET /api/reports 200 in 238ms (compile: 1773µs, render: 236ms)
- GET /api/schools?limit=100 200 in 1507ms (compile: 138ms, render: 1369ms)
- GET /api/schools?limit=100 200 in 242ms (compile: 2ms, render: 240ms)
-✓ Compiled in 235ms
- GET / 200 in 206ms (compile: 65ms, render: 141ms)
- GET / 200 in 62ms (compile: 14ms, render: 48ms)
- GET /api/reports 200 in 732ms (compile: 9ms, render: 722ms)
- GET /api/reports 200 in 741ms (compile: 4ms, render: 738ms)
- GET / 200 in 61ms (compile: 14ms, render: 47ms)
- GET /api/reports 200 in 692ms (compile: 3ms, render: 689ms)
- GET /api/reports 200 in 695ms (compile: 9ms, render: 686ms)
-✓ Compiled in 219ms
- GET / 200 in 39ms (compile: 6ms, render: 33ms)
- GET /api/reports 200 in 718ms (compile: 2ms, render: 716ms)
- GET /api/reports 200 in 721ms (compile: 1507µs, render: 720ms)
- GET /api/schools?limit=100 200 in 673ms (compile: 2ms, render: 671ms)
- GET /api/schools?limit=100 200 in 719ms (compile: 5ms, render: 714ms)
+ GET / 200 in 6.6s (compile: 6.3s, render: 263ms)
+prisma:error Transactions are not supported in HTTP mode
+Create user error: Error: Transactions are not supported in HTTP mode
+    at ignore-listed frames {
+  clientVersion: '6.19.2'
+}
+ POST /api/users 500 in 2.1s (compile: 482ms, render: 1644ms)
+prisma:error Transactions are not supported in HTTP mode
+Create user error: Error: Transactions are not supported in HTTP mode
+    at ignore-listed frames {
+  clientVersion: '6.19.2'
+}
+ POST /api/users 500 in 1911ms (compile: 53ms, render: 1858ms)
+ POST /api/users 409 in 935ms (compile: 53ms, render: 883ms)
+ GET /api/users?limit=100 200 in 997ms (compile: 3ms, render: 993ms)
+prisma:error Transactions are not supported in HTTP mode
+Update user error: Error: Transactions are not supported in HTTP mode
+    at ignore-listed frames {
+  clientVersion: '6.19.2'
+}
+ PUT /api/users/fe31f67a-3c8b-419f-82d3-99f069f8928d 500 in 1319ms (compile: 952ms, render: 367ms)
+ PUT /api/users/fe31f67a-3c8b-419f-82d3-99f069f8928d 200 in 2.5s (compile: 126ms, render: 2.4s)
+ POST /api/auth/login 200 in 1942ms (compile: 268ms, render: 1674ms)
+ GET /api/schools?limit=100 200 in 1337ms (compile: 160ms, render: 1177ms)
+ POST /api/schools 403 in 8ms (compile: 3ms, render: 5ms)
+ POST /api/students 403 in 146ms (compile: 140ms, render: 5ms)
+ GET /api/students?limit=500 200 in 1808ms (compile: 2ms, render: 1806ms)
+ GET /api/students?limit=1 200 in 1539ms (compile: 3ms, render: 1536ms)
+prisma:error Transactions are not supported in HTTP mode
+Create/update attendance error: Error: Transactions are not supported in HTTP mode
+    at ignore-listed frames {
+  clientVersion: '6.19.2'
+}
+ POST /api/attendance 500 in 690ms (compile: 162ms, render: 528ms)
+ GET /api/schools?limit=100 200 in 235ms (compile: 2ms, render: 232ms)
+ POST /api/attendance 200 in 1377ms (compile: 54ms, render: 1323ms)
+ GET /api/students?limit=100 200 in 1163ms (compile: 1814µs, render: 1161ms)
+ POST /api/attendance 404 in 457ms (compile: 1918µs, render: 455ms)
+ GET /api/students?limit=3 200 in 687ms (compile: 1853µs, render: 685ms)
+ POST /api/attendance 200 in 1136ms (compile: 1897µs, render: 1134ms)
+ GET /api/users?limit=100 200 in 905ms (compile: 2ms, render: 903ms)
+ GET / 200 in 81ms (compile: 10ms, render: 71ms)
+⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ POST /api/auth/login 200 in 1388ms (compile: 3ms, render: 1385ms)
+ GET /api/auth/me 200 in 1131ms (compile: 207ms, render: 924ms)
+ GET /api/reports 200 in 1098ms (compile: 148ms, render: 950ms)
+ GET /api/reports 200 in 230ms (compile: 2ms, render: 228ms)
+ GET /api/schools?limit=100 200 in 667ms (compile: 6ms, render: 661ms)
+ GET /api/schools?limit=100 200 in 227ms (compile: 1986µs, render: 225ms)
+ GET /api/users?limit=100 200 in 1362ms (compile: 3ms, render: 1358ms)
+ GET /api/users?limit=100 200 in 443ms (compile: 2ms, render: 441ms)
+ POST /api/users 201 in 2.2s (compile: 2ms, render: 2.2s)
+ GET /api/users?limit=100 200 in 922ms (compile: 1536µs, render: 921ms)
+ GET / 200 in 42ms (compile: 6ms, render: 36ms)
+ POST /api/auth/login 200 in 1598ms (compile: 3ms, render: 1596ms)
+ POST /api/auth/change-password 400 in 1381ms (compile: 141ms, render: 1240ms)
+ POST /api/auth/change-password 200 in 2.0s (compile: 2ms, render: 2000ms)
+ GET /api/auth/me 200 in 701ms (compile: 4ms, render: 697ms)
+ GET /api/support/tickets?limit=50 200 in 1015ms (compile: 142ms, render: 873ms)
+ GET /api/support/tickets?limit=50 200 in 233ms (compile: 2ms, render: 231ms)
+ GET /api/reports 200 in 1369ms (compile: 2ms, render: 1366ms)
+ GET /api/reports 200 in 1402ms (compile: 9ms, render: 1393ms)
+ GET /api/schools?limit=100 200 in 1523ms (compile: 3ms, render: 1520ms)
+ GET /api/schools?limit=100 200 in 1542ms (compile: 3ms, render: 1540ms)
+ GET /api/support/tickets?limit=50 200 in 683ms (compile: 1834µs, render: 681ms)
+ GET /api/support/tickets?limit=50 200 in 714ms (compile: 2ms, render: 711ms)
+ GET /api/support/tickets?limit=50 200 in 691ms (compile: 2ms, render: 689ms)
+ GET /api/schools?limit=100 200 in 883ms (compile: 6ms, render: 877ms)
+ GET /api/schools?limit=100 200 in 929ms (compile: 1827µs, render: 927ms)
+ GET /api/reports 200 in 1340ms (compile: 5ms, render: 1335ms)
+ GET /api/reports 200 in 1391ms (compile: 3ms, render: 1388ms)
+ GET /api/reports/students-grouped?sort=asc 200 in 1934ms (compile: 131ms, render: 1804ms)
+ GET /api/reports/students-grouped?sort=asc 200 in 1355ms (compile: 1633µs, render: 1353ms)
+ GET /api/schools 200 in 1330ms (compile: 3ms, render: 1327ms)
+ GET /api/students?page=1&limit=10 200 in 1558ms (compile: 5ms, render: 1553ms)
+ GET /api/schools 200 in 464ms (compile: 3ms, render: 461ms)
+ GET /api/students?page=1&limit=10 200 in 658ms (compile: 1890µs, render: 656ms)
+ GET /api/schools?limit=100 200 in 1313ms (compile: 2ms, render: 1311ms)
+ GET /api/schools?limit=100 200 in 1350ms (compile: 2ms, render: 1348ms)
+ GET /api/support/tickets?limit=50 200 in 236ms (compile: 1960µs, render: 234ms)
+ GET /api/students?school_id=5340f40a-d719-4d0d-af8f-bc27c7c8ca62&limit=100 200 in 1522ms (compile: 3ms, render: 1518ms)
+ GET /api/attendance?school_id=5340f40a-d719-4d0d-af8f-bc27c7c8ca62&date=2026-06-19 200 in 453ms (compile: 6ms, render: 447ms)

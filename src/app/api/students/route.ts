@@ -4,6 +4,7 @@ import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 import { ciContains } from '@/lib/search';
+import { getUserSchoolIds } from '@/lib/user-schools';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -30,9 +31,32 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     }
 
     if (status) where.status = status;
-    if (school_id) where.school_id = school_id;
     if (grade) where.grade = grade;
     if (classFilter) where.class = classFilter;
+
+    // ── School scoping ──
+    // Non-admins are restricted to their assigned schools. If they request a
+    // specific school_id, we also verify it is within their allowed set.
+    const allowedSchoolIds = await getUserSchoolIds(req.user!.userId, req.user!.role);
+
+    if (allowedSchoolIds !== null) {
+      // Non-admin
+      if (school_id) {
+        // Requested school must be within the allowed set
+        if (!allowedSchoolIds.includes(school_id)) {
+          return NextResponse.json({
+            students: [],
+            pagination: { page, limit, total: 0, totalPages: 0 },
+          });
+        }
+        where.school_id = school_id;
+      } else {
+        where.school_id = { in: allowedSchoolIds };
+      }
+    } else if (school_id) {
+      // Admin explicitly filtering by school
+      where.school_id = school_id;
+    }
 
     const [students, total] = await Promise.all([
       db.student.findMany({
@@ -69,7 +93,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   }
 });
 
-export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
+export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
     const {

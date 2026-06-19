@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
+import { getUserSchoolIdsList } from '@/lib/user-schools';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -28,7 +29,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    return NextResponse.json({ user });
+    // Include the list of schools the user can access (empty array for Admins)
+    const school_ids = await getUserSchoolIdsList(user.id, user.role);
+
+    return NextResponse.json({ user: { ...user, school_ids } });
   } catch (error) {
     console.error('Get current user error:', error);
     return NextResponse.json(

@@ -31,7 +31,10 @@ import {
   X,
   KeyRound,
   RotateCcw,
+  School as SchoolIcon,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface User {
@@ -44,6 +47,12 @@ interface User {
   must_change_password: boolean;
   last_login: string | null;
   created_at: string;
+  school_ids?: string[];
+}
+
+interface SchoolOption {
+  id: string;
+  name: string;
 }
 
 interface UsersResponse {
@@ -61,6 +70,7 @@ interface UserFormData {
   password: string;
   role: "Admin" | "Operator" | "Viewer";
   status: "active" | "inactive";
+  school_ids: string[];
 }
 
 const emptyForm: UserFormData = {
@@ -69,6 +79,7 @@ const emptyForm: UserFormData = {
   password: "",
   role: "Viewer",
   status: "active",
+  school_ids: [],
 };
 
 // ─── Constants ────────────────────────────────────────────────────────
@@ -168,6 +179,9 @@ export function UsersPage() {
   const [resetPassword, setResetPassword] = useState("");
   const [resetSaving, setResetSaving] = useState(false);
 
+  // Schools list for the multi-select (operator/viewer school access)
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
+
   const isAdmin = currentUser?.role === "Admin";
 
   const fetchUsers = useCallback(async () => {
@@ -182,9 +196,19 @@ export function UsersPage() {
     }
   }, []);
 
+  const fetchSchools = useCallback(async () => {
+    try {
+      const data = await api.get<{ schools: SchoolOption[] }>("/schools?limit=100");
+      setSchools(data.schools || []);
+    } catch {
+      // Silent — the multi-select will just show an empty list
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchSchools();
+  }, [fetchUsers, fetchSchools]);
 
   const filteredUsers = users.filter(
     (u) =>
@@ -220,8 +244,22 @@ export function UsersPage() {
       password: "",
       role: user.role,
       status: user.status as "active" | "inactive",
+      school_ids: user.school_ids ?? [],
     });
     setModalMode("edit");
+  };
+
+  // ─── Toggle a school in the form's school_ids ─────────────────────
+  const toggleSchool = (schoolId: string) => {
+    setFormData((prev) => {
+      const has = prev.school_ids.includes(schoolId);
+      return {
+        ...prev,
+        school_ids: has
+          ? prev.school_ids.filter((id) => id !== schoolId)
+          : [...prev.school_ids, schoolId],
+      };
+    });
   };
 
   // ─── Open Reset Password ──────────────────────────────────────
@@ -275,9 +313,18 @@ export function UsersPage() {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
+    // Non-admin roles require at least one school
+    if (formData.role !== "Admin" && formData.school_ids.length === 0) {
+      toast.error("Selecione ao menos uma escola para este operador");
+      return;
+    }
     try {
       setSaving(true);
-      await api.post<UserResponse>("/users", formData);
+      await api.post<UserResponse>("/users", {
+        ...formData,
+        // Admins don't need school assignments (they see all)
+        school_ids: formData.role === "Admin" ? [] : formData.school_ids,
+      });
       toast.success("Usuário criado com sucesso!");
       closeModal();
       fetchUsers();
@@ -302,13 +349,20 @@ export function UsersPage() {
       toast.error("Nome e e-mail são obrigatórios");
       return;
     }
+    // Non-admin roles require at least one school
+    if (formData.role !== "Admin" && formData.school_ids.length === 0) {
+      toast.error("Selecione ao menos uma escola para este operador");
+      return;
+    }
     try {
       setSaving(true);
-      const body: Record<string, string> = {
+      const body: Record<string, unknown> = {
         full_name: formData.full_name,
         email: formData.email,
         role: formData.role,
         status: formData.status,
+        // Always sync school_ids (Admins get an empty list)
+        school_ids: formData.role === "Admin" ? [] : formData.school_ids,
       };
       if (formData.password) {
         body.password = formData.password;
@@ -436,6 +490,7 @@ export function UsersPage() {
                   <TableHead>Nome</TableHead>
                   <TableHead>E-mail</TableHead>
                   <TableHead>Papel</TableHead>
+                  <TableHead>Escolas</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Último Login</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -458,6 +513,15 @@ export function UsersPage() {
                       <Badge variant="outline" className={roleBadgeClass[user.role]}>
                         {roleLabels[user.role]}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {user.role === "Admin" ? (
+                        <span className="text-xs text-muted-foreground">Todas</span>
+                      ) : (
+                        <Badge variant="outline" className="bg-cyan-50 text-cyan-800 dark:bg-cyan-950/50 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800 text-xs">
+                          {(user.school_ids?.length ?? 0)} escola(s)
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={statusBadgeClass[user.status]}>
@@ -584,6 +648,43 @@ export function UsersPage() {
               </select>
             </div>
           </div>
+
+          {formData.role !== "Admin" && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-1.5">
+                  <SchoolIcon className="h-3.5 w-3.5" />
+                  Escolas com acesso *
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  {formData.school_ids.length} selecionada(s)
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground dark:text-gray-400">
+                Selecione em quais escolas este operador poderá fazer frequência.
+              </p>
+              {schools.length === 0 ? (
+                <div className="rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">
+                  Nenhuma escola cadastrada.
+                </div>
+              ) : (
+                <div className="rounded-md border max-h-44 overflow-y-auto">
+                  {schools.map((school) => (
+                    <label
+                      key={school.id}
+                      className="flex items-center gap-2.5 px-3 py-2 hover:bg-accent/50 cursor-pointer border-b last:border-b-0"
+                    >
+                      <Checkbox
+                        checked={formData.school_ids.includes(school.id)}
+                        onCheckedChange={() => toggleSchool(school.id)}
+                      />
+                      <span className="text-sm">{school.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 mt-6">
@@ -684,6 +785,43 @@ export function UsersPage() {
               </select>
             </div>
           </div>
+
+          {formData.role !== "Admin" && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-1.5">
+                  <SchoolIcon className="h-3.5 w-3.5" />
+                  Escolas com acesso *
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  {formData.school_ids.length} selecionada(s)
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground dark:text-gray-400">
+                Selecione em quais escolas este operador poderá fazer frequência.
+              </p>
+              {schools.length === 0 ? (
+                <div className="rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">
+                  Nenhuma escola cadastrada.
+                </div>
+              ) : (
+                <div className="rounded-md border max-h-44 overflow-y-auto">
+                  {schools.map((school) => (
+                    <label
+                      key={school.id}
+                      className="flex items-center gap-2.5 px-3 py-2 hover:bg-accent/50 cursor-pointer border-b last:border-b-0"
+                    >
+                      <Checkbox
+                        checked={formData.school_ids.includes(school.id)}
+                        onCheckedChange={() => toggleSchool(school.id)}
+                      />
+                      <span className="text-sm">{school.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 mt-6">

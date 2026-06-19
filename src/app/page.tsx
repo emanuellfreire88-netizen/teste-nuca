@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import { useAuthStore } from "@/lib/auth-store";
+import { api } from "@/lib/api";
 import { LoginPage } from "@/components/login-page";
 import { AppLayout, type PageKey } from "@/components/app-layout";
 
@@ -29,8 +30,28 @@ function useHydrated() {
 
 export default function Home() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const hydrated = useHydrated();
   const [currentPage, setCurrentPage] = useState<PageKey>("dashboard");
+
+  // Refresh the current user profile once on mount so that fields like
+  // role, status and school_ids are always up to date (e.g. if an admin
+  // changed the operator's school access in another session).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get<{ user: { id: string; full_name: string; email: string; role: "Admin" | "Operator" | "Viewer"; status: string; profile_photo: string | null; must_change_password: boolean; school_ids?: string[] } }>("/auth/me");
+        if (!cancelled && data.user) {
+          updateUser(data.user);
+        }
+      } catch {
+        // Silent: 401 is handled by the api client (triggers logout).
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, updateUser]);
 
   if (!hydrated) {
     return (

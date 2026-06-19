@@ -65,6 +65,7 @@ export function LoginPage() {
           status: string;
           profile_photo: string | null;
           must_change_password: boolean;
+          school_ids?: string[];
         };
         mustChangePassword?: boolean;
       }>("/auth/login", { email, password, remember });

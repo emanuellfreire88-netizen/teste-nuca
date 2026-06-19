@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
+import { getUserSchoolIds, canUserAccessSchool } from '@/lib/user-schools';
 
 /**
  * Create a consistent UTC midnight Date from a date string like "2026-06-12".
@@ -50,6 +51,32 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     if (school_id) {
       where.student = { school_id };
+    }
+
+    // ── Scope attendance to the operator's assigned schools ──
+    // Non-admins can only see attendance for students in their schools.
+    const allowedSchoolIds = await getUserSchoolIds(req.user!.userId, req.user!.role);
+    if (allowedSchoolIds !== null) {
+      // Non-admin
+      if (allowedSchoolIds.length === 0) {
+        // No schools assigned → no records
+        return NextResponse.json({
+          records: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+        });
+      }
+      // If a specific school_id was requested, ensure it's within allowed set
+      if (school_id && !allowedSchoolIds.includes(school_id)) {
+        return NextResponse.json({
+          records: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+        });
+      }
+      // Combine with any existing student filter
+      where.student = {
+        ...(where.student as Record<string, unknown> | undefined),
+        school_id: { in: allowedSchoolIds },
+      };
     }
 
     // Pagination to prevent loading all records at once
@@ -106,7 +133,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 
     // Batch request: body.records is an array of { student_id, date, status }
     if (Array.isArray(body.records)) {
-      return await handleBatchAttendance(body.records, req.user!.userId);
+      return await handleBatchAttendance(body.records, req.user!.userId, req.user!.role);
     }
 
     // Single record request (backward compatible)
@@ -135,9 +162,25 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       );
     }
 
+    // Non-admins can only mark attendance for students in their assigned schools
+    const canAccess = await canUserAccessSchool(
+      req.user!.userId,
+      req.user!.role,
+      student.school_id
+    );
+    if (!canAccess) {
+      return NextResponse.json(
+        { error: 'Aluno não encontrado' },
+        { status: 404 }
+      );
+    }
+
     const dateObj = toUTCDate(date);
 
-    // Use upsert on student_id + date unique constraint
+    // Use upsert on student_id + date unique constraint.
+    // NOTE: Neon HTTP adapter does not support `include` on upsert (triggers
+    // a transaction). Return the bare record; callers that need the student
+    // info already have the student_id.
     const record = await db.attendanceRecord.upsert({
       where: {
         student_id_date: {
@@ -155,11 +198,6 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         status,
         created_by: req.user!.userId,
       },
-      include: {
-        student: {
-          select: { id: true, full_name: true },
-        },
-      },
     });
 
     return NextResponse.json({ record });
@@ -174,7 +212,8 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 
 async function handleBatchAttendance(
   records: { student_id: string; date: string; status: string }[],
-  userId: string
+  userId: string,
+  userRole: string
 ) {
   if (records.length === 0) {
     return NextResponse.json(
@@ -211,7 +250,7 @@ async function handleBatchAttendance(
   const studentIds = [...new Set(records.map((r) => r.student_id))];
   const existingStudents = await db.student.findMany({
     where: { id: { in: studentIds } },
-    select: { id: true },
+    select: { id: true, school_id: true },
   });
   const existingIds = new Set(existingStudents.map((s) => s.id));
 
@@ -220,6 +259,22 @@ async function handleBatchAttendance(
       return NextResponse.json(
         { error: `Aluno não encontrado: ${rec.student_id}` },
         { status: 404 }
+      );
+    }
+  }
+
+  // ── School access check for non-admins ──
+  // Operators can only mark attendance for students in their assigned schools.
+  const allowedSchoolIds = await getUserSchoolIds(userId, userRole);
+  if (allowedSchoolIds !== null) {
+    const allowedSet = new Set(allowedSchoolIds);
+    const offLimits = existingStudents.find(
+      (s) => !allowedSet.has(s.school_id)
+    );
+    if (offLimits) {
+      return NextResponse.json(
+        { error: 'Você não tem permissão para registrar frequência de alunos de todas as escolas informadas.' },
+        { status: 403 }
       );
     }
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { comparePassword, generateToken, validatePasswordStrength } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
+import { getUserSchoolIdsList } from '@/lib/user-schools';
 
 // In-memory rate limiter for login attempts
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
@@ -175,6 +176,9 @@ export async function POST(req: NextRequest) {
     // Log successful login
     await logAction(user.id, 'login', `Login realizado: ${user.email}`, req);
 
+    // Fetch the list of schools this user can access (empty for Admin — Admins see all)
+    const school_ids = await getUserSchoolIdsList(user.id, user.role);
+
     // Return user info without password or sensitive fields
     const { password: _, two_factor_secret: __, ...userWithoutSensitive } = user;
 
@@ -183,6 +187,7 @@ export async function POST(req: NextRequest) {
       user: {
         ...userWithoutSensitive,
         last_login: new Date(),
+        school_ids,
       },
       mustChangePassword: user.must_change_password,
     });

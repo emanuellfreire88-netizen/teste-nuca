@@ -827,3 +827,87 @@ Stage Summary:
 - ✅ Toda lógica funcional preservada (login, must-change-password, validação)
 - ✅ VLM confirmou design profissional
 - ✅ Login testado end-to-end funcionando
+
+---
+Task ID: operator-school-access-2026-06-19
+Agent: Main Agent (Z.ai Code)
+Task: Adicionar opção para o admin escolher em quais escolas o operador pode fazer frequência e ter acesso (multi-seleção). Operador não pode adicionar alunos nem escolas, apenas fazer frequência.
+
+Work Log:
+- Analisado o schema, APIs e componentes existentes (users, schools, students, attendance, events, reports)
+- Criado modelo `UserSchool` (junction table user↔school) no schema.prisma e schema.vercel.prisma
+- Executado `bun run db:push` para criar a tabela `user_schools` no banco Neon
+- Criado helper `src/lib/user-schools.ts` com:
+  - `getUserSchoolIds(userId, role)` → retorna null para Admin (sem filtro) ou string[] para não-admin
+  - `getUserSchoolIdsList(userId, role)` → retorna string[] sempre
+  - `canUserAccessSchool(userId, role, schoolId)` → verifica acesso a uma escola específica
+- Atualizadas APIs de auth (login + me) para retornar `school_ids` do usuário
+- Atualizadas APIs de users (GET list, POST create, GET [id], PUT [id]) para incluir e persistir `school_ids`
+  - POST: cria user primeiro, depois cria UserSchool links individualmente (Neon HTTP não suporta nested writes/transações)
+  - PUT: sincroniza school_ids (deleteMany + creates individuais)
+- Restringido mutations para Admin apenas:
+  - schools POST: era ['Admin','Operator'] → agora ['Admin']
+  - schools/[id] PUT: era ['Admin','Operator'] → agora ['Admin']
+  - students POST: era ['Admin','Operator'] → agora ['Admin']
+  - students/[id] PUT: era ['Admin','Operator'] → agora ['Admin']
+- Adicionado scoping por escola para operadores em:
+  - schools GET (filtra por allowedSchoolIds)
+  - schools/[id] GET (verifica canUserAccessSchool)
+  - students GET (filtra school_id por allowedSchoolIds)
+  - students/[id] GET (verifica canUserAccessSchool)
+  - attendance GET (filtra por student.school_id)
+  - attendance POST single (verifica canUserAccessSchool do aluno)
+  - attendance POST batch (verifica todos os alunos pertencem às escolas permitidas)
+  - events GET (filtra por school_id ∈ allowedSchoolIds)
+  - reports GET (filtra schools, students e attendance por allowedSchoolIds)
+- Corrigido erro de transação do adapter Neon HTTP:
+  - Removido `include` do `attendanceRecord.upsert` (single record)
+  - Trocado `createMany` por loop de `create` individuais em users POST e PUT
+  - Removido `user_schools` do select do `user.update` (busca separada)
+- Atualizado `auth-store.ts`: adicionado `school_ids?: string[]` na interface User
+- Atualizado `page.tsx`: adicionado refresh de `/auth/me` on mount para manter store atualizado
+- Atualizado `login-page.tsx`: adicionado `school_ids` no tipo do user de login
+- Atualizado `users-page.tsx`:
+  - Adicionado multi-select de escolas (checkboxes) no modal de criar e editar (visível quando role ≠ Admin)
+  - Adicionado coluna "Escolas" na tabela (mostra "Todas" para Admin, "N escola(s)" para operadores)
+  - Validação: operador/viewer deve ter ao menos 1 escola selecionada
+  - Busca lista de escolas via /schools?limit=100
+- Atualizado `schools-page.tsx`: `canEdit` agora é apenas Admin (operador vê escolas read-only, filtradas pela API)
+- Atualizado `students-page.tsx`:
+  - `canEdit` e `canCreate` agora são apenas Admin
+  - Botões "Novo Aluno", "Editar" (lista e perfil) escondidos para operadores
+- Lint: 0 erros, 0 warnings
+
+- Verificação Agent Browser (golden path completo):
+  1. Login admin (emanuell.fp.rocha@gmail.com) → Dashboard ✓
+  2. Página Usuários: nova coluna "Escolas" visível, "Operador Teste Escolas" mostra "2 escola(s)" ✓
+  3. Modal "Novo Usuário": multi-select de escolas aparece com 4 checkboxes (Benício, Conceição, Estadual, Pedro Ferreira) ✓
+  4. Criado operador "Operador Browser Teste" (op.browser.teste@nuca.com) com role=Operator e escolas Estadual + Pedro Ferreira → POST 201 ✓
+  5. Novo operador aparece na tabela com "2 escola(s)" ✓
+  6. Logout admin, login como operador → tela de redefinir senha (must-change-password) ✓
+  7. Troca de senha → Dashboard do operador (nav sem Usuários/Logs/Suporte, tem botão "Abrir suporte" flutuante) ✓
+  8. Página Frequência: dropdown de escolas mostra apenas Estadual + Pedro Ferreira (2 atribuídas) ✓
+  9. Selecionou Escola Estadual → 14 alunos carregados, botões Presente/Ausente funcionais ✓
+  10. Página Escolas: apenas 2 escolas (Estadual + Pedro Ferreira), SEM botão "Nova escola" ✓
+  11. Página Alunos: alunos apenas das 2 escolas, SEM botão "Novo Aluno" ✓
+  12. Sem erros no console ✓
+
+- Verificação API (curl):
+  - Operador tenta criar escola → 403 "Permissão insuficiente" ✓
+  - Operador tenta criar aluno → 403 "Permissão insuficiente" ✓
+  - Operador vê apenas alunos das 2 escolas (40 alunos, apenas Benício+Conceição ou Estadual+Pedro) ✓
+  - Operador marca frequência de aluno da sua escola → 200 ✓
+  - Operador tenta frequência de aluno de OUTRA escola → 404 ✓
+  - Operador batch attendance (3 alunos próprios) → 200 {"total":3} ✓
+  - Admin vê todas as 4 escolas ✓
+
+Stage Summary:
+- ✅ Admin pode selecionar múltiplas escolas para cada operador (multi-select com checkboxes)
+- ✅ Operador só vê/faz frequência nas escolas atribuídas (filtrado no backend + frontend)
+- ✅ Operador NÃO pode adicionar alunos (botão escondido + API 403)
+- ✅ Operador NÃO pode adicionar escolas (botão escondido + API 403)
+- ✅ Operador PODE fazer frequência (única ação permitida além de visualizar)
+- ✅ Dashboard/Relatórios também escopados por escola para operadores
+- ✅ Tabela de usuários mostra coluna "Escolas" com contagem por operador
+- ✅ Refresh de /auth/me on mount mantém school_ids atualizado no store
+- ⚠️ Nota: adapter Neon HTTP não suporta transações/nested writes — todos os writes de UserSchool são individuais

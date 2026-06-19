@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 import { ciContains } from '@/lib/search';
+import { getUserSchoolIds } from '@/lib/user-schools';
 
 const VALID_CATEGORIES = ['sports', 'cultural', 'party', 'academic', 'other'];
 
@@ -38,10 +39,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       };
     }
 
-    if (school_id) {
-      where.school_id = school_id;
-    }
-
     if (category) {
       where.category = category;
     }
@@ -51,6 +48,28 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       if (date_from) dateFilter.gte = new Date(date_from);
       if (date_to) dateFilter.lte = new Date(date_to);
       where.date = dateFilter;
+    }
+
+    // ── School scoping for events ──
+    // Non-admins only see events linked to their assigned schools (events
+    // with no school_id are admin-only and hidden from operators).
+    const allowedSchoolIds = await getUserSchoolIds(req.user!.userId, req.user!.role);
+    if (allowedSchoolIds !== null) {
+      if (school_id) {
+        // Requested school must be within the allowed set
+        if (!allowedSchoolIds.includes(school_id)) {
+          return NextResponse.json({
+            events: [],
+            pagination: { page, limit, total: 0, totalPages: 0 },
+          });
+        }
+        where.school_id = school_id;
+      } else {
+        where.school_id = { in: allowedSchoolIds };
+      }
+    } else if (school_id) {
+      // Admin explicitly filtering by school
+      where.school_id = school_id;
     }
 
     const [events, total] = await Promise.all([

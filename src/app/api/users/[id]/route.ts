@@ -25,6 +25,7 @@ export async function GET(
           last_login: true,
           created_at: true,
           updated_at: true,
+          user_schools: { select: { school_id: true } },
         },
       });
 
@@ -35,7 +36,13 @@ export async function GET(
         );
       }
 
-      return NextResponse.json({ user });
+      return NextResponse.json({
+        user: {
+          ...user,
+          school_ids: user.user_schools.map((us) => us.school_id),
+          user_schools: undefined,
+        },
+      });
     } catch (error) {
       console.error('Get user error:', error);
       return NextResponse.json(
@@ -54,7 +61,7 @@ export async function PUT(
     try {
       const { id } = await context.params;
       const body = await _req.json();
-      const { full_name, email, password, role, status, profile_photo } = body;
+      const { full_name, email, password, role, status, profile_photo, school_ids } = body;
 
       const existingUser = await db.user.findUnique({ where: { id } });
       if (!existingUser) {
@@ -101,6 +108,9 @@ export async function PUT(
         updateData.password = await hashPassword(password);
       }
 
+      // NOTE: Neon HTTP adapter does not support relation selects inside
+      // update() (triggers a transaction). Update without user_schools in
+      // the select, then fetch the links separately.
       const user = await db.user.update({
         where: { id },
         data: updateData,
@@ -119,9 +129,79 @@ export async function PUT(
         },
       });
 
+      // ── Sync school access (only when school_ids is explicitly provided) ──
+      if (Array.isArray(school_ids)) {
+        const validSchoolIds: string[] = school_ids.filter(
+          (sid: unknown): sid is string => typeof sid === 'string' && sid.length > 0
+        );
+
+        // Verify all provided school IDs exist
+        if (validSchoolIds.length > 0) {
+          const existingSchools = await db.school.findMany({
+            where: { id: { in: validSchoolIds } },
+            select: { id: true },
+          });
+          if (existingSchools.length !== validSchoolIds.length) {
+            return NextResponse.json(
+              { error: 'Uma ou mais escolas selecionadas não existem' },
+              { status: 400 }
+            );
+          }
+        }
+
+        // Fetch current links
+        const currentLinks = await db.userSchool.findMany({
+          where: { user_id: id },
+          select: { school_id: true },
+        });
+        const currentSet = new Set(currentLinks.map((l) => l.school_id));
+        const newSet = new Set(validSchoolIds);
+
+        const toDelete = [...currentSet].filter((sid) => !newSet.has(sid));
+        const toCreate = [...newSet].filter((sid) => !currentSet.has(sid));
+
+        if (toDelete.length > 0) {
+          await db.userSchool.deleteMany({
+            where: { user_id: id, school_id: { in: toDelete } },
+          });
+        }
+        // Insert each new link individually — Neon HTTP adapter does not
+        // support createMany or transactions.
+        for (const sid of toCreate) {
+          await db.userSchool.create({
+            data: { user_id: id, school_id: sid },
+          });
+        }
+
+        await logAction(
+          _req.user!.userId,
+          'update_user',
+          `Escolas de acesso atualizadas para: ${user.email} (${validSchoolIds.length} escola(s))`,
+          _req
+        );
+
+        return NextResponse.json({
+          user: {
+            ...user,
+            school_ids: validSchoolIds,
+          },
+        });
+      }
+
       await logAction(_req.user!.userId, 'update_user', `Usuário atualizado: ${user.email}`, _req);
 
-      return NextResponse.json({ user });
+      // Fetch existing school links to include in the response
+      const existingLinks = await db.userSchool.findMany({
+        where: { user_id: id },
+        select: { school_id: true },
+      });
+
+      return NextResponse.json({
+        user: {
+          ...user,
+          school_ids: existingLinks.map((l) => l.school_id),
+        },
+      });
     } catch (error) {
       console.error('Update user error:', error);
       return NextResponse.json(

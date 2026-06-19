@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
+import { getUserSchoolIds } from '@/lib/user-schools';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -21,11 +22,22 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    // Run all independent queries in parallel (5 queries instead of 10)
+    // ── Scope all stats to the operator's assigned schools ──
+    // Admins see global stats (allowedSchoolIds === null).
+    const allowedSchoolIds = await getUserSchoolIds(req.user!.userId, req.user!.role);
+    const schoolFilter = allowedSchoolIds !== null
+      ? { id: { in: allowedSchoolIds } }
+      : {};
+    const studentSchoolFilter = allowedSchoolIds !== null
+      ? { school_id: { in: allowedSchoolIds } }
+      : {};
+
+    // Run all independent queries in parallel
     const [schoolsWithCounts, studentStatusCounts, todayAttendance, weekAttendance, monthAttendance] =
       await Promise.all([
-        // School list with student counts (also gives us totalSchools via .length)
+        // School list with student counts (scoped to allowed schools)
         db.school.findMany({
+          where: schoolFilter,
           include: {
             _count: {
               select: { students: true },
@@ -34,29 +46,39 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
           orderBy: { name: 'asc' },
         }),
 
-        // Single groupBy replaces 3 separate COUNT queries (active, inactive, total)
+        // Student status counts (scoped to allowed schools)
         db.student.groupBy({
           by: ['status'],
           _count: { status: true },
+          where: studentSchoolFilter,
         }),
 
-        // Single groupBy per time period replaces 2 COUNT queries (present, absent)
+        // Attendance per period (scoped via student.school_id)
         db.attendanceRecord.groupBy({
           by: ['status'],
           _count: { status: true },
-          where: { date: { gte: todayStart, lte: todayEnd } },
+          where: {
+            date: { gte: todayStart, lte: todayEnd },
+            student: studentSchoolFilter,
+          },
         }),
 
         db.attendanceRecord.groupBy({
           by: ['status'],
           _count: { status: true },
-          where: { date: { gte: weekStart, lte: weekEnd } },
+          where: {
+            date: { gte: weekStart, lte: weekEnd },
+            student: studentSchoolFilter,
+          },
         }),
 
         db.attendanceRecord.groupBy({
           by: ['status'],
           _count: { status: true },
-          where: { date: { gte: monthStart, lte: monthEnd } },
+          where: {
+            date: { gte: monthStart, lte: monthEnd },
+            student: studentSchoolFilter,
+          },
         }),
       ]);
 

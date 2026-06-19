@@ -4,6 +4,7 @@ import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 import { ciContains } from '@/lib/search';
+import { getUserSchoolIds } from '@/lib/user-schools';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -19,6 +20,14 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     if (search) {
       where.name = ciContains(search);
+    }
+
+    // ── Scope schools to the ones the operator has access to ──
+    // Admins see all schools (getUserSchoolIds returns null).
+    const allowedSchoolIds = await getUserSchoolIds(req.user!.userId, req.user!.role);
+    if (allowedSchoolIds !== null) {
+      // Non-admin: restrict to assigned schools. If empty, returns nothing.
+      where.id = { in: allowedSchoolIds };
     }
 
     const [schools, total] = await Promise.all([
@@ -59,7 +68,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   }
 });
 
-export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
+export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
     const {
