@@ -133,31 +133,28 @@ export async function DELETE(
         );
       }
 
-      // Use transaction for cascade delete to ensure data consistency
-      await db.$transaction(async (tx) => {
-        if (existingSchool._count.students > 0) {
-          // Cascade: delete event participations, attendance records, then students, then school
-          const studentIds = (await tx.student.findMany({
+      // NOTE: Neon HTTP adapter does not support $transaction. Cascade
+      // delete sequentially instead.
+      if (existingSchool._count.students > 0) {
+        const studentIds = (await db.student.findMany({
+          where: { school_id: id },
+          select: { id: true },
+        })).map((s: { id: string }) => s.id);
+
+        if (studentIds.length > 0) {
+          await db.eventParticipant.deleteMany({
+            where: { student_id: { in: studentIds } },
+          });
+          await db.attendanceRecord.deleteMany({
+            where: { student_id: { in: studentIds } },
+          });
+          await db.student.deleteMany({
             where: { school_id: id },
-            select: { id: true },
-          })).map(s => s.id);
-
-          if (studentIds.length > 0) {
-            // Delete event participations for these students first
-            await tx.eventParticipant.deleteMany({
-              where: { student_id: { in: studentIds } },
-            });
-            await tx.attendanceRecord.deleteMany({
-              where: { student_id: { in: studentIds } },
-            });
-            await tx.student.deleteMany({
-              where: { school_id: id },
-            });
-          }
+          });
         }
+      }
 
-        await tx.school.delete({ where: { id } });
-      });
+      await db.school.delete({ where: { id } });
 
       await logAction(_req.user!.userId, 'delete_school', `Escola excluída: ${existingSchool.name}`, _req);
 

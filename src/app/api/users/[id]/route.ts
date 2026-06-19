@@ -156,33 +156,16 @@ export async function DELETE(
         );
       }
 
-      // Use transaction to cascade delete related records
-      await db.$transaction(async (tx) => {
-        // Find all student IDs from attendance records created by this user
-        const attendanceRecords = await tx.attendanceRecord.findMany({
-          where: { created_by: id },
-          select: { student_id: true },
-        });
-        const studentIds = [...new Set(attendanceRecords.map((r) => r.student_id))];
-
-        // Delete attendance records created by this user
-        await tx.attendanceRecord.deleteMany({
-          where: { created_by: id },
-        });
-
-        // For students whose only attendance records were from this user,
-        // we need to check if they still have records from other users
-        // (No action needed - already deleted above)
-
-        // Set action_logs user_id to null (keep the log history)
-        await tx.actionLog.updateMany({
-          where: { user_id: id },
-          data: { user_id: null },
-        });
-
-        // Delete the user
-        await tx.user.delete({ where: { id } });
+      // NOTE: Neon HTTP adapter does not support $transaction, and
+      // actionLog.updateMany({ data: { user_id: null } }) internally
+      // triggers a transaction. Use raw SQL instead to detach logs.
+      await db.attendanceRecord.deleteMany({
+        where: { created_by: id },
       });
+      // Detach action logs (keep history, null out user_id) via raw SQL
+      await db.$executeRaw`UPDATE "action_logs" SET "user_id" = NULL WHERE "user_id" = ${id}`;
+      // Delete the user
+      await db.user.delete({ where: { id } });
 
       await logAction(_req.user!.userId, 'delete_user', `Usuário excluído: ${existingUser.email}`, _req);
 

@@ -233,30 +233,31 @@ async function handleBatchAttendance(
     for (let i = 0; i < records.length; i += CHUNK_SIZE) {
       const chunk = records.slice(i, i + CHUNK_SIZE);
 
-      const result = await db.$transaction(
-        chunk.map((rec) => {
-          const dateObj = toUTCDate(rec.date);
-
-          return db.attendanceRecord.upsert({
-            where: {
-              student_id_date: {
-                student_id: rec.student_id,
-                date: dateObj,
-              },
-            },
-            create: {
+      // NOTE: Neon HTTP adapter does not support $transaction. Process
+      // upserts sequentially in chunks (still chunked to avoid timeouts).
+      const result = [];
+      for (const rec of chunk) {
+        const dateObj = toUTCDate(rec.date);
+        const upserted = await db.attendanceRecord.upsert({
+          where: {
+            student_id_date: {
               student_id: rec.student_id,
               date: dateObj,
-              status: rec.status,
-              created_by: userId,
             },
-            update: {
-              status: rec.status,
-              created_by: userId,
-            },
-          });
-        })
-      );
+          },
+          create: {
+            student_id: rec.student_id,
+            date: dateObj,
+            status: rec.status,
+            created_by: userId,
+          },
+          update: {
+            status: rec.status,
+            created_by: userId,
+          },
+        });
+        result.push(upserted);
+      }
 
       totalUpserted += result.length;
     }
