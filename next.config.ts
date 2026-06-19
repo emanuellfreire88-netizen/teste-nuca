@@ -48,6 +48,17 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // Prevent browser from caching the main HTML page so users always
+        // get the latest version after deploys/updates (fixes "stale UI").
+        source: "/",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate",
+          },
+        ],
+      },
     ];
   },
 };

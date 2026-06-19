@@ -5,7 +5,12 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 624ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+✓ Ready in 1091ms
 $ next dev -p 3000 -H 0.0.0.0
 ▲ Next.js 16.1.3 (Turbopack)
 - Local:         http://localhost:3000
@@ -13,51 +18,16 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 652ms
- GET / 200 in 2.2s (compile: 2.0s, render: 203ms)
- POST /api/auth/login 200 in 576ms (compile: 456ms, render: 120ms)
- GET /api/students?search=Emanuell 200 in 165ms (compile: 154ms, render: 11ms)
- GET /api/students?search=emanuell 200 in 7ms (compile: 1798µs, render: 5ms)
- GET /api/students?search=EMANUELL 200 in 8ms (compile: 2ms, render: 6ms)
- GET /api/students?search=eMaNuElL 200 in 6ms (compile: 1577µs, render: 5ms)
- GET /api/users?search=emanuell 200 in 145ms (compile: 134ms, render: 11ms)
- GET /api/users?search=EMANUELL 200 in 7ms (compile: 2ms, render: 5ms)
- GET /api/schools?search=escola 200 in 146ms (compile: 137ms, render: 9ms)
- GET /api/schools?search=ESCOLA 200 in 7ms (compile: 1875µs, render: 5ms)
- GET /api/students?search=freire 200 in 10ms (compile: 2ms, render: 7ms)
- GET /api/students?search=FREIRE 200 in 6ms (compile: 1372µs, render: 5ms)
- GET /api/students?search=jo%C3%A3o 200 in 6ms (compile: 1689µs, render: 4ms)
- GET /api/students?search=JO%C3%83O 200 in 5ms (compile: 1261µs, render: 4ms)
- GET / 200 in 81ms (compile: 5ms, render: 75ms)
- POST /api/auth/login 200 in 103ms (compile: 3ms, render: 100ms)
- GET /api/reports 200 in 136ms (compile: 125ms, render: 11ms)
- GET /api/reports 200 in 12ms (compile: 2ms, render: 10ms)
- GET /api/schools 200 in 13ms (compile: 3ms, render: 11ms)
- GET /api/students?page=1&limit=10 200 in 14ms (compile: 7ms, render: 6ms)
- GET /api/schools 200 in 5ms (compile: 1252µs, render: 4ms)
- GET /api/students?page=1&limit=10 200 in 6ms (compile: 1740µs, render: 4ms)
- GET /api/students?page=1&limit=10&search=emanuell 200 in 8ms (compile: 2ms, render: 6ms)
- GET /api/students?page=1&limit=10&search=EMANUELL 200 in 10ms (compile: 3ms, render: 7ms)
- GET /api/students?page=1&limit=10&search=eMaNuElL 200 in 11ms (compile: 3ms, render: 8ms)
- GET /api/students?page=1&limit=10&search=FREIRE 200 in 8ms (compile: 1884µs, render: 6ms)
- GET / 200 in 68ms (compile: 6ms, render: 61ms)
- GET / 200 in 33ms (compile: 6ms, render: 27ms)
- GET / 200 in 33ms (compile: 5ms, render: 29ms)
- POST /api/auth/login 401 in 9ms (compile: 2ms, render: 7ms)
- POST /api/auth/login 401 in 8ms (compile: 2ms, render: 6ms)
- POST /api/auth/login 200 in 325ms (compile: 3ms, render: 322ms)
- POST /api/auth/login 200 in 324ms (compile: 1628µs, render: 323ms)
- GET /api/events/dashboard?period=year 200 in 123ms (compile: 109ms, render: 14ms)
- GET / 200 in 95ms (compile: 22ms, render: 73ms)
- POST /api/auth/login 200 in 332ms (compile: 2ms, render: 330ms)
- GET /api/reports 200 in 10ms (compile: 2ms, render: 8ms)
- GET /api/reports 200 in 8ms (compile: 3ms, render: 4ms)
- GET /api/schools?limit=100 200 in 8ms (compile: 3ms, render: 5ms)
- GET /api/schools?limit=100 200 in 9ms (compile: 1367µs, render: 8ms)
- GET /api/events?limit=100 200 in 129ms (compile: 121ms, render: 8ms)
- GET /api/events?limit=100 200 in 6ms (compile: 1654µs, render: 5ms)
- GET /api/events/dashboard?period=month 200 in 21ms (compile: 3ms, render: 18ms)
- GET /api/events/0fb3baca-c9a6-48ac-805b-447fd125a66c 200 in 663ms (compile: 654ms, render: 8ms)
- GET /api/events?limit=100 200 in 8ms (compile: 2ms, render: 6ms)
- GET / 200 in 34ms (compile: 5ms, render: 29ms)
- GET / 200 in 32ms (compile: 5ms, render: 27ms)
+✓ Ready in 989ms
+○ Compiling / ...
+ GET / 200 in 6.4s (compile: 6.1s, render: 260ms)
+ HEAD / 200 in 29ms (compile: 6ms, render: 23ms)
+ GET / 200 in 42ms (compile: 4ms, render: 38ms)
+ GET / 200 in 34ms (compile: 4ms, render: 30ms)
+ GET / 200 in 48ms (compile: 6ms, render: 42ms)
+ POST /api/auth/login 200 in 2.1s (compile: 598ms, render: 1540ms)
+ GET /api/reports 200 in 1172ms (compile: 216ms, render: 956ms)
+ GET /api/reports 200 in 247ms (compile: 2ms, render: 245ms)
+ GET /api/support/tickets?limit=50 200 in 1037ms (compile: 148ms, render: 889ms)
+ GET /api/support/tickets?limit=50 200 in 445ms (compile: 1994µs, render: 443ms)
+ GET / 200 in 60ms (compile: 11ms, render: 49ms)

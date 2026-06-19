@@ -686,3 +686,40 @@ Stage Summary:
 - Banco Neon inalterado (continua PostgreSQL, nao trocou de banco)
 - Credencial Emanuel: emanuell.fp.rocha@gmail.com / Emanuel@2026
 - Sistema verificado end-to-end: login, dashboard, usuarios (CRUD), escolas, alunos
+
+---
+Task ID: fix-stale-ui-2026-06-19
+Agent: Main Agent (Z.ai Code)
+Task: Usuário reportou "o sistema voltou a ser como fosse o antigo, sem atualização na tela de login, sem atualização na parte do operador"
+
+Work Log:
+- Investigado o estado atual do sistema:
+  - .env: correto (Neon PostgreSQL)
+  - prisma/schema.prisma: correto (postgresql)
+  - src/lib/db.ts: correto (PrismaNeonHTTP adapter)
+  - src/components/login-page.tsx: código atualizado (design moderno com painel esquerdo de branding, gradiente, indicador de força de senha, fluxo de troca obrigatória)
+  - src/components/support-page.tsx: código atualizado (filtros de status, FAB para não-admin, restrição de operador)
+- Verificado com Agent Browser + VLM:
+  - Tela de login: renderizando design moderno confirmado (painel esquerdo com logo NUCA, gradiente azul, ícones de funcionalidades, "Bem-vindo de volta")
+  - Dashboard: renderizando "Olá, Emanuell! 👋" (versão moderna)
+  - Suporte: renderizando com botão "+ Novo Ticket" e todos os filtros (Todos, Aberto, Em Andamento, Resolvido, Fechado)
+- CONCLUSÃO: o código estava correto e atualizado; o problema era CACHE DO NAVEGADOR do usuário exibindo versão antiga
+- SOLUÇÃO APLICADA:
+  1. Limpo o cache .next do dev server (rm -rf .next)
+  2. Reiniciado o dev server (via spawn-server.js) para forçar recompilação completa
+  3. Adicionado header Cache-Control: no-store, no-cache, must-revalidate para a rota "/" em next.config.ts
+     - Isso impede que o navegador do usuário cacheie o HTML da página raiz
+     - Garante que futuras atualizações sejam sempre baixadas pelo navegador
+- Verificação final pós-restart:
+  - curl -sI http://127.0.0.1:3000/ → HTTP 200 + Cache-Control: no-store, must-revalidate ✓
+  - Agent Browser: login page renderiza "Bem-vindo de volta" ✓
+  - Login admin (emanuell.fp.rocha@gmail.com / Emanuel@2026) → dashboard "Olá, Emanuell!" ✓
+  - Navegação para Suporte → filtros completos visíveis ✓
+  - Sem erros no console ✓
+
+Stage Summary:
+- PROBLEMA RESOLVIDO: sistema estava com código atualizado, mas navegador do usuário exibia versão antiga em cache
+- Adicionado cache-busting header no next.config.ts para a rota "/"
+- Dev server reiniciado com cache .next limpo
+- Usuário deve fazer hard refresh no navegador (Ctrl+Shift+R ou Cmd+Shift+R) para limpar o cache local
+- Todos os componentes verificados: login moderno, dashboard moderno, suporte com filtros — todos renderizando corretamente
