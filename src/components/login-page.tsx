@@ -555,6 +555,9 @@ export function LoginPage() {
             <p className="text-center text-muted-foreground text-xs">
               Nuca Plataforma &copy; {new Date().getFullYear()} — Sistema de Gestão Escolar
             </p>
+            <p className="text-center text-muted-foreground/50 text-[10px] mt-1">
+              v2.5 · {new Date().toISOString().slice(0, 10)}
+            </p>
           </div>
         </div>
       </div>

@@ -36,6 +36,29 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        {/* Aggressive cache-busting: prevents browsers/CDNs/iframes from
+            serving a stale HTML payload after deploys. The HTTP response
+            headers in next.config.ts reinforce this at the network layer. */}
+        <meta httpEquiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta httpEquiv="Expires" content="0" />
+        {/* Auto-reload if the browser served a cached (stale) HTML payload.
+            transferSize === 0 means the response came from cache, not network. */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var nav = performance.getEntriesByType('navigation')[0];
+              if (nav && nav.transferSize === 0 && !sessionStorage.getItem('__reloaded')) {
+                sessionStorage.setItem('__reloaded', '1');
+                window.location.reload(true);
+              } else {
+                sessionStorage.removeItem('__reloaded');
+              }
+            } catch (e) {}
+          })();
+        ` }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
