@@ -184,3 +184,28 @@ Bulk insert transaction error: Error: Transactions are not supported in HTTP mod
  GET / 200 in 268ms (compile: 60ms, render: 208ms)
  GET / 200 in 269ms (compile: 223ms, render: 47ms)
  GET / 200 in 46ms (compile: 9ms, render: 38ms)
+ GET / 200 in 27ms (compile: 5ms, render: 22ms)
+ GET / 200 in 25ms (compile: 4ms, render: 22ms)
+ GET / 200 in 27ms (compile: 3ms, render: 24ms)
+ GET / 200 in 45ms (compile: 8ms, render: 37ms)
+ POST /api/auth/login 400 in 5ms (compile: 1907µs, render: 3ms)
+ POST /api/auth/login 200 in 1413ms (compile: 2ms, render: 1411ms)
+ GET /api/auth/me 200 in 452ms (compile: 4ms, render: 447ms)
+ GET /api/reports 200 in 720ms (compile: 2ms, render: 718ms)
+ GET /api/reports 200 in 244ms (compile: 1840µs, render: 242ms)
+✓ Compiled in 185ms
+✓ Compiled in 230ms
+ GET / 200 in 259ms (compile: 66ms, render: 193ms)
+✓ Compiled in 137ms
+✓ Compiled in 152ms
+✓ Compiled in 208ms
+✓ Compiled in 162ms
+ GET / 200 in 260ms (compile: 69ms, render: 191ms)
+ GET /api/auth/me 200 in 750ms (compile: 9ms, render: 741ms)
+ GET /api/reports 200 in 725ms (compile: 1849µs, render: 723ms)
+ GET /api/reports 200 in 755ms (compile: 5ms, render: 750ms)
+✓ Compiled in 284ms
+ GET / 200 in 233ms (compile: 63ms, render: 170ms)
+ GET /api/auth/me 200 in 681ms (compile: 5ms, render: 676ms)
+ GET /api/reports 200 in 695ms (compile: 5ms, render: 690ms)
+ GET /api/reports 200 in 705ms (compile: 1949µs, render: 703ms)
