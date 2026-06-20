@@ -91,11 +91,13 @@ function SidebarContent({
   onNavigate,
   user,
   onLogout,
+  onToggleFull,
 }: {
   currentPage: PageKey;
   onNavigate: (page: PageKey) => void;
   user: { full_name: string; email: string; role: string; profile_photo: string | null };
   onLogout: () => void;
+  onToggleFull?: () => void;
 }) {
   const isAdmin = user.role === "Admin";
 
@@ -104,7 +106,18 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full bg-[#09328B]">
       {/* Brand */}
-      <div className="px-5 h-16 flex items-center border-b border-white/10">
+      <div className="px-4 h-16 flex items-center gap-3 border-b border-white/10">
+        {/* Hamburger toggle (open full-screen drawer) */}
+        {onToggleFull && (
+          <button
+            onClick={onToggleFull}
+            className="p-2 -ml-1 rounded-md text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+            title="Abrir menu em tela cheia"
+            aria-label="Abrir menu em tela cheia"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+        )}
         <div className="flex items-center gap-2.5">
           <div className="h-9 w-9 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-base leading-none">N</span>
@@ -189,12 +202,14 @@ export function AppLayout({
   const { user, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [fullOpen, setFullOpen] = useState(false);
 
   if (!user) return null;
 
   const handleNavigate = (page: PageKey) => {
     onNavigate(page);
     setMobileOpen(false);
+    setFullOpen(false);
   };
 
   const handleLogout = () => {
@@ -214,10 +229,11 @@ export function AppLayout({
           onNavigate={handleNavigate}
           user={user}
           onLogout={handleLogout}
+          onToggleFull={() => setFullOpen(true)}
         />
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar (narrow) */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 p-0 border-0 bg-[#09328B]">
           <SheetHeader className="sr-only">
@@ -228,6 +244,25 @@ export function AppLayout({
             onNavigate={handleNavigate}
             user={user}
             onLogout={handleLogout}
+          />
+        </SheetContent>
+      </Sheet>
+
+      {/* Full-screen Sidebar (tela cheia) */}
+      <Sheet open={fullOpen} onOpenChange={setFullOpen}>
+        <SheetContent
+          side="left"
+          className="w-screen sm:max-w-none p-0 border-0 bg-[#09328B]"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Menu em tela cheia</SheetTitle>
+          </SheetHeader>
+          <SidebarContent
+            currentPage={currentPage}
+            onNavigate={handleNavigate}
+            user={user}
+            onLogout={handleLogout}
+            onToggleFull={() => setFullOpen(false)}
           />
         </SheetContent>
       </Sheet>

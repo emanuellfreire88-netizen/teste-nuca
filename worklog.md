@@ -1055,3 +1055,33 @@ Stage Summary:
 - Active item uses a lighter blue (#1B4FA0) + orange icon + thin orange left bar for usability (reference has no visible active indicator).
 - Logo: orange circle + "NUCA" wordmark, echoing the reference's orange-accent logo.
 - 85% visual similarity per VLM; the 15% gap is the active-state styling which is intentionally kept for UX.
+
+---
+Task ID: SIDEBAR-HAMBURGER-FULLSCREEN
+Agent: main (Z.ai Code)
+Task: Add a hamburger menu button (like the UNIGRANDE reference) to the sidebar header that opens the sidebar in full-screen ("tela cheia") mode.
+
+Work Log:
+- User re-uploaded a cropped version of the reference image (53x71px) showing just the hamburger icon (three white horizontal lines on blue bg). Confirmed via VLM it's a hamburger menu icon.
+- Modified `src/components/app-layout.tsx`:
+  - `SidebarContent` now accepts an optional `onToggleFull?: () => void` prop.
+  - When `onToggleFull` is provided, a hamburger button (white `Menu` lucide icon, `h-6 w-6`, `p-2`, hover `bg-white/10`) renders at the top-left of the brand row, before the NUCA logo — matching the reference layout.
+  - `AppLayout`: added `fullOpen` state + a third Sheet (the "full-screen" drawer).
+  - The full-screen Sheet uses `side="left"` with `w-screen sm:max-w-none` to override the Sheet component's default `sm:max-w-sm` (384px) cap, so the drawer truly spans the full viewport width.
+  - Desktop sidebar passes `onToggleFull={() => setFullOpen(true)}` (opens full drawer).
+  - Full-drawer's SidebarContent passes `onToggleFull={() => setFullOpen(false)}` (hamburger toggles closed).
+  - `handleNavigate` now also calls `setFullOpen(false)` so clicking a nav item in the full drawer closes it and navigates.
+- Verified with Agent Browser:
+  - Hamburger button is present in the sidebar header (confirmed via DOM: `aria-label="Abrir menu em tela cheia"`, `lucide-menu` icon).
+  - Clicking it opens a dialog at full viewport width (1280px dialog = 1280px viewport, `full=true`).
+  - VLM confirmed: "sidebar/menu ocupa a largura total da tela" with hamburger icon top-left next to NUCA logo.
+  - Clicking hamburger inside the open drawer closes it (toggle works both ways).
+  - Clicking "Alunos" inside the full drawer navigates to Alunos and closes the drawer; desktop sidebar shows Alunos as active.
+- Overcame a Sheet width cap: the shadcn Sheet component hard-codes `sm:max-w-sm` (384px) for `side="left"`. Used `sm:max-w-none` in the className to override it (className is appended last in `cn()`).
+- `bun run lint` clean. Temp verification user deleted.
+
+Stage Summary:
+- Hamburger menu button added to the sidebar header (top-left, white icon on blue), matching the UNIGRANDE reference.
+- Clicking it opens the sidebar as a full-screen overlay drawer (100% viewport width) — "tela cheia" as requested.
+- The hamburger toggles the drawer open/closed; clicking any nav item inside also closes the drawer and navigates.
+- Existing narrow desktop sidebar (288px) and mobile Sheet (288px) remain unchanged for quick access; the new full-screen drawer is an on-demand "expanded" view.
