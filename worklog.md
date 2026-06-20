@@ -995,3 +995,34 @@ Stage Summary:
 - ✅ Adicionados: layout horizontal no dropzone, helper texts concisos, link sutil "Baixar modelo", linha de resumo única com ícone de status no resultado
 - ✅ VLM confirmou design profissional e limpo
 - 📁 Arquivo modificado: src/components/students-page.tsx (ImportStudentsDialog redesenhado)
+
+---
+Task ID: SIDEBAR-REDESIGN-UNIGRANDE
+Agent: main (Z.ai Code)
+Task: Redesign the app sidebar using the UNIGRANDE mobile drawer screenshot as a design example (deep blue background, white icons + text, active item with lighter blue background and orange icon).
+
+Work Log:
+- Analyzed the uploaded reference screenshot (UNIGRANDE app drawer) via VLM: deep blue (#0D47A1) background, flat list of white icon + white text items, active item highlighted with lighter blue background (#1565C0) + orange icon.
+- Refactored `src/components/app-layout.tsx`:
+  - Replaced the grouped `navSections` (Geral/Cadastros/Operação/Sistema) with a single flat `navItems` array to match the reference's clean flat list.
+  - Removed the `NavSection` interface (no longer needed).
+  - `SidebarContent`: changed background from `bg-slate-900` to `bg-[#0D47A1]` (deep blue).
+  - Brand mark: switched from emerald gradient to `bg-orange-500` with white "N" (ties the orange accent to the active-icon color, matching the reference logo).
+  - Nav items: white icons (`text-white`) + `text-white/85` labels; active item gets `bg-[#1565C0]` (lighter blue) + `text-orange-400` icon. Removed the previous left emerald border-bar indicator (reference uses full-row background highlight instead).
+  - User footer + logout button: switched from slate text to white/white-60 on the blue background with `border-white/10` dividers.
+  - Mobile `SheetContent` background updated from `bg-slate-900` to `bg-[#0D47A1]` to stay consistent during drawer animation.
+  - Top-bar page-title lookup updated from `navSections.flatMap(...)` to `navItems.find(...)`.
+- Fixed a broken intermediate state: a MultiEdit typo left `navItems` defined but `SidebarContent` still referencing the deleted `navSections`; corrected with a targeted Edit.
+- Diagnosed and fixed a blocked DB connection that prevented verification: `.env` had been changed to a SQLite `file:` URL while the app uses `PrismaNeonHTTP` (Postgres-only). Restored the Neon `DATABASE_URL` + `DIRECT_URL` (from `.env.vercel`, with `channel_binding=require` stripped because the Neon serverless driver rejects it). Also discovered a stray session-only `DATABASE_URL=file:...` shell env var that overrode `.env`; started the dev server with `env -u DATABASE_URL -u DIRECT_URL` so Next.js loads the Neon URL from `.env`. (Not in any shell startup file, so fresh sessions are unaffected.)
+- Ran `bun run lint` → clean, no errors.
+- Verified end-to-end with Agent Browser:
+  - Created a temporary Admin user, logged in, confirmed the sidebar renders with the deep-blue + white + orange design.
+  - VLM review confirmed: deep blue background, white icons/text, active item (Dashboard) with lighter blue background + orange icon, clean and professional.
+  - Clicked "Alunos" → became active with `text-orange-400` icon + `bg-[#1565C0]` background (verified via DOM eval). VLM re-confirmed the active state.
+  - Deleted the temporary user and removed the `.env.backup.sqlite` scratch file.
+
+Stage Summary:
+- Sidebar redesigned to match the UNIGRANDE reference: deep blue (#0D47A1) background, flat nav list, orange active-icon accent, lighter-blue active row highlight.
+- Single source of truth: `navItems` flat array (sections removed).
+- `.env` restored to working Neon Postgres URLs (was incorrectly set to SQLite, which broke all DB queries).
+- Lint clean; dev server running on port 3000; navigation interactivity verified in-browser.

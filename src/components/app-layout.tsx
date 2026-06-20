@@ -56,41 +56,16 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
-interface NavSection {
-  label: string;
-  items: NavItem[];
-}
-
-const navSections: NavSection[] = [
-  {
-    label: "Geral",
-    items: [
-      { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: "Cadastros",
-    items: [
-      { key: "schools", label: "Escolas", icon: School },
-      { key: "students", label: "Alunos", icon: GraduationCap },
-      { key: "users", label: "Usuários", icon: Users, adminOnly: true },
-    ],
-  },
-  {
-    label: "Operação",
-    items: [
-      { key: "attendance", label: "Frequência", icon: ClipboardCheck },
-      { key: "events", label: "Eventos", icon: CalendarDays },
-    ],
-  },
-  {
-    label: "Sistema",
-    items: [
-      { key: "reports", label: "Relatórios", icon: BarChart3 },
-      { key: "logs", label: "Logs", icon: FileText, adminOnly: true },
-      { key: "support", label: "Suporte", icon: MessageSquare, adminOnly: true },
-    ],
-  },
+const navItems: NavItem[] = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "schools", label: "Escolas", icon: School },
+  { key: "students", label: "Alunos", icon: GraduationCap },
+  { key: "users", label: "Usuários", icon: Users, adminOnly: true },
+  { key: "attendance", label: "Frequência", icon: ClipboardCheck },
+  { key: "events", label: "Eventos", icon: CalendarDays },
+  { key: "reports", label: "Relatórios", icon: BarChart3 },
+  { key: "logs", label: "Logs", icon: FileText, adminOnly: true },
+  { key: "support", label: "Suporte", icon: MessageSquare, adminOnly: true },
 ];
 
 function UserAvatar({ user }: { user: { full_name: string; profile_photo: string | null } }) {
@@ -124,17 +99,19 @@ function SidebarContent({
 }) {
   const isAdmin = user.role === "Admin";
 
+  const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+
   return (
-    <div className="flex flex-col h-full bg-slate-900">
+    <div className="flex flex-col h-full bg-[#0D47A1]">
       {/* Brand */}
-      <div className="px-5 h-14 flex items-center border-b border-slate-800">
+      <div className="px-5 h-14 flex items-center border-b border-white/10">
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-md bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shrink-0">
-            <span className="text-slate-900 font-bold text-sm leading-none">N</span>
+          <div className="h-7 w-7 rounded-md bg-orange-500 flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm leading-none">N</span>
           </div>
           <div className="leading-none">
             <p className="text-white font-semibold text-sm tracking-tight">NUCA</p>
-            <p className="text-slate-500 text-[10px] mt-0.5 tracking-wide uppercase">
+            <p className="text-white/50 text-[10px] mt-0.5 tracking-wide uppercase">
               Gestão Escolar
             </p>
           </div>
@@ -143,68 +120,47 @@ function SidebarContent({
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-5">
-          {navSections.map((section) => {
-            const visibleItems = section.items.filter(
-              (item) => !item.adminOnly || isAdmin
-            );
-            if (visibleItems.length === 0) return null;
+        <nav className="space-y-1">
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.key;
             return (
-              <div key={section.label}>
-                <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  {section.label}
-                </p>
-                <div className="space-y-0.5">
-                  {visibleItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = currentPage === item.key;
-                    return (
-                      <button
-                        key={item.key}
-                        onClick={() => onNavigate(item.key)}
-                        className={`relative w-full flex items-center gap-3 pl-4 pr-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${
-                          isActive
-                            ? "bg-slate-800 text-white"
-                            : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
-                        }`}
-                      >
-                        {isActive && (
-                          <span
-                            className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-emerald-400"
-                            aria-hidden
-                          />
-                        )}
-                        <Icon
-                          className={`h-4 w-4 shrink-0 ${
-                            isActive ? "text-emerald-400" : ""
-                          }`}
-                        />
-                        <span className="font-medium">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <button
+                key={item.key}
+                onClick={() => onNavigate(item.key)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm transition-colors cursor-pointer ${
+                  isActive
+                    ? "bg-[#1565C0] text-white"
+                    : "text-white/85 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icon
+                  className={`h-5 w-5 shrink-0 ${
+                    isActive ? "text-orange-400" : "text-white"
+                  }`}
+                />
+                <span className="font-medium">{item.label}</span>
+              </button>
             );
           })}
         </nav>
       </ScrollArea>
 
       {/* User footer */}
-      <div className="border-t border-slate-800 p-3">
-        <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-slate-800/50 transition-colors">
+      <div className="border-t border-white/10 p-3">
+        <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/10 transition-colors">
           <UserAvatar user={user} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-100 truncate">
+            <p className="text-sm font-medium text-white truncate">
               {user.full_name}
             </p>
-            <p className="text-[11px] text-slate-400 truncate">
+            <p className="text-[11px] text-white/60 truncate">
               {isAdmin ? "Administrador" : "Operador"}
             </p>
           </div>
           <button
             onClick={onLogout}
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Sair"
           >
             <LogOut className="h-4 w-4" />
@@ -257,7 +213,7 @@ export function AppLayout({
 
       {/* Mobile Sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-0 bg-slate-900">
+        <SheetContent side="left" className="w-64 p-0 border-0 bg-[#0D47A1]">
           <SheetHeader className="sr-only">
             <SheetTitle>Menu de navegação</SheetTitle>
           </SheetHeader>
@@ -288,9 +244,7 @@ export function AppLayout({
           {/* Current page title */}
           <div className="flex-1">
             <h2 className="text-base font-semibold capitalize">
-              {navSections
-                .flatMap((s) => s.items)
-                .find((i) => i.key === currentPage)?.label || "Dashboard"}
+              {navItems.find((i) => i.key === currentPage)?.label || "Dashboard"}
             </h2>
           </div>
 
