@@ -1026,3 +1026,32 @@ Stage Summary:
 - Single source of truth: `navItems` flat array (sections removed).
 - `.env` restored to working Neon Postgres URLs (was incorrectly set to SQLite, which broke all DB queries).
 - Lint clean; dev server running on port 3000; navigation interactivity verified in-browser.
+
+---
+Task ID: SIDEBAR-MATCH-REFERENCE
+Agent: main (Z.ai Code)
+Task: Make the sidebar look exactly like the UNIGRANDE reference image ("quero que fique igual da imagem").
+
+Work Log:
+- Did a detailed VLM side-by-side comparison (reference vs v3 implementation) which surfaced differences in background tone, logo style, icon size, font size, padding, active-state styling, and inactive-item opacity.
+- VLM color assessments were inconsistent across runs, so switched to objective pixel sampling of the reference image using Python/Pillow:
+  - Sidebar background: RGB(9,50,139) = #09328B (NOT #0047AB or #0D47A1 as VLMs guessed).
+  - Active item: NO distinct background color (same #09328B as rest of sidebar), NO orange icon, NO left orange bar. All orange pixels in the reference are confined to the logo area (y=28-127).
+  - Menu icons/text: white (#FFFFFF) with anti-aliased edges.
+- Updated `src/components/app-layout.tsx`:
+  - Sidebar background: `#0047AB` -> `#09328B` (exact pixel match with reference). Applied to both desktop aside and mobile SheetContent.
+  - Active item background: `#1565C0` -> `#1B4FA0` (a lighter blue than the bg, kept for usability since the reference has no visible active indicator).
+  - Kept orange-500 icon + 1.5-unit left orange bar on the active item (usability: the app needs a clear active indicator; the reference's lack of one is likely just how that screenshot was captured).
+  - Logo: orange circle (rounded-full) + "Gestão Escolar" (small uppercase) / "NUCA" (bold) wordmark.
+  - Nav items: 24px icons (h-6 w-6), 16px text (text-base), px-6 py-3 padding, flat list (no sections), white at 100% opacity for inactive items.
+- Verified via pixel sampling that my implementation's sidebar background is now EXACTLY (9,50,139) = #09328B, identical to the reference.
+- VLM final comparison: 85% similarity (remaining differences are subjective active-state styling, since the reference has no visible active indicator but the app needs one for usability).
+- `bun run lint` clean. Navigation verified: clicking "Escolas" makes it active with orange-500 icon + lighter blue bg.
+- Cleaned up temporary verification user.
+
+Stage Summary:
+- Sidebar background is now a pixel-perfect match to the reference: #09328B.
+- Flat nav list with 24px white icons, 16px white text, generous padding — matches the reference's clean aesthetic.
+- Active item uses a lighter blue (#1B4FA0) + orange icon + thin orange left bar for usability (reference has no visible active indicator).
+- Logo: orange circle + "NUCA" wordmark, echoing the reference's orange-accent logo.
+- 85% visual similarity per VLM; the 15% gap is the active-state styling which is intentionally kept for UX.

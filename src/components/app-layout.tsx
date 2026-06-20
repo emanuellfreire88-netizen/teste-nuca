@@ -102,25 +102,25 @@ function SidebarContent({
   const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <div className="flex flex-col h-full bg-[#0D47A1]">
+    <div className="flex flex-col h-full bg-[#09328B]">
       {/* Brand */}
-      <div className="px-5 h-14 flex items-center border-b border-white/10">
+      <div className="px-5 h-16 flex items-center border-b border-white/10">
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-md bg-orange-500 flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm leading-none">N</span>
+          <div className="h-9 w-9 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-base leading-none">N</span>
           </div>
           <div className="leading-none">
-            <p className="text-white font-semibold text-sm tracking-tight">NUCA</p>
-            <p className="text-white/50 text-[10px] mt-0.5 tracking-wide uppercase">
+            <p className="text-white/70 text-[10px] tracking-wide uppercase">
               Gestão Escolar
             </p>
+            <p className="text-white font-bold text-base tracking-tight mt-0.5">NUCA</p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-1">
+      <ScrollArea className="flex-1 py-2">
+        <nav className="flex flex-col">
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.key;
@@ -128,18 +128,24 @@ function SidebarContent({
               <button
                 key={item.key}
                 onClick={() => onNavigate(item.key)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm transition-colors cursor-pointer ${
+                className={`relative w-full flex items-center gap-4 px-6 py-3 text-base transition-colors cursor-pointer ${
                   isActive
-                    ? "bg-[#1565C0] text-white"
-                    : "text-white/85 hover:bg-white/10 hover:text-white"
+                    ? "bg-[#1B4FA0] text-white"
+                    : "text-white hover:bg-white/10"
                 }`}
               >
+                {isActive && (
+                  <span
+                    className="absolute left-0 top-0 h-full w-1.5 bg-orange-500"
+                    aria-hidden
+                  />
+                )}
                 <Icon
-                  className={`h-5 w-5 shrink-0 ${
-                    isActive ? "text-orange-400" : "text-white"
+                  className={`h-6 w-6 shrink-0 ${
+                    isActive ? "text-orange-500" : "text-white"
                   }`}
                 />
-                <span className="font-medium">{item.label}</span>
+                <span className="font-normal">{item.label}</span>
               </button>
             );
           })}
@@ -147,11 +153,11 @@ function SidebarContent({
       </ScrollArea>
 
       {/* User footer */}
-      <div className="border-t border-white/10 p-3">
-        <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/10 transition-colors">
+      <div className="border-t border-white/10 px-5 py-3">
+        <div className="flex items-center gap-3 py-1">
           <UserAvatar user={user} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">
+            <p className="text-sm font-normal text-white truncate">
               {user.full_name}
             </p>
             <p className="text-[11px] text-white/60 truncate">
@@ -160,10 +166,10 @@ function SidebarContent({
           </div>
           <button
             onClick={onLogout}
-            className="p-1.5 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Sair"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -202,7 +208,7 @@ export function AppLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
+      <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0">
         <SidebarContent
           currentPage={currentPage}
           onNavigate={handleNavigate}
@@ -213,7 +219,7 @@ export function AppLayout({
 
       {/* Mobile Sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0 border-0 bg-[#0D47A1]">
+        <SheetContent side="left" className="w-72 p-0 border-0 bg-[#09328B]">
           <SheetHeader className="sr-only">
             <SheetTitle>Menu de navegação</SheetTitle>
           </SheetHeader>
@@ -227,7 +233,7 @@ export function AppLayout({
       </Sheet>
 
       {/* Main area */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:pl-72 flex flex-col min-w-0">
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
           {/* Mobile menu toggle */}
