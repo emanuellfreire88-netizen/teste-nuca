@@ -1085,3 +1085,36 @@ Stage Summary:
 - Clicking it opens the sidebar as a full-screen overlay drawer (100% viewport width) — "tela cheia" as requested.
 - The hamburger toggles the drawer open/closed; clicking any nav item inside also closes the drawer and navigates.
 - Existing narrow desktop sidebar (288px) and mobile Sheet (288px) remain unchanged for quick access; the new full-screen drawer is an on-demand "expanded" view.
+
+---
+Task ID: SIDEBAR-HAMBURGER-FLIP
+Agent: main (Z.ai Code)
+Task: User said "botão tá top, apenas está fazendo a função contraria" — the hamburger button was doing the opposite of what they wanted. It was OPENING a full-screen overlay; they wanted it to CLOSE/COLLAPSE the sidebar.
+
+Work Log:
+- Reinterpreted the requirement: the hamburger should collapse the sidebar (opposite of expand-to-overlay).
+- Rewrote the sidebar to use an INLINE collapse/expand toggle instead of the full-screen overlay Sheet:
+  - Replaced `onToggleFull` prop with `collapsed: boolean` + `onToggleCollapse: () => void` on `SidebarContent`.
+  - Added `collapsed` state in `AppLayout` (default `false` = full sidebar).
+  - Desktop aside width: `lg:w-72` (288px, full with labels) ↔ `lg:w-20` (80px, icon-only rail), with `transition-[width] duration-300` for smooth animation.
+  - Main content left padding: `lg:pl-72` ↔ `lg:pl-20`, animated.
+  - When collapsed: brand row shows only the hamburger (centered), nav items show only centered icons with `title` tooltips, active orange left-bar hidden, user footer shows only the avatar.
+  - When expanded: full layout with NUCA logo, labels, active left-bar, user info + logout button.
+  - Hamburger toggles `collapsed` state.
+  - Removed the full-screen overlay Sheet (`fullOpen` state and that Sheet) entirely.
+  - Mobile Sheet: passes `onToggleCollapse={() => setMobileOpen(false)}` so the hamburger closes the mobile drawer (consistent "close/collapse" semantics).
+- Verified with Agent Browser:
+  - Default sidebar = 288px (full, with labels). ✓
+  - Click hamburger → collapses to 80px icon rail, main content padding adjusts to 80px. ✓
+  - Click hamburger again → expands back to 288px. ✓
+  - Navigation works while collapsed: clicked Escolas icon → Escolas became active. ✓
+  - VLM confirmed collapsed state: "9 ícones, não há texto nos itens" (icon-only rail).
+- `bun run lint` clean. Temp verification user deleted.
+
+Stage Summary:
+- Hamburger now COLLAPSES the sidebar inline (288px ↔ 80px icon rail) instead of opening a full-screen overlay — this is the "opposite function" the user requested.
+- Smooth width/padding transition (300ms) for both sidebar and main content.
+- Collapsed state: icon-only rail with hover tooltips; active item still gets orange icon.
+- Expanded state: full sidebar with NUCA logo, labels, active orange left-bar, user info + logout.
+- Mobile drawer unchanged (hamburger inside closes the drawer).
+- Full-screen overlay Sheet removed.

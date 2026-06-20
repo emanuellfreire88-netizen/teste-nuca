@@ -91,13 +91,15 @@ function SidebarContent({
   onNavigate,
   user,
   onLogout,
-  onToggleFull,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   currentPage: PageKey;
   onNavigate: (page: PageKey) => void;
   user: { full_name: string; email: string; role: string; profile_photo: string | null };
   onLogout: () => void;
-  onToggleFull?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const isAdmin = user.role === "Admin";
 
@@ -106,29 +108,30 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full bg-[#09328B]">
       {/* Brand */}
-      <div className="px-4 h-16 flex items-center gap-3 border-b border-white/10">
-        {/* Hamburger toggle (open full-screen drawer) */}
-        {onToggleFull && (
+      <div className={`h-16 flex items-center gap-3 border-b border-white/10 ${collapsed ? "justify-center px-2" : "px-4"}`}>
+        {onToggleCollapse && (
           <button
-            onClick={onToggleFull}
-            className="p-2 -ml-1 rounded-md text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-            title="Abrir menu em tela cheia"
-            aria-label="Abrir menu em tela cheia"
+            onClick={onToggleCollapse}
+            className="p-2 rounded-md text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           >
             <Menu className="h-6 w-6" />
           </button>
         )}
-        <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-base leading-none">N</span>
+        {!collapsed && (
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="h-9 w-9 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
+              <span className="text-white font-bold text-base leading-none">N</span>
+            </div>
+            <div className="leading-none">
+              <p className="text-white/70 text-[10px] tracking-wide uppercase">
+                Gestão Escolar
+              </p>
+              <p className="text-white font-bold text-base tracking-tight mt-0.5">NUCA</p>
+            </div>
           </div>
-          <div className="leading-none">
-            <p className="text-white/70 text-[10px] tracking-wide uppercase">
-              Gestão Escolar
-            </p>
-            <p className="text-white font-bold text-base tracking-tight mt-0.5">NUCA</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Navigation */}
@@ -141,13 +144,14 @@ function SidebarContent({
               <button
                 key={item.key}
                 onClick={() => onNavigate(item.key)}
-                className={`relative w-full flex items-center gap-4 px-6 py-3 text-base transition-colors cursor-pointer ${
+                title={collapsed ? item.label : undefined}
+                className={`relative w-full flex items-center gap-4 ${collapsed ? "justify-center px-2" : "px-6"} py-3 text-base transition-colors cursor-pointer ${
                   isActive
                     ? "bg-[#1B4FA0] text-white"
                     : "text-white hover:bg-white/10"
                 }`}
               >
-                {isActive && (
+                {isActive && !collapsed && (
                   <span
                     className="absolute left-0 top-0 h-full w-1.5 bg-orange-500"
                     aria-hidden
@@ -158,7 +162,7 @@ function SidebarContent({
                     isActive ? "text-orange-500" : "text-white"
                   }`}
                 />
-                <span className="font-normal">{item.label}</span>
+                {!collapsed && <span className="font-normal">{item.label}</span>}
               </button>
             );
           })}
@@ -166,25 +170,31 @@ function SidebarContent({
       </ScrollArea>
 
       {/* User footer */}
-      <div className="border-t border-white/10 px-5 py-3">
-        <div className="flex items-center gap-3 py-1">
-          <UserAvatar user={user} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-normal text-white truncate">
-              {user.full_name}
-            </p>
-            <p className="text-[11px] text-white/60 truncate">
-              {isAdmin ? "Administrador" : "Operador"}
-            </p>
+      <div className="border-t border-white/10 px-3 py-3">
+        {collapsed ? (
+          <div className="flex justify-center">
+            <UserAvatar user={user} />
           </div>
-          <button
-            onClick={onLogout}
-            className="p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            title="Sair"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3 py-1">
+            <UserAvatar user={user} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-normal text-white truncate">
+                {user.full_name}
+              </p>
+              <p className="text-[11px] text-white/60 truncate">
+                {isAdmin ? "Administrador" : "Operador"}
+              </p>
+            </div>
+            <button
+              onClick={onLogout}
+              className="p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="Sair"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -202,14 +212,13 @@ export function AppLayout({
   const { user, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [fullOpen, setFullOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   if (!user) return null;
 
   const handleNavigate = (page: PageKey) => {
     onNavigate(page);
     setMobileOpen(false);
-    setFullOpen(false);
   };
 
   const handleLogout = () => {
@@ -223,13 +232,14 @@ export function AppLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0">
+      <aside className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 transition-[width] duration-300 ${collapsed ? "lg:w-20" : "lg:w-72"}`}>
         <SidebarContent
           currentPage={currentPage}
           onNavigate={handleNavigate}
           user={user}
           onLogout={handleLogout}
-          onToggleFull={() => setFullOpen(true)}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((c) => !c)}
         />
       </aside>
 
@@ -244,31 +254,13 @@ export function AppLayout({
             onNavigate={handleNavigate}
             user={user}
             onLogout={handleLogout}
-          />
-        </SheetContent>
-      </Sheet>
-
-      {/* Full-screen Sidebar (tela cheia) */}
-      <Sheet open={fullOpen} onOpenChange={setFullOpen}>
-        <SheetContent
-          side="left"
-          className="w-screen sm:max-w-none p-0 border-0 bg-[#09328B]"
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Menu em tela cheia</SheetTitle>
-          </SheetHeader>
-          <SidebarContent
-            currentPage={currentPage}
-            onNavigate={handleNavigate}
-            user={user}
-            onLogout={handleLogout}
-            onToggleFull={() => setFullOpen(false)}
+            onToggleCollapse={() => setMobileOpen(false)}
           />
         </SheetContent>
       </Sheet>
 
       {/* Main area */}
-      <div className="flex-1 lg:pl-72 flex flex-col min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 transition-[padding] duration-300 ${collapsed ? "lg:pl-20" : "lg:pl-72"}`}>
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
           {/* Mobile menu toggle */}

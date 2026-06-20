@@ -56,3 +56,18 @@ $ next dev -p 3000 -H 0.0.0.0
  GET /api/schools 503 in 697ms (compile: 20ms, render: 678ms)
  GET /api/schools 503 in 741ms (compile: 5ms, render: 736ms)
 ✓ Compiled in 279ms
+ GET / 200 in 244ms (compile: 49ms, render: 195ms)
+ GET / 200 in 247ms (compile: 80ms, render: 167ms)
+ GET / 200 in 58ms (compile: 10ms, render: 48ms)
+ GET / 200 in 55ms (compile: 10ms, render: 46ms)
+ GET / 200 in 36ms (compile: 6ms, render: 30ms)
+✓ Compiled in 358ms
+ GET /api/students?page=1&limit=10 503 in 1330ms (compile: 6ms, render: 1324ms)
+ GET /api/schools 503 in 1345ms (compile: 3ms, render: 1343ms)
+ GET / 200 in 194ms (compile: 50ms, render: 145ms)
+ GET /api/auth/me 503 in 678ms (compile: 4ms, render: 674ms)
+ GET /api/reports 503 in 687ms (compile: 4ms, render: 683ms)
+ GET /api/reports 503 in 742ms (compile: 5ms, render: 737ms)
+ GET /api/schools?limit=100 503 in 710ms (compile: 4ms, render: 705ms)
+ GET /api/schools?limit=100 503 in 719ms (compile: 10ms, render: 709ms)
+✓ Compiled in 314ms
