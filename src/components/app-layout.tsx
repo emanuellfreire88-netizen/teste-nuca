@@ -120,17 +120,11 @@ function SidebarContent({
           </button>
         )}
         {!collapsed && (
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="h-9 w-9 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
-              <span className="text-white font-bold text-base leading-none">N</span>
-            </div>
-            <div className="leading-none">
-              <p className="text-white/70 text-[10px] tracking-wide uppercase">
-                Gestão Escolar
-              </p>
-              <p className="text-white font-bold text-base tracking-tight mt-0.5">NUCA</p>
-            </div>
-          </div>
+          <img
+            src="/uploads/nuca-logo.png"
+            alt="NUCA — Núcleo de Cidadania de Adolescentes"
+            className="h-12 w-auto object-contain shrink-0 max-w-[200px]"
+          />
         )}
       </div>
 

@@ -1118,3 +1118,29 @@ Stage Summary:
 - Expanded state: full sidebar with NUCA logo, labels, active orange left-bar, user info + logout.
 - Mobile drawer unchanged (hamburger inside closes the drawer).
 - Full-screen overlay Sheet removed.
+
+---
+Task ID: SIDEBAR-ADD-LOGO
+Agent: main (Z.ai Code)
+Task: Replace the orange "N" circle + text brand with the actual NUCA logo image in the sidebar header ("vamos colocar a logo para ver como fica").
+
+Work Log:
+- Found existing logo asset: `public/uploads/nuca-logo.png` (1922x1080, RGBA, transparent background) — already used by the login page. It's a horizontal logo: hands graphic (green + orange) + yellow shape + "NUCA" (colorful letters) + subtext "NÚCLEO DE CIDADANIA DE ADOLESCENTES / LIMOEIRO DE ANADIA - AL".
+- Modified `SidebarContent` in `src/components/app-layout.tsx`:
+  - Replaced the orange-circle "N" + "Gestão Escolar"/"NUCA" text block with an `<img src="/uploads/nuca-logo.png">` element.
+  - Used `h-12 w-auto object-contain shrink-0 max-w-[200px]` so the logo scales to 48px height (rendered 85x48px) and never overflows the sidebar.
+  - The logo only renders when `!collapsed` (in collapsed mode, only the hamburger shows — logo hidden, verified via DOM: `img=hidden` when collapsed).
+- Verified with Agent Browser:
+  - Logo image loads successfully (naturalWidth=1922, complete=true, loaded=true).
+  - Rendered size: 85x48px on the 288px expanded sidebar.
+  - Pixel sampling confirmed the logo's colorful elements (green #62D925, yellow #FDB601, orange #FF7000, blue #0646A1) are clearly visible against the #09328B sidebar background.
+  - Collapse toggle: clicking hamburger collapses sidebar to 80px and hides the logo; expanding restores it to 288px with the logo.
+  - Navigation unchanged.
+- Note: The logo's small subtext ("NÚCLEO DE CIDADANIA DE ADOLESCENTES / LIMOEIRO DE ANADIA - AL") is too small to read at 85px wide (22x downscale from 1922px source), but the main graphic (hands) + "NUCA" wordmark are clearly visible and identifiable.
+- `bun run lint` clean. Temp verification user deleted.
+
+Stage Summary:
+- Sidebar brand area now shows the real NUCA logo (hands graphic + colorful "NUCA" wordmark) instead of the placeholder orange circle.
+- Logo is 85x48px (h-12), constrained to max 200px width, only visible in expanded state.
+- Collapsed state: only hamburger icon shows (logo hidden).
+- Logo asset reused from `public/uploads/nuca-logo.png` (same as login page) — single source of truth.
