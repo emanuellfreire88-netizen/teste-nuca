@@ -1144,3 +1144,33 @@ Stage Summary:
 - Logo is 85x48px (h-12), constrained to max 200px width, only visible in expanded state.
 - Collapsed state: only hamburger icon shows (logo hidden).
 - Logo asset reused from `public/uploads/nuca-logo.png` (same as login page) — single source of truth.
+
+---
+Task ID: SIDEBAR-GREEN-PALETTE-WHITE-BRAND
+Agent: main (Z.ai Code)
+Task: User wants the sidebar's top part (brand header) to have a white background with a larger NUCA logo for emphasis, and the navigation to use the green palette #56CE20. ("vamos mudar essa parte para essa paleta #56ce20. parte de cima aumente a logo do NUCA e deixe o fundo branco para ter destaque")
+
+Work Log:
+- Found the git history had been reset by the environment (my prior sidebar commits were on origin/main but local was reverted). Aborted a conflicting rebase and did `git reset --hard origin/main` to get back to the latest committed state (blue #09328B sidebar with logo + hamburger).
+- Applied the new palette on top of that state via MultiEdit on `src/components/app-layout.tsx`:
+  - **Brand header (top)**: white background (`bg-white`), taller (`h-24` = 96px expanded / `h-20` = 80px collapsed) to fit a larger logo, `border-b border-black/5`.
+  - **NUCA logo**: larger (`h-16` = 64px tall, rendered 114x64px, `max-w-[180px]`) — up from 48px. White bg makes the colorful logo stand out.
+  - **Hamburger button**: dark blue icon (`text-[#09328B]`) on the white header, hover `bg-black/5`. Toggles collapse (288px ↔ 80px). Logo hides when collapsed.
+  - **Navigation**: green `bg-[#56CE20]` (exact RGB 86,206,32, verified via pixel sampling). White icons/text. Active item: darker green `bg-[#3DA815]` with white left bar. Hover: `bg-[#4AB81A]`.
+  - **User footer**: white text on green, `border-white/20`, avatar fallback `bg-white/20`, logout hover `bg-white/15`.
+  - Mobile Sheet: `bg-[#56CE20]` to match.
+- Diagnosed & fixed DB connection failure (env reset had changed `.env` back to SQLite; restored Neon URLs from `.env.vercel` with `channel_binding=require` stripped). Restarted dev server with `env -u DATABASE_URL -u DIRECT_URL`.
+- Verified with Agent Browser + pixel sampling:
+  - Brand header background = (255,255,255) white ✓ (sampled at left edge and top).
+  - Navigation background = (86,206,32) = #56CE20 ✓ (exact match, sampled at y=250).
+  - Logo rendered at 114x64px (larger), loaded successfully, colorful pixels visible against white.
+  - Hamburger present, toggles collapse (288px↔80px), logo hides when collapsed.
+  - VLM confirmed: white brand header with large visible NUCA logo, green navigation with white items, "design eficaz e bem executado".
+- `bun run lint` clean. Temp verification user deleted.
+
+Stage Summary:
+- Sidebar palette updated per user request:
+  - **Top (brand header)**: white background + larger NUCA logo (64px tall) for emphasis.
+  - **Bottom (navigation + footer)**: green #56CE20, white icons/text, darker green (#3DA815) active item with white left bar.
+- Hamburger collapse toggle (288px ↔ 80px icon rail) preserved.
+- Pushed on top of origin/main (clean history, no rebase mess).

@@ -106,13 +106,13 @@ function SidebarContent({
   const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <div className="flex flex-col h-full bg-[#09328B]">
-      {/* Brand */}
-      <div className={`h-16 flex items-center gap-3 border-b border-white/10 ${collapsed ? "justify-center px-2" : "px-4"}`}>
+    <div className="flex flex-col h-full bg-[#56CE20]">
+      {/* Brand — white background so the colorful logo stands out */}
+      <div className={`bg-white border-b border-black/5 flex items-center gap-2 ${collapsed ? "justify-center h-20 px-2" : "h-24 px-3"}`}>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="p-2 rounded-md text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+            className="p-2 rounded-md text-[#09328B] hover:bg-black/5 transition-colors cursor-pointer shrink-0"
             title={collapsed ? "Expandir menu" : "Recolher menu"}
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           >
@@ -123,7 +123,7 @@ function SidebarContent({
           <img
             src="/uploads/nuca-logo.png"
             alt="NUCA — Núcleo de Cidadania de Adolescentes"
-            className="h-12 w-auto object-contain shrink-0 max-w-[200px]"
+            className="h-16 w-auto object-contain shrink-0 max-w-[180px]"
           />
         )}
       </div>
@@ -141,19 +141,19 @@ function SidebarContent({
                 title={collapsed ? item.label : undefined}
                 className={`relative w-full flex items-center gap-4 ${collapsed ? "justify-center px-2" : "px-6"} py-3 text-base transition-colors cursor-pointer ${
                   isActive
-                    ? "bg-[#1B4FA0] text-white"
-                    : "text-white hover:bg-white/10"
+                    ? "bg-[#3DA815] text-white"
+                    : "text-white hover:bg-[#4AB81A]"
                 }`}
               >
                 {isActive && !collapsed && (
                   <span
-                    className="absolute left-0 top-0 h-full w-1.5 bg-orange-500"
+                    className="absolute left-0 top-0 h-full w-1.5 bg-white"
                     aria-hidden
                   />
                 )}
                 <Icon
                   className={`h-6 w-6 shrink-0 ${
-                    isActive ? "text-orange-500" : "text-white"
+                    isActive ? "text-white" : "text-white/90"
                   }`}
                 />
                 {!collapsed && <span className="font-normal">{item.label}</span>}
@@ -164,7 +164,7 @@ function SidebarContent({
       </ScrollArea>
 
       {/* User footer */}
-      <div className="border-t border-white/10 px-3 py-3">
+      <div className="border-t border-white/20 px-3 py-3">
         {collapsed ? (
           <div className="flex justify-center">
             <UserAvatar user={user} />
@@ -176,13 +176,13 @@ function SidebarContent({
               <p className="text-sm font-normal text-white truncate">
                 {user.full_name}
               </p>
-              <p className="text-[11px] text-white/60 truncate">
+              <p className="text-[11px] text-white/70 truncate">
                 {isAdmin ? "Administrador" : "Operador"}
               </p>
             </div>
             <button
               onClick={onLogout}
-              className="p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-2 rounded-md text-white/90 hover:text-white hover:bg-white/15 transition-colors cursor-pointer"
               title="Sair"
             >
               <LogOut className="h-5 w-5" />
@@ -239,7 +239,7 @@ export function AppLayout({
 
       {/* Mobile Sidebar (narrow) */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 p-0 border-0 bg-[#09328B]">
+        <SheetContent side="left" className="w-72 p-0 border-0 bg-[#56CE20]">
           <SheetHeader className="sr-only">
             <SheetTitle>Menu de navegação</SheetTitle>
           </SheetHeader>
