@@ -1218,3 +1218,40 @@ Stage Summary:
 - Logo is 40px tall (h-10) in a 64px header (h-16), clearly visible
 - Brand text "Nuca · Gestão Escolar" removed since the logo itself contains the branding
 - Lint clean, verified via pixel sampling + VLM
+
+---
+Task ID: SIDEBAR-LOGIN-GREEN-BG
+Agent: main
+Task: Remove the centered NUCA logo from the login content area, change the white background to green #65d72a, keep the Entrar button blue
+
+Work Log:
+- Analyzed uploaded screenshot (Captura de tela 2026-06-23 133258.png) showing the login page
+- Removed the centered NUCA logo image from the LOGIN section (was above "Acessar sua conta" heading)
+- Removed the centered NUCA logo image from the CHANGE PASSWORD section (was above "Redefinir senha" heading)
+- Changed main content background from white (bg-background) to green #65d72a
+- Updated all text colors on the green background for readability:
+  - Headings ("Acessar sua conta", "Redefinir senha"): text-foreground -> text-white
+  - Subtitles: text-muted-foreground -> text-white/85
+  - Form labels (E-mail, Senha, etc.): text-foreground -> text-white
+  - "Manter conectado" label: text-muted-foreground -> text-white/90
+  - Hint text: text-muted-foreground/70 -> text-white/75
+  - "Voltar ao login" link: text-muted-foreground -> text-white/80
+  - Password requirements box: bg-muted/30 -> bg-white/15 with border-white/30, text -> white tones
+  - Requirement check circles: bg-emerald-500 -> bg-white with blue check icon
+- Kept the Entrar button blue (#2480dc) and the "Alterar senha e continuar" button blue too
+- Kept the header NUCA logo (top bar) and footer unchanged
+- Ran `bun run lint` — passed cleanly
+- Verified with Agent Browser: cleared auth, reloaded / route
+- Pixel sampling (Pillow):
+  - Main background = exactly #65d72a (RGB 101,215,42) ✅
+  - 0 orange NUCA-logo-letter pixels in main content (logo removed) ✅
+  - 134 orange pixels in header (header logo intact) ✅
+  - Entrar button = exactly #2480dc (RGB 36,128,220) ✅
+- VLM verification: confirmed green background, no centered logo, blue button, readable text
+
+Stage Summary:
+- Centered NUCA logo removed from both login and change-password content areas (header logo preserved)
+- Main content background is now green #65d72a
+- All text updated to white/white-opacity tones for contrast on green
+- Entrar button kept blue #2480dc as requested
+- Lint clean, verified via pixel sampling + VLM

@@ -192,27 +192,17 @@ export function LoginPage() {
       </header>
 
       {/* ── Main content ─────────────────────────────────── */}
-      <main className="flex-1 flex items-center justify-center px-6 py-10">
+      <main className="flex-1 flex items-center justify-center px-6 py-10 bg-[#65d72a]">
         <div className="w-full max-w-[420px]">
           {!mustChangePassword ? (
             <>
               {/* ── LOGIN ────────────────────────────────────── */}
-              {/* Centered logo + heading */}
+              {/* Heading */}
               <div className="flex flex-col items-center text-center mb-8">
-                <div className="w-44 h-auto mb-6">
-                  <Image
-                    src="/uploads/nuca-logo.png"
-                    alt="Nuca — Núcleo de Cidadania de Adolescentes"
-                    width={1922}
-                    height={1080}
-                    className="w-full h-auto object-contain"
-                    priority
-                  />
-                </div>
-                <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-foreground">
+                <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-white">
                   Acessar sua conta
                 </h1>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-[320px]">
+                <p className="mt-2 text-sm text-white/85 leading-relaxed max-w-[320px]">
                   Use suas credenciais para entrar na plataforma de gestão
                   escolar.
                 </p>
@@ -231,7 +221,7 @@ export function LoginPage() {
                 <div className="space-y-1.5">
                   <Label
                     htmlFor="email"
-                    className="text-[13px] font-medium text-foreground"
+                    className="text-[13px] font-medium text-white"
                   >
                     E-mail
                   </Label>
@@ -252,7 +242,7 @@ export function LoginPage() {
                   <div className="flex items-center justify-between">
                     <Label
                       htmlFor="password"
-                      className="text-[13px] font-medium text-foreground"
+                      className="text-[13px] font-medium text-white"
                     >
                       Senha
                     </Label>
@@ -296,7 +286,7 @@ export function LoginPage() {
                     />
                     <Label
                       htmlFor="remember"
-                      className="text-[13px] text-muted-foreground cursor-pointer select-none"
+                      className="text-[13px] text-white/90 cursor-pointer select-none"
                     >
                       Manter conectado
                     </Label>
@@ -320,7 +310,7 @@ export function LoginPage() {
               </form>
 
               {/* Hint */}
-              <p className="mt-6 text-xs text-muted-foreground/70 leading-relaxed text-center">
+              <p className="mt-6 text-xs text-white/75 leading-relaxed text-center">
                 Esqueceu sua senha? Entre em contato com o administrador do
                 sistema.
               </p>
@@ -328,18 +318,8 @@ export function LoginPage() {
           ) : (
             <>
               {/* ── CHANGE PASSWORD ─────────────────────────── */}
-              {/* Centered logo + heading */}
+              {/* Heading */}
               <div className="flex flex-col items-center text-center mb-7">
-                <div className="w-40 h-auto mb-6">
-                  <Image
-                    src="/uploads/nuca-logo.png"
-                    alt="Nuca — Núcleo de Cidadania de Adolescentes"
-                    width={1922}
-                    height={1080}
-                    className="w-full h-auto object-contain"
-                    priority
-                  />
-                </div>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center">
                     <KeyRound className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
@@ -348,10 +328,10 @@ export function LoginPage() {
                     Senha temporária
                   </span>
                 </div>
-                <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-foreground">
+                <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-white">
                   Redefinir senha
                 </h1>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-[320px]">
+                <p className="mt-2 text-sm text-white/85 leading-relaxed max-w-[320px]">
                   Você está usando uma senha temporária. Crie uma nova senha
                   para continuar.
                 </p>
@@ -370,7 +350,7 @@ export function LoginPage() {
                 <div className="space-y-1.5">
                   <Label
                     htmlFor="current-password"
-                    className="text-[13px] font-medium text-foreground"
+                    className="text-[13px] font-medium text-white"
                   >
                     Senha atual
                   </Label>
@@ -405,7 +385,7 @@ export function LoginPage() {
                 <div className="space-y-1.5">
                   <Label
                     htmlFor="new-password"
-                    className="text-[13px] font-medium text-foreground"
+                    className="text-[13px] font-medium text-white"
                   >
                     Nova senha
                   </Label>
@@ -439,7 +419,7 @@ export function LoginPage() {
                 <div className="space-y-1.5">
                   <Label
                     htmlFor="confirm-password"
-                    className="text-[13px] font-medium text-foreground"
+                    className="text-[13px] font-medium text-white"
                   >
                     Confirmar nova senha
                   </Label>
@@ -479,8 +459,8 @@ export function LoginPage() {
 
                 {/* Password requirements - minimal & professional */}
                 {newPassword && (
-                  <div className="rounded-lg border border-border/70 bg-muted/30 p-3.5">
-                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-2.5">
+                  <div className="rounded-lg border border-white/30 bg-white/15 p-3.5 backdrop-blur-sm">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-white/90 mb-2.5">
                       Requisitos da senha
                     </p>
                     <div className="grid grid-cols-1 gap-1.5">
@@ -498,8 +478,8 @@ export function LoginPage() {
                           <span
                             className={`flex h-3.5 w-3.5 items-center justify-center rounded-full transition-colors ${
                               req.ok
-                                ? "bg-emerald-500 text-white"
-                                : "bg-muted-foreground/15 text-transparent"
+                                ? "bg-white text-[#2480dc]"
+                                : "bg-white/25 text-transparent"
                             }`}
                           >
                             <Check className="h-2.5 w-2.5" strokeWidth={3} />
@@ -507,8 +487,8 @@ export function LoginPage() {
                           <span
                             className={
                               req.ok
-                                ? "text-foreground"
-                                : "text-muted-foreground"
+                                ? "text-white"
+                                : "text-white/80"
                             }
                           >
                             {req.label}
@@ -545,7 +525,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={handleBackToLogin}
-                  className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[13px] text-white/80 hover:text-white transition-colors"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   Voltar ao login
