@@ -1195,3 +1195,26 @@ Stage Summary:
 - Change-password button ("Alterar senha e continuar") also updated to the same blue for consistency
 - Both buttons verified pixel-perfect against the requested hex color
 - Lint clean, page renders correctly
+
+---
+Task ID: SIDEBAR-LOGIN-HEADER-LOGO
+Agent: main
+Task: Move the NUCA logo to the login page top header bar (replacing the placeholder "N" icon + text)
+
+Work Log:
+- Analyzed uploaded screenshot (pasted_image_1782231901565.png) showing the login page header branding area (small navy "N" square + "Nuca" text + "· Gestão Escolar")
+- Located the header in src/components/login-page.tsx (lines 177-193)
+- Replaced the placeholder brand (navy "N" square icon + "Nuca" text + "· Gestão Escolar" subtitle) with the real NUCA logo image (/uploads/nuca-logo.png)
+- Increased header height from h-14 (56px) to h-16 (64px) to better fit the logo
+- Set logo to h-10 (40px) tall, auto width, object-contain
+- Kept the right-side status indicator ("Sistema operando normalmente" with green dot)
+- Ran `bun run lint` — passed cleanly
+- Verified with Agent Browser: cleared auth, reloaded / route
+- Pixel sampling (Pillow): confirmed 620 colorful pixels in header (239 greens = hands graphic, 157 yellows/oranges = NUCA letters) — logo rendering correctly
+- VLM verification on cropped header: confirmed "colorful logo with green hand icon + NUCA text"
+
+Stage Summary:
+- Login page header now displays the real NUCA logo (replacing the placeholder "N" icon + text)
+- Logo is 40px tall (h-10) in a 64px header (h-16), clearly visible
+- Brand text "Nuca · Gestão Escolar" removed since the logo itself contains the branding
+- Lint clean, verified via pixel sampling + VLM
