@@ -306,7 +306,7 @@ export function LoginPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-10 rounded-lg text-sm font-medium transition-all mt-2"
+                  className="w-full h-10 rounded-lg text-sm font-medium transition-all mt-2 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white shadow-sm"
                   disabled={loading}
                 >
                   {loading ? (
@@ -522,7 +522,7 @@ export function LoginPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-10 rounded-lg text-sm font-medium transition-all mt-2"
+                  className="w-full h-10 rounded-lg text-sm font-medium transition-all mt-2 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white shadow-sm"
                   disabled={
                     changingPassword ||
                     !newPassword ||
