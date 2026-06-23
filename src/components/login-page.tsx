@@ -174,17 +174,16 @@ export function LoginPage() {
   return (
     <div className="min-h-screen w-full flex flex-col bg-background">
       {/* ── Top bar ──────────────────────────────────────── */}
-      <header className="h-14 px-6 flex items-center justify-between border-b border-border/60">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">N</span>
-          </div>
-          <span className="text-sm font-semibold tracking-tight text-foreground">
-            Nuca
-          </span>
-          <span className="text-xs text-muted-foreground/70 ml-1">
-            · Gestão Escolar
-          </span>
+      <header className="h-16 px-6 flex items-center justify-between border-b border-border/60">
+        <div className="flex items-center">
+          <Image
+            src="/uploads/nuca-logo.png"
+            alt="Nuca — Núcleo de Cidadania de Adolescentes"
+            width={1922}
+            height={1080}
+            className="h-10 w-auto object-contain"
+            priority
+          />
         </div>
         <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

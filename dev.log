@@ -32,3 +32,15 @@ $ next dev -p 3000 -H 0.0.0.0
  GET / 200 in 48ms (compile: 12ms, render: 36ms)
  GET / 200 in 39ms (compile: 7ms, render: 33ms)
  GET / 200 in 36ms (compile: 7ms, render: 29ms)
+ GET / 200 in 66ms (compile: 5ms, render: 61ms)
+ GET / 200 in 39ms (compile: 4ms, render: 35ms)
+ GET / 200 in 36ms (compile: 4ms, render: 32ms)
+ GET / 200 in 31ms (compile: 8ms, render: 23ms)
+✓ Compiled in 179ms
+ GET / 200 in 217ms (compile: 53ms, render: 164ms)
+ GET / 200 in 47ms (compile: 10ms, render: 38ms)
+ GET / 200 in 46ms (compile: 14ms, render: 32ms)
+ GET / 200 in 39ms (compile: 6ms, render: 33ms)
+✓ Compiled in 159ms
+ GET / 200 in 220ms (compile: 59ms, render: 161ms)
+ GET / 200 in 43ms (compile: 10ms, render: 32ms)
