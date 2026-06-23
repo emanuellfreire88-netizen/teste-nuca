@@ -17,3 +17,4 @@ $ next dev -p 3000 -H 0.0.0.0
  GET /api/reports 200 in 790ms (compile: 57ms, render: 733ms)
  GET / 200 in 33ms (compile: 4ms, render: 29ms)
  GET / 200 in 52ms (compile: 12ms, render: 40ms)
+✓ Compiled in 893ms
