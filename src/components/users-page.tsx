@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
@@ -32,6 +32,9 @@ import {
   KeyRound,
   RotateCcw,
   School as SchoolIcon,
+  Upload,
+  Camera,
+  User,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -70,6 +73,7 @@ interface UserFormData {
   password: string;
   role: "Admin" | "Operator" | "Viewer";
   status: "active" | "inactive";
+  profile_photo: string;
   school_ids: string[];
 }
 
@@ -79,6 +83,7 @@ const emptyForm: UserFormData = {
   password: "",
   role: "Viewer",
   status: "active",
+  profile_photo: "",
   school_ids: [],
 };
 
@@ -159,6 +164,112 @@ function Modal({ open, onClose, children }: {
       >
         {children}
       </div>
+    </div>
+  );
+}
+
+// ─── Photo Upload Component ──────────────────────────────────────────
+function UserPhotoUpload({
+  photo,
+  onPhotoChange,
+}: {
+  photo: string;
+  onPhotoChange: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/jpg", "image/webp"].includes(file.type)) {
+      toast.error("Tipo de arquivo não permitido. Use JPG, PNG ou WebP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Tamanho máximo: 5MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = useAuthStore.getState().token;
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro no upload");
+      }
+      const data = await res.json();
+      onPhotoChange(data.url);
+      toast.success("Foto enviada com sucesso!");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Erro ao enviar foto"
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileUpload(file);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <Avatar className="h-24 w-24">
+        <AvatarImage src={photo || undefined} alt="Foto do usuário" />
+        <AvatarFallback className="bg-muted text-muted-foreground text-2xl">
+          <User className="h-10 w-10" />
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="h-4 w-4 mr-1" />
+          {uploading ? "Enviando..." : "Galeria"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={uploading}
+          onClick={() => cameraInputRef.current?.click()}
+        >
+          <Camera className="h-4 w-4 mr-1" />
+          Câmera
+        </Button>
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
     </div>
   );
 }
@@ -244,6 +355,7 @@ export function UsersPage() {
       password: "",
       role: user.role,
       status: user.status as "active" | "inactive",
+      profile_photo: user.profile_photo || "",
       school_ids: user.school_ids ?? [],
     });
     setModalMode("edit");
@@ -322,6 +434,7 @@ export function UsersPage() {
       setSaving(true);
       await api.post<UserResponse>("/users", {
         ...formData,
+        profile_photo: formData.profile_photo || null,
         // Admins don't need school assignments (they see all)
         school_ids: formData.role === "Admin" ? [] : formData.school_ids,
       });
@@ -361,6 +474,7 @@ export function UsersPage() {
         email: formData.email,
         role: formData.role,
         status: formData.status,
+        profile_photo: formData.profile_photo || null,
         // Always sync school_ids (Admins get an empty list)
         school_ids: formData.role === "Admin" ? [] : formData.school_ids,
       };
@@ -589,6 +703,14 @@ export function UsersPage() {
         </div>
 
         <div className="space-y-4">
+          {/* Photo upload */}
+          <div className="flex justify-center">
+            <UserPhotoUpload
+              photo={formData.profile_photo}
+              onPhotoChange={(url) => updateField("profile_photo", url)}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="create-name">Nome Completo *</Label>
             <Input
@@ -729,6 +851,14 @@ export function UsersPage() {
         </div>
 
         <div className="space-y-4">
+          {/* Photo upload */}
+          <div className="flex justify-center">
+            <UserPhotoUpload
+              photo={formData.profile_photo}
+              onPhotoChange={(url) => updateField("profile_photo", url)}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-name">Nome Completo *</Label>
             <Input

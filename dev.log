@@ -5,66 +5,31 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 1098ms
- GET / 200 in 3.0s (compile: 2.7s, render: 256ms)
+✓ Ready in 636ms
+ GET / 200 in 2.2s (compile: 1917ms, render: 249ms)
+ GET / 200 in 2.2s (compile: 1967ms, render: 206ms)
+ GET / 200 in 59ms (compile: 12ms, render: 48ms)
+ GET / 200 in 59ms (compile: 7ms, render: 51ms)
 ⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
- GET /api/auth/me 401 in 217ms (compile: 201ms, render: 16ms)
- GET / 200 in 46ms (compile: 5ms, render: 41ms)
- GET / 200 in 51ms (compile: 9ms, render: 42ms)
- POST /api/auth/login 200 in 1493ms (compile: 70ms, render: 1423ms)
- GET /api/auth/me 200 in 448ms (compile: 4ms, render: 444ms)
- GET /api/reports 200 in 763ms (compile: 69ms, render: 694ms)
- GET /api/reports 200 in 790ms (compile: 57ms, render: 733ms)
- GET / 200 in 33ms (compile: 4ms, render: 29ms)
- GET / 200 in 52ms (compile: 12ms, render: 40ms)
-✓ Compiled in 893ms
- GET / 200 in 42ms (compile: 11ms, render: 32ms)
- GET / 200 in 39ms (compile: 6ms, render: 33ms)
- GET / 200 in 38ms (compile: 6ms, render: 32ms)
- GET / 200 in 43ms (compile: 8ms, render: 34ms)
- GET / 200 in 31ms (compile: 4ms, render: 27ms)
-✓ Compiled in 356ms
- GET / 200 in 239ms (compile: 66ms, render: 174ms)
- GET / 200 in 27ms (compile: 4ms, render: 24ms)
- GET /api/auth/me 503 in 698ms (compile: 5ms, render: 693ms)
- GET /api/reports 503 in 685ms (compile: 7ms, render: 678ms)
- GET /api/reports 503 in 715ms (compile: 3ms, render: 711ms)
- GET / 200 in 48ms (compile: 12ms, render: 36ms)
- GET / 200 in 39ms (compile: 7ms, render: 33ms)
- GET / 200 in 36ms (compile: 7ms, render: 29ms)
- GET / 200 in 66ms (compile: 5ms, render: 61ms)
- GET / 200 in 39ms (compile: 4ms, render: 35ms)
- GET / 200 in 36ms (compile: 4ms, render: 32ms)
- GET / 200 in 31ms (compile: 8ms, render: 23ms)
-✓ Compiled in 179ms
- GET / 200 in 217ms (compile: 53ms, render: 164ms)
- GET / 200 in 47ms (compile: 10ms, render: 38ms)
- GET / 200 in 46ms (compile: 14ms, render: 32ms)
- GET / 200 in 39ms (compile: 6ms, render: 33ms)
-✓ Compiled in 159ms
- GET / 200 in 220ms (compile: 59ms, render: 161ms)
- GET / 200 in 43ms (compile: 10ms, render: 32ms)
- GET / 200 in 36ms (compile: 8ms, render: 28ms)
- GET / 200 in 30ms (compile: 4ms, render: 26ms)
- GET / 200 in 35ms (compile: 9ms, render: 26ms)
- GET / 200 in 35ms (compile: 9ms, render: 26ms)
- GET / 200 in 31ms (compile: 8ms, render: 23ms)
-✓ Compiled in 300ms
-✓ Compiled in 84ms
-✓ Compiled in 189ms
-✓ Compiled in 84ms
-✓ Compiled in 79ms
-✓ Compiled in 212ms
-✓ Compiled in 87ms
- GET / 200 in 231ms (compile: 58ms, render: 173ms)
-✓ Compiled in 194ms
-✓ Compiled in 82ms
-✓ Compiled in 78ms
-✓ Compiled in 150ms
-✓ Compiled in 166ms
-✓ Compiled in 83ms
- GET / 200 in 238ms (compile: 66ms, render: 172ms)
- GET / 200 in 42ms (compile: 8ms, render: 34ms)
- GET / 200 in 45ms (compile: 10ms, render: 35ms)
- GET / 200 in 64ms (compile: 5ms, render: 59ms)
- GET / 200 in 33ms (compile: 4ms, render: 28ms)
+ POST /api/auth/login 200 in 1659ms (compile: 133ms, render: 1526ms)
+ GET /api/auth/me 200 in 726ms (compile: 259ms, render: 466ms)
+ GET /api/reports 200 in 1505ms (compile: 142ms, render: 1363ms)
+ GET /api/reports 200 in 240ms (compile: 2ms, render: 238ms)
+ GET /api/schools?limit=100 200 in 902ms (compile: 171ms, render: 731ms)
+ GET /api/schools?limit=100 200 in 234ms (compile: 2ms, render: 232ms)
+ GET /api/users?limit=100 200 in 1322ms (compile: 219ms, render: 1103ms)
+ GET /api/users?limit=100 200 in 453ms (compile: 2ms, render: 450ms)
+ POST /api/auth/login 200 in 1458ms (compile: 3ms, render: 1455ms)
+ POST /api/upload 200 in 385ms (compile: 143ms, render: 242ms)
+ POST /api/auth/login 200 in 1448ms (compile: 3ms, render: 1445ms)
+ POST /api/users 201 in 1008ms (compile: 2ms, render: 1006ms)
+ GET / 200 in 45ms (compile: 7ms, render: 37ms)
+ GET /api/auth/me 200 in 669ms (compile: 6ms, render: 663ms)
+ GET /api/reports 200 in 722ms (compile: 4ms, render: 718ms)
+ GET /api/reports 200 in 728ms (compile: 10ms, render: 718ms)
+ GET /api/schools?limit=100 200 in 689ms (compile: 9ms, render: 680ms)
+ GET /api/schools?limit=100 200 in 717ms (compile: 1254µs, render: 716ms)
+ GET /api/users?limit=100 200 in 928ms (compile: 13ms, render: 914ms)
+ GET /api/users?limit=100 200 in 967ms (compile: 5ms, render: 961ms)
+ POST /api/auth/login 200 in 1534ms (compile: 3ms, render: 1531ms)
+ DELETE /api/users/d5f26d77-596e-4847-8c1f-fe3d80c80d35 200 in 2.1s (compile: 662ms, render: 1483ms)
