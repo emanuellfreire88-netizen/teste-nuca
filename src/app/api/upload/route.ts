@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 import { randomUUID } from 'crypto';
-import path from 'path';
-import { promises as fs } from 'fs';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -12,8 +10,11 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
+// Allow up to 4MB of raw image data on the wire. The resulting base64 data URL
+// will be ~33% larger, but Postgres TOAST handles large text values cleanly.
+const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+// Safety ceiling for the stored data URL — protects the database from abuse.
+const MAX_DATA_URL_LENGTH = 6 * 1024 * 1024; // ~6MB base64 ceiling
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   let debugInfo = 'unknown';
@@ -38,47 +39,57 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
 
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
-        { error: 'Arquivo muito grande. Tamanho máximo: 5MB.' },
+        { error: 'Arquivo muito grande. Tamanho máximo: 4MB.' },
         { status: 400 }
       );
     }
 
-    // Ensure the uploads directory exists
-    debugInfo = 'mkdir';
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
-
-    // Build a unique, safe filename
-    const ext = path.extname(file.name || '') || `.${file.type.split('/')[1]}`;
-    const safeExt = ext.toLowerCase().replace(/[^a-z0-9.]/g, '');
-    const filename = `${randomUUID()}${safeExt}`;
-    const filePath = path.join(UPLOAD_DIR, filename);
-
-    // Write the file to disk
-    debugInfo = 'writefile';
+    // ── Vercel-safe storage ───────────────────────────────────────────────
+    // Vercel serverless functions run on a READ-ONLY filesystem, so we cannot
+    // write uploaded files to /public/uploads. Instead we inline the image as
+    // a base64 data URL and return it. The caller stores this string in the
+    // database (e.g. users.profile_photo). Postgres TOAST transparently
+    // handles large text values, and <img src="data:..."> renders correctly
+    // in every browser. This works identically in dev and on Vercel.
+    debugInfo = 'read-buffer';
     const arrayBuffer = await file.arrayBuffer();
-    await fs.writeFile(filePath, Buffer.from(arrayBuffer));
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Verify the file was actually written
-    debugInfo = 'verify';
-    const stat = await fs.stat(filePath);
-    if (!stat.isFile() || stat.size === 0) {
-      throw new Error(`File write verification failed: size=${stat.size}`);
+    if (buffer.length === 0) {
+      return NextResponse.json(
+        { error: 'Arquivo vazio' },
+        { status: 400 }
+      );
     }
 
-    // Public URL path
-    const url = `/uploads/${filename}`;
+    debugInfo = 'encode-dataurl';
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${file.type};base64,${base64}`;
+
+    if (dataUrl.length > MAX_DATA_URL_LENGTH) {
+      return NextResponse.json(
+        {
+          error:
+            'Imagem muito grande para armazenar. Use uma imagem menor (idealmente abaixo de 1MB).',
+        },
+        { status: 413 }
+      );
+    }
+
+    // A stable, human-readable filename for logging / reference only.
+    const ext = (file.type.split('/')[1] || 'bin').toLowerCase();
+    const filename = `${randomUUID()}.${ext}`;
 
     debugInfo = 'logaction';
     await logAction(
       req.user!.userId,
       'upload_file',
-      `Upload de arquivo: ${filename} (${file.type}, ${(file.size / 1024).toFixed(1)}KB)`,
+      `Upload de arquivo (data URL): ${filename} (${file.type}, ${(file.size / 1024).toFixed(1)}KB)`,
       req
     );
 
-    return NextResponse.json({ url, filename });
+    return NextResponse.json({ url: dataUrl, filename });
   } catch (error) {
-    // Log the actual error with context so we can diagnose the real cause
     const errMessage = error instanceof Error ? error.message : String(error);
     const errStack = error instanceof Error ? error.stack : '';
     console.error('Upload error:', {
@@ -91,6 +102,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       {
         error: 'Erro interno do servidor ao fazer upload',
         detail: errMessage,
+        stage: debugInfo,
       },
       { status: 500 }
     );

@@ -52,7 +52,13 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
  * their own profile photo. This is the self-service endpoint used by
  * the "Meu Perfil" dialog in the sidebar user dropdown.
  *
- * Body: { "profile_photo": "/uploads/xxx.png" | null }
+ * Body: { "profile_photo": "data:image/...;base64,..." | "/uploads/xxx.png" | null }
+ *
+ * NOTE: On Vercel the filesystem is read-only, so uploaded images are stored
+ * as base64 data URLs (produced by /api/upload). Postgres TOAST handles the
+ * large text value transparently, and <img src="data:..."> renders in every
+ * browser. Legacy "/uploads/..." paths are still accepted for backwards
+ * compatibility with local dev environments.
  */
 export const PUT = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -67,17 +73,39 @@ export const PUT = withAuth(async (req: AuthenticatedRequest) => {
       );
     }
 
-    // If a string is provided, it must be a relative /uploads/ path
-    // to prevent storing arbitrary external URLs.
+    // If a string is provided, it must be either:
+    //  (a) a base64 data URL of an allowed image type, or
+    //  (b) a legacy relative /uploads/ path.
+    // This prevents storing arbitrary external URLs (SSRF / data exfiltration).
     if (typeof profile_photo === 'string' && profile_photo.length > 0) {
-      if (!profile_photo.startsWith('/uploads/')) {
+      const isDataUrl = profile_photo.startsWith('data:image/');
+      const isUploadPath = profile_photo.startsWith('/uploads/');
+
+      if (!isDataUrl && !isUploadPath) {
         return NextResponse.json(
-          { error: 'Caminho de foto inválido' },
+          { error: 'Foto inválida. Envie uma imagem válida.' },
           { status: 400 }
         );
       }
-      // Limit length to prevent abuse
-      if (profile_photo.length > 255) {
+
+      // For data URLs, validate the mime prefix is one we allow, and cap the
+      // length to protect the database from abuse.
+      if (isDataUrl) {
+        const mimeMatch = profile_photo.match(/^data:image\/([a-z]+);base64,/i);
+        if (!mimeMatch || !['jpeg', 'png', 'jpg', 'webp'].includes(mimeMatch[1].toLowerCase())) {
+          return NextResponse.json(
+            { error: 'Tipo de imagem não permitido' },
+            { status: 400 }
+          );
+        }
+        if (profile_photo.length > 6 * 1024 * 1024) {
+          return NextResponse.json(
+            { error: 'Imagem muito grande. Use uma imagem menor.' },
+            { status: 400 }
+          );
+        }
+      } else if (profile_photo.length > 255) {
+        // Legacy /uploads/ path — keep the tight length cap.
         return NextResponse.json(
           { error: 'Caminho de foto muito longo' },
           { status: 400 }

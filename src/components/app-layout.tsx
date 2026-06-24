@@ -102,6 +102,53 @@ function UserAvatar({ user }: { user: { full_name: string; profile_photo: string
 }
 
 // ─── Profile Photo Dialog (self-service, available to ALL roles) ──────
+
+/**
+ * Reads an image File, draws it onto a square canvas at most `maxDim`×`maxDim`
+ * (center-cropped), and returns a JPEG data URL at the given quality. This
+ * runs entirely in the browser so we never touch the server filesystem
+ * (which is read-only on Vercel), and the resulting string is small enough
+ * (~15-40KB) to store comfortably in a Postgres text column via the
+ * `profile_photo` field.
+ */
+async function compressImageToDataUrl(
+  file: File,
+  maxDim: number,
+  quality: number
+): Promise<string> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("Imagem inválida"));
+      image.onload = () => resolve(image);
+      image.src = objectUrl;
+    });
+
+    // Center-crop to a square, then scale down to maxDim×maxDim. Avatars are
+    // always shown as a square/circle, so a square crop matches the display.
+    const side = Math.min(img.width, img.height);
+    const sx = (img.width - side) / 2;
+    const sy = (img.height - side) / 2;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = maxDim;
+    canvas.height = maxDim;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas não suportado neste navegador");
+    // White background so transparent PNGs don't turn black when exported as JPEG.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, maxDim, maxDim);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, sx, sy, side, side, 0, 0, maxDim, maxDim);
+
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 function ProfilePhotoDialog({
   open,
   onOpenChange,
@@ -132,21 +179,23 @@ function ProfilePhotoDialog({
       toast.error("Tipo de arquivo não permitido. Use JPG, PNG ou WebP.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Arquivo muito grande. Tamanho máximo: 5MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Tamanho máximo: 10MB.");
       return;
     }
 
     setUploading(true);
     try {
-      const data = await api.upload<{ url: string; filename: string }>(
-        "/upload",
-        file
-      );
-      setPendingPhoto(data.url);
-      toast.success("Foto enviada! Clique em Salvar para confirmar.");
+      // Compress + resize the image entirely in the browser. This produces a
+      // small (~15-40KB) base64 data URL that we store directly in the
+      // database via PUT /api/auth/me. This avoids writing to the filesystem
+      // (which is read-only on Vercel) and keeps the DB payload tiny. No
+      // network round-trip is needed until the user clicks "Salvar".
+      const dataUrl = await compressImageToDataUrl(file, 256, 0.85);
+      setPendingPhoto(dataUrl);
+      toast.success("Foto pronta! Clique em Salvar para confirmar.");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao enviar foto";
+      const msg = err instanceof Error ? err.message : "Erro ao processar foto";
       toast.error(msg);
     } finally {
       setUploading(false);
@@ -268,7 +317,7 @@ function ProfilePhotoDialog({
           </div>
 
           <p className="text-xs text-muted-foreground text-center max-w-[280px]">
-            Formatos: JPG, PNG ou WebP. Tamanho máximo: 5MB.
+            Formatos: JPG, PNG ou WebP. A imagem é redimensionada automaticamente.
           </p>
 
           <input
