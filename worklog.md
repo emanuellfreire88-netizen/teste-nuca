@@ -1411,3 +1411,32 @@ Stage Summary:
   - Nova senha temporária: k&Ee4-s3tK&t=-
   - Usuário será obrigado a trocar no primeiro login (must_change_password=true)
   - Conta desbloqueada (failed_login_attempts=0, locked_until=null)
+
+---
+Task ID: 9
+Agent: main
+Task: Adicionar folha de frequência manual em PDF (lista de assinatura dos alunos)
+
+Work Log:
+- Carregada skill PDF para confirmar abordagem; projeto já tem jspdf + jspdf-autotable (Vercel-safe, puro JS)
+- Criada rota GET /api/attendance/sheet (withAuth, disponível para Admin/Operator/Viewer)
+  - Params: school_id (obrigatório), date (obrigatório), class & grade (opcionais)
+  - School scoping via getUserSchoolIds (não-admins restritos às suas escolas)
+  - Gera PDF A4 retrato com: header verde (Lista de Frequência + NUCA), campos de Escola/Período/Turma/Série/Professor(a), tabela Nº|Nome|Assinatura (coluna de assinatura larga com 100mm), linhas de 14mm de altura para assinar à mão, rodapé com numeração de páginas
+  - Retorna PDF com Content-Disposition: attachment; filename=folha-assinatura_{school}_{date}.pdf
+- Adicionado botão "Folha de Assinatura" (ícone PenLine) no header da Lista de Alunos da página Frequência
+  - Disponível para TODOS os roles quando uma escola está selecionada
+  - Usa api.download() para salvar o PDF direto no dispositivo
+  - Toast de feedback em sucesso/erro
+- Verificado via curl: HTTP 200, PDF válido (18KB, %PDF header, %%EOF), 2 páginas com 16 alunos
+- Verificado conteúdo do PDF via pypdf: nomes dos alunos corretos + campos em branco para assinatura
+- Verificado E2E com Agent Browser: login → Frequência → selecionar escola → clicar botão → GET /api/attendance/sheet retornou 200, sem erros de console
+- Lint limpo, commit 9ad6825 pushed para GitHub (origin/main)
+
+Stage Summary:
+- Nova funcionalidade: Folha de Assinatura Manual em PDF
+  - Local: página Frequência, aba "Marcar Frequência", botão "Folha de Assinatura" ao lado de "Todos Presentes/Ausentes"
+  - Disponível para Admin, Operator e Viewer
+  - PDF A4 retrato, imprimível, com nomes dos alunos e espaço em branco para assinatura à mão
+  - Campos para preencher: Período, Turma, Série, Professor(a)
+  - Vercel-safe (jspdf puro JS, sem escrita em filesystem)
