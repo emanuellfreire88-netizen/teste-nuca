@@ -5,17 +5,9 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 649ms
-⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
-Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
- GET / 200 in 2.2s (compile: 1937ms, render: 220ms)
- GET / 200 in 1347ms (compile: 1259ms, render: 87ms)
+✓ Ready in 638ms
+ GET / 200 in 2.1s (compile: 1861ms, render: 198ms)
+ GET / 200 in 39ms (compile: 6ms, render: 33ms)
+ GET / 200 in 33ms (compile: 5ms, render: 29ms)
 ⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
- GET /api/auth/me 401 in 164ms (compile: 149ms, render: 15ms)
- GET / 200 in 55ms (compile: 9ms, render: 45ms)
- GET / 200 in 30ms (compile: 5ms, render: 25ms)
- GET / 200 in 37ms (compile: 4ms, render: 32ms)
- POST /api/auth/login 200 in 1548ms (compile: 50ms, render: 1498ms)
- GET /api/auth/me 200 in 475ms (compile: 5ms, render: 470ms)
- GET /api/reports 200 in 781ms (compile: 45ms, render: 737ms)
- GET /api/reports 200 in 805ms (compile: 54ms, render: 751ms)
+ POST /api/auth/login 200 in 6.9s (compile: 109ms, render: 6.8s)

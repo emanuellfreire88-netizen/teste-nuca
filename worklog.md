@@ -1387,3 +1387,27 @@ Stage Summary:
 - Correção permanente em `src/lib/db.ts`: detecta e ignora valores não-PostgreSQL, lendo diretamente do `.env` quando necessário
 - Todos os 3 perfis (Admin, Operador, Visitante) agora conseguem fazer upload de foto e salvar no perfil
 - Arquivo modificado: `src/lib/db.ts` (+58 linhas, -7 linhas)
+
+---
+Task ID: 8
+Agent: main
+Task: Corrigir upload de foto de perfil (erro EROFS no Vercel) e trocar senha do usuário emanuell.fp.rocha@gmail.com
+
+Work Log:
+- Diagnosticado erro real: `EROFS: read-only file system` ao escrever em /public/uploads no Vercel serverless (NÃO era problema do Neon DB)
+- Reescrito /api/upload para retornar data URL base64 em vez de gravar no disco
+- Adicionada compressão client-side (canvas 256x256 JPEG q0.85) no ProfilePhotoDialog — sem chamada ao /api/upload, payload ~15-40KB
+- /api/auth/me PUT agora aceita data:image/* URLs (com validação de mime + tamanho)
+- Verificado roundtrip de data URL no Neon DB: 487 chars armazenados e lidos intactos
+- Verificado fluxo completo via curl: login 200 → /api/upload 200 → PUT /api/auth/me 200 → GET /api/auth/me 200
+- Commit 35bd58e pushed para GitHub (origin/main) — Vercel fará redeploy automático
+- Gerada senha temporária forte (14 chars, criptograficamente segura) para emanuell.fp.rocha@gmail.com
+- Hash bcrypt cost 12 (mesmo formato do app), must_change_password=true, failed_login_attempts=0, locked_until=null
+- Login verificado: token retornado + mustChangePassword=True (força troca no próximo acesso)
+
+Stage Summary:
+- Upload de foto de perfil: CORRIGIDO em produção (Vercel read-only FS). Usuário confirmou "As fotos já está pegando"
+- Senha do emanuell.fp.rocha@gmail.com: ALTERADA
+  - Nova senha temporária: k&Ee4-s3tK&t=-
+  - Usuário será obrigado a trocar no primeiro login (must_change_password=true)
+  - Conta desbloqueada (failed_login_attempts=0, locked_until=null)
