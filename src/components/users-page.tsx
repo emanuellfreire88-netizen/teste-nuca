@@ -193,21 +193,10 @@ function UserPhotoUpload({
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const token = useAuthStore.getState().token;
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Erro no upload");
-      }
-      const data = await res.json();
+      const data = await api.upload<{ url: string; filename: string }>(
+        "/upload",
+        file
+      );
       onPhotoChange(data.url);
       toast.success("Foto enviada com sucesso!");
     } catch (err) {

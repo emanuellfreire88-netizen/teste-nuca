@@ -6,8 +6,9 @@ import path from 'path';
 import { promises as fs } from 'fs';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// Allow up to 6MB request bodies for image uploads
+// Allow up to 30s for image uploads (large files on slow connections)
 export const maxDuration = 30;
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
@@ -15,7 +16,9 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
+  let debugInfo = 'unknown';
   try {
+    debugInfo = 'parsing-formdata';
     const formData = await req.formData();
     const file = formData.get('file');
 
@@ -41,6 +44,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     }
 
     // Ensure the uploads directory exists
+    debugInfo = 'mkdir';
     await fs.mkdir(UPLOAD_DIR, { recursive: true });
 
     // Build a unique, safe filename
@@ -50,12 +54,21 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     const filePath = path.join(UPLOAD_DIR, filename);
 
     // Write the file to disk
+    debugInfo = 'writefile';
     const arrayBuffer = await file.arrayBuffer();
     await fs.writeFile(filePath, Buffer.from(arrayBuffer));
+
+    // Verify the file was actually written
+    debugInfo = 'verify';
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile() || stat.size === 0) {
+      throw new Error(`File write verification failed: size=${stat.size}`);
+    }
 
     // Public URL path
     const url = `/uploads/${filename}`;
 
+    debugInfo = 'logaction';
     await logAction(
       req.user!.userId,
       'upload_file',
@@ -65,9 +78,20 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
 
     return NextResponse.json({ url, filename });
   } catch (error) {
-    console.error('Upload error:', error);
+    // Log the actual error with context so we can diagnose the real cause
+    const errMessage = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : '';
+    console.error('Upload error:', {
+      stage: debugInfo,
+      message: errMessage,
+      stack: errStack,
+      name: error instanceof Error ? error.name : typeof error,
+    });
     return NextResponse.json(
-      { error: 'Erro interno do servidor ao fazer upload' },
+      {
+        error: 'Erro interno do servidor ao fazer upload',
+        detail: errMessage,
+      },
       { status: 500 }
     );
   }

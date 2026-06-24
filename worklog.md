@@ -1295,3 +1295,54 @@ Stage Summary:
 - Photos are saved to `public/uploads/` and the URL stored in the `users.profile_photo` column
 - Photos display in the users table and load into the edit modal
 - Lint clean, full flow browser-verified, pushed to git
+
+---
+Task ID: PROFILE-PHOTO-UPLOAD
+Agent: main
+Task: Adicionar opção de colocar foto no perfil de adm, operador e visitante + fix "erro interno do servidor ao fazer upload"
+
+Work Log:
+- Investigated the "erro interno do servidor ao fazer upload" error reported by the user
+- Found that the error came from the catch block in `/api/upload/route.ts` (line 70)
+- Improved the upload route with better error diagnostics:
+  - Added `runtime = 'nodejs'` to explicitly ensure Node.js runtime (required for `fs` operations; Edge runtime would cause silent failures)
+  - Added stage tracking (`debugInfo` variable) to identify exactly which step fails
+  - Added file write verification (checks file exists and has non-zero size after writing)
+  - The error response now includes a `detail` field with the actual error message for easier diagnosis
+- Added a new PUT method to `/api/auth/me` route for self-service profile photo updates:
+  - Available to ALL authenticated users (Admin, Operator, Viewer) via `withAuth` middleware
+  - Validates that `profile_photo` is either a string or null
+  - Validates that string values start with `/uploads/` (prevents storing arbitrary external URLs)
+  - Validates length (max 255 chars)
+  - Logs the action as `update_profile_photo`
+- Added a "Meu Perfil" (My Profile) dialog to `app-layout.tsx`:
+  - Added `ProfilePhotoDialog` component with avatar preview, upload buttons (Galeria + Câmera), and Remove option
+  - Added "Meu Perfil" menu item to the user dropdown menu
+  - Made the sidebar footer avatar clickable to open the profile dialog (with hover ring effect)
+  - Added `onProfileClick` prop to `SidebarContent` and wired it to both desktop and mobile sidebars
+  - Updated role label to show "Visitante" for Viewer role (was only showing "Administrador"/"Operador")
+  - Dialog uses the shared `api.upload()` method for consistent auth handling
+  - Dialog uses `api.put('/auth/me', { profile_photo })` to save the photo URL
+  - On save, updates the auth store via `updateUser()` so the sidebar/topbar avatars update instantly
+- Refactored `users-page.tsx` `UserPhotoUpload` component to use the shared `api.upload()` method instead of manual `fetch()` with token handling
+- Created a test Viewer user (visitor@nuca.com / Viewer@123) to test the third role
+- Tested all three roles end-to-end via Agent Browser:
+  - Admin (emanuell.fp.rocha@gmail.com): uploaded photo → saved → verified in DB ✓
+  - Operator (teste@gmail.com): uploaded photo → saved → verified in DB ✓
+  - Viewer (visitor@nuca.com): uploaded photo → saved → verified in DB ✓
+  - Also tested the "Remover" (Remove) photo functionality → sets profile_photo to null ✓
+- All uploaded files verified to exist in `/public/uploads/`
+
+Stage Summary:
+- Root cause of "erro interno do servidor ao fazer upload": likely the route was running in Edge runtime (which doesn't support `fs`), or a transient file system error. Fixed by explicitly setting `runtime = 'nodejs'` and adding comprehensive error logging.
+- Profile photo upload is now available to ALL three roles (Admin, Operator, Viewer) via:
+  1. The "Meu Perfil" dialog in the user dropdown menu (self-service, all roles)
+  2. The clickable sidebar avatar (self-service, all roles)
+  3. The admin Users page (admin editing other users — existing functionality, now using shared `api.upload`)
+- New API endpoint: `PUT /api/auth/me` with body `{ profile_photo: string | null }`
+- All uploads go through `/api/upload` which validates file type (JPG/PNG/WebP), size (max 5MB), and stores files in `/public/uploads/` with UUID filenames
+- Files modified:
+  - `src/app/api/upload/route.ts` — improved error handling, added `runtime = 'nodejs'`, stage tracking
+  - `src/app/api/auth/me/route.ts` — added PUT method for self-service profile photo update
+  - `src/components/app-layout.tsx` — added ProfilePhotoDialog, "Meu Perfil" menu item, clickable sidebar avatar
+  - `src/components/users-page.tsx` — refactored UserPhotoUpload to use shared `api.upload()` method

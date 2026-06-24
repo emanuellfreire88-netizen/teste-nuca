@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FloatingSupportButton } from "@/components/floating-support-button";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 import {
   LayoutDashboard,
@@ -36,6 +46,11 @@ import {
   Moon,
   ChevronDown,
   MessageSquare,
+  UserCircle,
+  Upload,
+  Camera,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 export type PageKey =
@@ -86,11 +101,219 @@ function UserAvatar({ user }: { user: { full_name: string; profile_photo: string
   );
 }
 
+// ─── Profile Photo Dialog (self-service, available to ALL roles) ──────
+function ProfilePhotoDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { user, updateUser } = useAuthStore();
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(
+    user?.profile_photo || null
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync pending photo when dialog opens
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      setPendingPhoto(user?.profile_photo || null);
+    }
+    onOpenChange(next);
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/jpg", "image/webp"].includes(file.type)) {
+      toast.error("Tipo de arquivo não permitido. Use JPG, PNG ou WebP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Tamanho máximo: 5MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const data = await api.upload<{ url: string; filename: string }>(
+        "/upload",
+        file
+      );
+      setPendingPhoto(data.url);
+      toast.success("Foto enviada! Clique em Salvar para confirmar.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao enviar foto";
+      toast.error(msg);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileUpload(file);
+    e.target.value = "";
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const data = await api.put<{ user: typeof user }>("/auth/me", {
+        profile_photo: pendingPhoto || null,
+      });
+      if (data.user) {
+        updateUser(data.user);
+      }
+      toast.success("Foto de perfil atualizada com sucesso!");
+      onOpenChange(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar foto";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemove = () => {
+    setPendingPhoto(null);
+  };
+
+  if (!user) return null;
+
+  const initials = user.full_name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  const roleLabel =
+    user.role === "Admin"
+      ? "Administrador"
+      : user.role === "Operator"
+        ? "Operador"
+        : "Visitante";
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Meu Perfil</DialogTitle>
+          <DialogDescription>
+            Gerencie sua foto de perfil. A foto será exibida no menu e na sua conta.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col items-center gap-4 py-4">
+          {/* Preview Avatar */}
+          <Avatar className="h-28 w-28">
+            <AvatarImage src={pendingPhoto || undefined} alt={user.full_name} />
+            <AvatarFallback className="bg-muted text-muted-foreground text-3xl font-semibold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+
+          {/* User info */}
+          <div className="text-center">
+            <p className="text-base font-semibold">{user.full_name}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Perfil: {roleLabel}
+            </p>
+          </div>
+
+          {/* Upload buttons */}
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading || saving}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 mr-1" />
+              )}
+              {uploading ? "Enviando..." : "Galeria"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading || saving}
+              onClick={() => cameraInputRef.current?.click()}
+            >
+              <Camera className="h-4 w-4 mr-1" />
+              Câmera
+            </Button>
+            {pendingPhoto && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploading || saving}
+                onClick={handleRemove}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Remover
+              </Button>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground text-center max-w-[280px]">
+            Formatos: JPG, PNG ou WebP. Tamanho máximo: 5MB.
+          </p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving || uploading}>
+            {saving ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : null}
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SidebarContent({
   currentPage,
   onNavigate,
   user,
   onLogout,
+  onProfileClick,
   collapsed = false,
   onToggleCollapse,
 }: {
@@ -98,12 +321,20 @@ function SidebarContent({
   onNavigate: (page: PageKey) => void;
   user: { full_name: string; email: string; role: string; profile_photo: string | null };
   onLogout: () => void;
+  onProfileClick?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
   const isAdmin = user.role === "Admin";
 
   const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+
+  const roleLabel =
+    user.role === "Admin"
+      ? "Administrador"
+      : user.role === "Operator"
+        ? "Operador"
+        : "Visitante";
 
   return (
     <div className="flex flex-col h-full bg-[#56CE20]">
@@ -167,17 +398,29 @@ function SidebarContent({
       <div className="border-t border-white/20 px-3 py-3">
         {collapsed ? (
           <div className="flex justify-center">
-            <UserAvatar user={user} />
+            <button
+              onClick={onProfileClick}
+              className="rounded-full ring-2 ring-white/30 hover:ring-white/60 transition-all cursor-pointer"
+              title="Meu Perfil"
+            >
+              <UserAvatar user={user} />
+            </button>
           </div>
         ) : (
           <div className="flex items-center gap-3 py-1">
-            <UserAvatar user={user} />
+            <button
+              onClick={onProfileClick}
+              className="rounded-full ring-2 ring-white/30 hover:ring-white/60 transition-all cursor-pointer shrink-0"
+              title="Meu Perfil"
+            >
+              <UserAvatar user={user} />
+            </button>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-normal text-white truncate">
                 {user.full_name}
               </p>
               <p className="text-[11px] text-white/70 truncate">
-                {isAdmin ? "Administrador" : "Operador"}
+                {roleLabel}
               </p>
             </div>
             <button
@@ -207,6 +450,7 @@ export function AppLayout({
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   if (!user) return null;
 
@@ -232,6 +476,7 @@ export function AppLayout({
           onNavigate={handleNavigate}
           user={user}
           onLogout={handleLogout}
+          onProfileClick={() => setProfileOpen(true)}
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed((c) => !c)}
         />
@@ -248,6 +493,10 @@ export function AppLayout({
             onNavigate={handleNavigate}
             user={user}
             onLogout={handleLogout}
+            onProfileClick={() => {
+              setMobileOpen(false);
+              setProfileOpen(true);
+            }}
             onToggleCollapse={() => setMobileOpen(false)}
           />
         </SheetContent>
@@ -302,6 +551,13 @@ export function AppLayout({
                 </p>
               </div>
               <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setProfileOpen(true)}
+                className="cursor-pointer"
+              >
+                <UserCircle className="mr-2 h-4 w-4" />
+                Meu Perfil
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 Sair da conta
@@ -318,6 +574,9 @@ export function AppLayout({
 
       {/* Floating Support button for non-admin users (Operator/Viewer) */}
       <FloatingSupportButton />
+
+      {/* Self-service Profile Photo dialog (available to ALL roles) */}
+      <ProfilePhotoDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }
