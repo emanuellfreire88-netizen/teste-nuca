@@ -45,6 +45,7 @@ import {
   XIcon,
   ChevronLeft,
   ChevronRight,
+  PenLine,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -327,6 +328,38 @@ function AttendanceMarkingView() {
     }
   };
 
+  // ── Generate printable signature sheet (folha de assinatura manual) ──
+  // Downloads a PDF with the students' names and a blank column where each
+  // student signs by hand on the printed copy. Available to ALL roles
+  // (Admin, Operator, Viewer) since it only reads student data.
+  const [generatingSheet, setGeneratingSheet] = useState(false);
+
+  const handleGenerateSheet = async () => {
+    if (!selectedSchoolId) {
+      toast.error("Selecione uma escola");
+      return;
+    }
+    try {
+      setGeneratingSheet(true);
+      const dateStr = format(date, "yyyy-MM-dd");
+      // Use the shared api.download() helper so the auth token is attached
+      // and the file is saved directly to the user's device.
+      await api.download(
+        `/attendance/sheet?school_id=${selectedSchoolId}&date=${dateStr}`,
+        `folha-assinatura-${dateStr}.pdf`
+      );
+      toast.success("Folha de assinatura gerada!");
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Erro ao gerar folha de assinatura";
+      toast.error(message);
+    } finally {
+      setGeneratingSheet(false);
+    }
+  };
+
   const presentCount = Object.values(attendanceMap).filter(
     (s) => s === "present"
   ).length;
@@ -396,30 +429,51 @@ function AttendanceMarkingView() {
                     : "Nenhum aluno encontrado"}
                 </CardDescription>
               </div>
-              {canMark && students.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={setAllPresent}
-                    disabled={saving}
-                  >
-                    <CheckCheck className="mr-1 h-4 w-4" />
-                    Todos Presentes
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={setAllAbsent}
-                    disabled={saving}
-                  >
-                    <XIcon className="mr-1 h-4 w-4" />
-                    Todos Ausentes
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Folha de assinatura — available to ALL roles. Generates a
+                    printable PDF with student names + a blank column to sign
+                    by hand. Does not depend on the loaded student list (the
+                    PDF endpoint queries the DB directly), only on the
+                    selected school + date. */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateSheet}
+                  disabled={generatingSheet}
+                >
+                  {generatingSheet ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <PenLine className="mr-1 h-4 w-4" />
+                  )}
+                  {generatingSheet ? "Gerando..." : "Folha de Assinatura"}
+                </Button>
+                {canMark && students.length > 0 && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={setAllPresent}
+                      disabled={saving}
+                    >
+                      <CheckCheck className="mr-1 h-4 w-4" />
+                      Todos Presentes
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={setAllAbsent}
+                      disabled={saving}
+                    >
+                      <XIcon className="mr-1 h-4 w-4" />
+                      Todos Ausentes
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 overflow-hidden">
