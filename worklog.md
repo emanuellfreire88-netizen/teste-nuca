@@ -1346,3 +1346,44 @@ Stage Summary:
   - `src/app/api/auth/me/route.ts` — added PUT method for self-service profile photo update
   - `src/components/app-layout.tsx` — added ProfilePhotoDialog, "Meu Perfil" menu item, clickable sidebar avatar
   - `src/components/users-page.tsx` — refactored UserPhotoUpload to use shared `api.upload()` method
+
+---
+Task ID: FIX-UPLOAD-DB-ERROR
+Agent: main
+Task: Resolver "erro interno do servidor ao fazer upload" com prioridade máxima — verificar relação com banco Neon
+
+Work Log:
+- Usuário relatou que o upload ainda não estava funcionando após o push anterior
+- Investiguei o dev.log e descobri que o servidor tinha parado de logar (arquivo travado em 13:30)
+- Reiniciei o dev server e testei com curl — descobri o erro real:
+  ```
+  prisma:error Database connection string format for `neon()` should be: postgresql://user:password@host.tld/dbname?option=value
+  Login error: Error: Database connection string format for `neon()` should be...
+  POST /api/auth/login 500
+  ```
+- Causa raiz identificada: o shell do sandbox exporta `DATABASE_URL=file:/home/z/my-project/db/custom.db` (caminho SQLite), que **sobrescreve** o `DATABASE_URL` do arquivo `.env` (URL Neon PostgreSQL)
+- Quando o dev server era reiniciado, o `process.env.DATABASE_URL` continha o caminho SQLite em vez da URL Neon, fazendo o adaptador `PrismaNeonHTTP` rejeitar a string de conexão
+- Isso causava erro 500 em TODAS as rotas de API que acessavam o banco (login, upload, /api/auth/me, etc.)
+- Correção aplicada em `src/lib/db.ts`:
+  - Adicionada função `readEnvFile()` que lê o `.env` diretamente do disco
+  - Adicionada função `resolveDatabaseUrl()` que:
+    1. Verifica se `process.env.DATABASE_URL` começa com `postgresql://` (válido para Neon)
+    2. Se não (ex: caminho SQLite `file:`), lê o `.env` diretamente do disco
+    3. Lança erro claro se nenhuma URL PostgreSQL válida for encontrada
+  - Isso garante que o adaptador Neon sempre receba a URL correta, independentemente de variáveis de ambiente do shell
+- Testado todos os 3 perfis com curl após a correção:
+  - Admin: login 200 ✓, upload 200 ✓, PUT /api/auth/me 200 ✓
+  - Operator: login 200 ✓, upload 200 ✓
+  - Viewer: login 200 ✓, upload 200 ✓, PUT /api/auth/me 200 ✓
+- Verificado no banco Neon que todos os 3 usuários têm profile_photo salva:
+  - Admin → /uploads/9f412808-...png
+  - Operator → /uploads/d0daa67b-...png
+  - Viewer → /uploads/23832cbe-...png
+- Commit e push para GitHub: `a346dd9` — fix(db): ignore shell SQLite DATABASE_URL override
+
+Stage Summary:
+- O erro NÃO era problema no banco Neon em si — o Neon estava funcionando corretamente
+- O problema era que a variável de ambiente `DATABASE_URL` do shell (SQLite) sobrescrevia a URL do Neon do `.env`
+- Correção permanente em `src/lib/db.ts`: detecta e ignora valores não-PostgreSQL, lendo diretamente do `.env` quando necessário
+- Todos os 3 perfis (Admin, Operador, Visitante) agora conseguem fazer upload de foto e salvar no perfil
+- Arquivo modificado: `src/lib/db.ts` (+58 linhas, -7 linhas)
