@@ -462,10 +462,23 @@ export function EventsPage() {
   const [certStudentEvents, setCertStudentEvents] = useState<EventData[]>([]);
   const [certLoading, setCertLoading] = useState(false);
 
+  // Student search tab state (Tab 5 — "Buscar Alunos")
+  const [studentTabSearch, setStudentTabSearch] = useState("");
+  const [studentTabResults, setStudentTabResults] = useState<StudentOption[]>([]);
+  const [studentTabLoading, setStudentTabLoading] = useState(false);
+  const [studentTabSearched, setStudentTabSearched] = useState(false);
+  const [studentTabSelectedId, setStudentTabSelectedId] = useState<string | null>(null);
+  const [studentTabEvents, setStudentTabEvents] = useState<EventData[]>([]);
+  const [studentTabEventsLoading, setStudentTabEventsLoading] = useState(false);
+
+  // Group-by-school toggle for the event detail participants list
+  const [groupBySchool, setGroupBySchool] = useState(false);
+
   const debouncedSearch = useDebounce(searchQuery, 300);
   const debouncedStudentSearch = useDebounce(studentSearch, 300);
   const debouncedReportStudentSearch = useDebounce(reportStudentSearch, 300);
   const debouncedCertStudentSearch = useDebounce(certStudentSearch, 300);
+  const debouncedStudentTabSearch = useDebounce(studentTabSearch, 300);
 
   // ── Data Fetching ──────────────────────────────────────────────────────
 
@@ -629,6 +642,44 @@ export function EventsPage() {
       setCertStudentEvents([]);
     }
   }, [certSelectedStudent]);
+
+  // ── Student search tab (Buscar Alunos) ──
+  // Debounced search: fetch students matching the typed name
+  useEffect(() => {
+    if (debouncedStudentTabSearch.length >= 2) {
+      setStudentTabLoading(true);
+      setStudentTabSearched(true);
+      api
+        .get<{ students: StudentOption[] }>(
+          `/students?limit=50&search=${encodeURIComponent(debouncedStudentTabSearch)}`
+        )
+        .then((d) => setStudentTabResults(d.students))
+        .catch(() => {
+          toast.error("Erro ao buscar alunos");
+          setStudentTabResults([]);
+        })
+        .finally(() => setStudentTabLoading(false));
+    } else {
+      setStudentTabResults([]);
+      setStudentTabSearched(false);
+    }
+  }, [debouncedStudentTabSearch]);
+
+  // When a student is selected in the search tab, fetch the events they participated in
+  useEffect(() => {
+    if (studentTabSelectedId) {
+      setStudentTabEventsLoading(true);
+      api
+        .get<{ events: EventData[] }>(
+          `/events?limit=100&student_id=${studentTabSelectedId}`
+        )
+        .then((d) => setStudentTabEvents(d.events))
+        .catch(() => setStudentTabEvents([]))
+        .finally(() => setStudentTabEventsLoading(false));
+    } else {
+      setStudentTabEvents([]);
+    }
+  }, [studentTabSelectedId]);
 
   // ── Handlers ───────────────────────────────────────────────────────────
 
@@ -1017,7 +1068,7 @@ export function EventsPage() {
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="eventos" className="gap-1.5">
             <CalendarDays className="h-4 w-4 hidden sm:inline" />
             Eventos
@@ -1033,6 +1084,10 @@ export function EventsPage() {
           <TabsTrigger value="relatorios" className="gap-1.5">
             <FileText className="h-4 w-4 hidden sm:inline" />
             Relatorios
+          </TabsTrigger>
+          <TabsTrigger value="buscar-alunos" className="gap-1.5">
+            <Search className="h-4 w-4 hidden sm:inline" />
+            Buscar Alunos
           </TabsTrigger>
         </TabsList>
 
@@ -2506,6 +2561,190 @@ export function EventsPage() {
             </div>
           )}
         </TabsContent>
+
+        {/* ── Tab 5: Buscar Alunos (search students across events) ────── */}
+        <TabsContent value="buscar-alunos" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Buscar Alunos em Eventos
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Pesquise um aluno pelo nome para ver todos os eventos em que
+                ele participou.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Digite o nome do aluno (mínimo 2 caracteres)..."
+                  value={studentTabSearch}
+                  onChange={(e) => setStudentTabSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {/* Search results — student list */}
+              {studentTabLoading && (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                </div>
+              )}
+
+              {!studentTabLoading && studentTabResults.length > 0 && (
+                <div className="border rounded-lg max-h-72 overflow-y-auto">
+                  {studentTabResults.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setStudentTabSelectedId(s.id)}
+                      className={`w-full text-left px-3 py-2 hover:bg-muted border-b last:border-b-0 flex items-center gap-3 transition-colors ${
+                        studentTabSelectedId === s.id ? "bg-muted" : ""
+                      }`}
+                    >
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarImage src={s.photo || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {getInitials(s.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {s.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {s.school?.name || "—"}
+                          {s.grade ? ` • ${s.grade}` : ""}
+                          {s.class ? ` / Turma ${s.class}` : ""}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!studentTabLoading &&
+                studentTabSearched &&
+                studentTabResults.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Users className="h-10 w-10 mb-3 opacity-40" />
+                    <p className="text-sm">
+                      Nenhum aluno encontrado com &ldquo;{studentTabSearch}&rdquo;
+                    </p>
+                  </div>
+                )}
+
+              {!studentTabLoading && !studentTabSearched && (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                  <Users className="h-10 w-10 mb-3 opacity-40" />
+                  <p className="text-sm">
+                    Digite o nome de um aluno para ver seus eventos
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Selected student's events */}
+          {studentTabSelectedId && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5" />
+                    Eventos do Aluno
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setStudentTabSelectedId(null);
+                      setStudentTabEvents([]);
+                    }}
+                  >
+                    Limpar seleção
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {studentTabEvents.length} evento(s) encontrado(s)
+                </p>
+              </CardHeader>
+              <CardContent>
+                {studentTabEventsLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                  </div>
+                ) : studentTabEvents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <CalendarDays className="h-10 w-10 mb-3 opacity-40" />
+                    <p className="text-sm">
+                      Este aluno ainda não participou de nenhum evento
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {studentTabEvents.map((ev) => (
+                      <div
+                        key={ev.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {ev.title}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <span className="text-xs text-muted-foreground">
+                              {formatDateTime(ev.date)}
+                            </span>
+                            {ev.school?.name && (
+                              <>
+                                <span className="text-xs text-muted-foreground">·</span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {ev.school.name}
+                                </span>
+                              </>
+                            )}
+                            {ev.location && (
+                              <>
+                                <span className="text-xs text-muted-foreground">·</span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {ev.location}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge
+                            variant="outline"
+                            className={
+                              statusBadgeClass[ev.status] || ""
+                            }
+                          >
+                            {ev.status === "upcoming"
+                              ? "Próximo"
+                              : ev.status === "ongoing"
+                                ? "Em Andamento"
+                                : ev.status === "completed"
+                                  ? "Concluído"
+                                  : "Cancelado"}
+                          </Badge>
+                          {ev.participant_count !== undefined && (
+                            <Badge variant="secondary" className="text-xs">
+                              {ev.participant_count} participante(s)
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
       </Tabs>
         </>
       )}
@@ -2769,33 +3008,102 @@ export function EventsPage() {
                     </p>
                   </div>
                 </label>
-                {filteredAvailableStudents.map((student) => (
-                  <label
-                    key={student.id}
-                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={selectedStudentIds.includes(student.id)}
-                      onCheckedChange={() => toggleStudentSelection(student.id)}
-                    />
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={student.photo || undefined} />
-                      <AvatarFallback className="text-xs">
-                        {getInitials(student.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {student.full_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {student.school?.name || "—"} •{" "}
-                        {student.grade || "—"}
-                        {student.class ? ` / Turma ${student.class}` : ""}
-                      </p>
-                    </div>
-                  </label>
-                ))}
+                {/* Students grouped by school */}
+                {(() => {
+                  // Group filtered students by school name. Students with no
+                  // school are grouped under "Sem escola".
+                  const groups = new Map<string, StudentOption[]>();
+                  for (const s of filteredAvailableStudents) {
+                    const key = s.school?.name || "Sem escola";
+                    const arr = groups.get(key) || [];
+                    arr.push(s);
+                    groups.set(key, arr);
+                  }
+                  // Sort groups alphabetically, but keep "Sem escola" last
+                  const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
+                    if (a === "Sem escola") return 1;
+                    if (b === "Sem escola") return -1;
+                    return a.localeCompare(b, "pt-BR");
+                  });
+                  return sortedKeys.map((schoolName) => {
+                    const groupStudents = groups.get(schoolName) || [];
+                    const allGroupSelected =
+                      groupStudents.length > 0 &&
+                      groupStudents.every((s) => selectedStudentIds.includes(s.id));
+                    const someGroupSelected =
+                      groupStudents.some((s) => selectedStudentIds.includes(s.id)) &&
+                      !allGroupSelected;
+                    const toggleGroup = () => {
+                      const groupIds = groupStudents.map((s) => s.id);
+                      if (allGroupSelected) {
+                        setSelectedStudentIds((prev) =>
+                          prev.filter((id) => !groupIds.includes(id))
+                        );
+                      } else {
+                        setSelectedStudentIds((prev) => {
+                          const existing = new Set(prev);
+                          groupIds.forEach((id) => existing.add(id));
+                          return Array.from(existing);
+                        });
+                      }
+                    };
+                    return (
+                      <div key={schoolName} className="mb-2">
+                        {/* School group header */}
+                        <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/60 sticky top-0 z-10">
+                          <Checkbox
+                            checked={
+                              allGroupSelected
+                                ? true
+                                : someGroupSelected
+                                  ? "indeterminate"
+                                  : false
+                            }
+                            onCheckedChange={toggleGroup}
+                          />
+                          <School className="h-3.5 w-3.5 text-muted-foreground" />
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {schoolName}
+                          </p>
+                          <Badge variant="outline" className="text-xs ml-auto">
+                            {groupStudents.length}
+                          </Badge>
+                        </div>
+                        {/* Students in this school */}
+                        {groupStudents.map((student) => (
+                          <label
+                            key={student.id}
+                            className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer pl-4"
+                          >
+                            <Checkbox
+                              checked={selectedStudentIds.includes(student.id)}
+                              onCheckedChange={() =>
+                                toggleStudentSelection(student.id)
+                              }
+                            />
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={student.photo || undefined} />
+                              <AvatarFallback className="text-xs">
+                                {getInitials(student.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {student.full_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {student.grade || "—"}
+                                {student.class
+                                  ? ` / Turma ${student.class}`
+                                  : ""}
+                              </p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </ScrollArea>
@@ -2878,6 +3186,7 @@ function EventDetailView({
   const [participantFilter, setParticipantFilter] = useState<
     "all" | "present" | "absent"
   >("all");
+  const [localGroupBySchool, setLocalGroupBySchool] = useState(false);
 
   if (loading || !event) {
     return (
@@ -2922,6 +3231,27 @@ function EventDetailView({
       : participantFilter === "absent"
         ? absentParticipants
         : participants;
+
+  // Group filtered participants by school (used when the "Por escola" toggle
+  // is on). Students without a school go under "Sem escola".
+  const groupedBySchool: Array<{ schoolName: string; participants: EventParticipant[] }> = (() => {
+    const groups = new Map<string, EventParticipant[]>();
+    for (const p of filteredParticipants) {
+      const key = p.student.school?.name || "Sem escola";
+      const arr = groups.get(key) || [];
+      arr.push(p);
+      groups.set(key, arr);
+    }
+    const sortedKeys = Array.from(groups.keys()).sort((a, b) => {
+      if (a === "Sem escola") return 1;
+      if (b === "Sem escola") return -1;
+      return a.localeCompare(b, "pt-BR");
+    });
+    return sortedKeys.map((k) => ({
+      schoolName: k,
+      participants: groups.get(k) || [],
+    }));
+  })();
 
   const handleSaveNotes = async (studentId: string) => {
     setNotesSaving(true);
@@ -3130,6 +3460,16 @@ function EventDetailView({
                     Faltaram
                   </Button>
                 </div>
+                <Button
+                  size="sm"
+                  variant={localGroupBySchool ? "secondary" : "outline"}
+                  className="h-7 text-xs"
+                  onClick={() => setLocalGroupBySchool((v) => !v)}
+                  title="Agrupar participantes por escola"
+                >
+                  <School className="mr-1 h-3 w-3" />
+                  Por escola
+                </Button>
               </div>
             )}
           </div>
@@ -3170,6 +3510,113 @@ function EventDetailView({
                   </p>
                 </>
               )}
+            </div>
+          ) : localGroupBySchool ? (
+            /* ── Grouped by school view ──
+               When the "Por escola" toggle is on, render participants
+               grouped under school headers. Each group shows a simple
+               responsive list of participant rows. */
+            <div className="space-y-4">
+              {groupedBySchool.map((group) => (
+                <div
+                  key={group.schoolName}
+                  className="rounded-lg border overflow-hidden"
+                >
+                  {/* School header */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-muted/60 border-b">
+                    <School className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold">{group.schoolName}</p>
+                    <Badge variant="outline" className="ml-auto text-xs">
+                      {group.participants.length} aluno(s)
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200"
+                    >
+                      {group.participants.filter((p) => p.attended).length} presente(s)
+                    </Badge>
+                  </div>
+                  {/* Participants list */}
+                  <div className="divide-y">
+                    {group.participants.map((participant) => (
+                      <div
+                        key={participant.id}
+                        className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 hover:bg-accent/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <Avatar className="h-8 w-8 shrink-0">
+                            <AvatarImage
+                              src={participant.student.photo || undefined}
+                            />
+                            <AvatarFallback className="text-xs">
+                              {getInitials(participant.student.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {participant.student.full_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {participant.student.grade || "—"}
+                              {participant.student.class
+                                ? ` / Turma ${participant.student.class}`
+                                : ""}
+                              {participant.notes ? ` • ${participant.notes}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Badge
+                            variant={participant.attended ? "default" : "secondary"}
+                            className={
+                              participant.attended
+                                ? "bg-emerald-100 text-emerald-800 cursor-pointer"
+                                : "bg-red-100 text-red-800 cursor-pointer"
+                            }
+                            onClick={() =>
+                              onToggleAttended?.(
+                                participant.student_id,
+                                !participant.attended
+                              )
+                            }
+                          >
+                            {participant.attended ? "Presente" : "Ausente"}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() =>
+                              onDownloadCertificate(
+                                event.id,
+                                participant.student.id,
+                                participant.student.full_name
+                              )
+                            }
+                            disabled={certLoading}
+                            title="Certificado"
+                          >
+                            <Award className="h-3.5 w-3.5" />
+                          </Button>
+                          {onRemoveStudent && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs text-destructive hover:text-destructive"
+                              onClick={() =>
+                                onRemoveStudent(participant.student_id)
+                              }
+                              title="Remover"
+                            >
+                              <UserMinus className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <>

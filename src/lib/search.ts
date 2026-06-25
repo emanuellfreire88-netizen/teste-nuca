@@ -2,14 +2,15 @@
  * Case-insensitive search helper for Prisma `contains` filters.
  *
  * Why this exists:
- * - On PostgreSQL (Vercel), Prisma's `contains` is CASE-SENSITIVE by default.
- *   We need `mode: 'insensitive'` to make it case-insensitive.
- * - On SQLite (local dev), Prisma's `contains` uses `LIKE` which is already
- *   case-insensitive for ASCII, and `mode: 'insensitive'` is NOT supported
- *   (Prisma throws a runtime error).
+ * - On PostgreSQL (Vercel/Neon), Prisma's `contains` is CASE-SENSITIVE by
+ *   default. We need `mode: 'insensitive'` to make it case-insensitive.
  *
- * This helper detects the database provider from `DATABASE_URL` and returns
- * the appropriate filter object, so the same code works on both databases.
+ * This project's Prisma schema (`prisma/schema.prisma`) is hardcoded to
+ * `provider = "postgresql"`, so we ALWAYS use insensitive mode. There is no
+ * SQLite fallback — the previous runtime env-var detection was unreliable
+ * because the shell can override `DATABASE_URL` with a non-Postgres value
+ * (e.g. `file:...`) while Prisma itself still connects to Postgres via the
+ * `.env` file, which made searches silently case-sensitive.
  *
  * @example
  * // Instead of: { full_name: { contains: search } }
@@ -23,13 +24,8 @@
  * ];
  */
 
-export function ciContains(search: string): { contains: string; mode?: 'insensitive' } {
-  const dbUrl = process.env.DATABASE_URL || '';
-  const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
-
-  if (isPostgres) {
-    return { contains: search, mode: 'insensitive' };
-  }
-  // SQLite: `contains` uses LIKE which is case-insensitive for ASCII
-  return { contains: search };
+export function ciContains(search: string): { contains: string; mode: 'insensitive' } {
+  return { contains: search, mode: 'insensitive' };
 }
+
+

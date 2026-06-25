@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { Search, Download, Loader2, Award, AlertCircle, ChevronLeft } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Search, Download, Loader2, Award, AlertCircle, ChevronLeft, CalendarDays, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +32,15 @@ interface StudentResult {
   certificates: Certificate[];
 }
 
+interface EventOption {
+  id: string;
+  title: string;
+  date: string;
+  location: string | null;
+  category: string;
+  school_name: string | null;
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   sports: "Esportes",
   cultural: "Cultural",
@@ -44,6 +53,7 @@ const CATEGORY_LABELS: Record<string, string> = {
  * Public certificate lookup page. Shown when the URL contains ?certificados.
  * No login required — a student types their name and can download any
  * certificate for events they attended that are marked as "completed".
+ * An optional event filter lets the student narrow results to a single event.
  */
 export function PublicCertificatesPage() {
   const [query, setQuery] = useState("");
@@ -53,46 +63,115 @@ export function PublicCertificatesPage() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const performSearch = useCallback(async (name: string) => {
-    if (name.trim().length < 2) {
-      setResults([]);
-      setSearched(false);
-      return;
-    }
-    try {
-      setLoading(true);
-      setSearched(true);
-      const res = await fetch(
-        `/api/certificates/lookup?name=${encodeURIComponent(name.trim())}`
-      );
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Erro ao buscar");
+  // Event filter state
+  const [events, setEvents] = useState<EventOption[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [eventSearchOpen, setEventSearchOpen] = useState(false);
+  const eventDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch the list of completed events (with certificates) on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setEventsLoading(true);
+        const res = await fetch("/api/certificates/events");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setEvents(data.events || []);
+      } catch {
+        // Silent — the dropdown just stays empty
+      } finally {
+        if (!cancelled) setEventsLoading(false);
       }
-      const data = await res.json();
-      setResults(data.students || []);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao buscar";
-      toast.error(msg);
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  // Close event dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        eventDropdownRef.current &&
+        !eventDropdownRef.current.contains(e.target as Node)
+      ) {
+        setEventSearchOpen(false);
+      }
+    }
+    if (eventSearchOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [eventSearchOpen]);
+
+  const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
+
+  const performSearch = useCallback(
+    async (name: string, eventId?: string) => {
+      if (name.trim().length < 2) {
+        setResults([]);
+        setSearched(false);
+        return;
+      }
+      try {
+        setLoading(true);
+        setSearched(true);
+        const params = new URLSearchParams({
+          name: name.trim(),
+        });
+        if (eventId) params.set("event_id", eventId);
+        const res = await fetch(`/api/certificates/lookup?${params.toString()}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Erro ao buscar");
+        }
+        const data = await res.json();
+        setResults(data.students || []);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Erro ao buscar";
+        toast.error(msg);
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   const handleInputChange = (value: string) => {
     setQuery(value);
     // Debounce search so we don't hit the API on every keystroke
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      performSearch(value);
+      performSearch(value, selectedEventId);
     }, 400);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    performSearch(query);
+    performSearch(query, selectedEventId);
+  };
+
+  // When the event filter changes, re-run the search if we already have a query
+  const handleEventSelect = (eventId: string) => {
+    setSelectedEventId(eventId);
+    setEventSearchOpen(false);
+    if (query.trim().length >= 2) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      performSearch(query, eventId);
+    }
+  };
+
+  const clearEventFilter = () => {
+    setSelectedEventId("");
+    if (query.trim().length >= 2) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      performSearch(query, "");
+    }
   };
 
   const handleDownload = async (cert: Certificate, studentName: string) => {
@@ -166,13 +245,13 @@ export function PublicCertificatesPage() {
             </h2>
             <p className="text-muted-foreground text-sm sm:text-base max-w-xl mx-auto">
               Digite seu nome para encontrar seus certificados de participação
-              em eventos concluídos.
+              em eventos concluídos. Filtre por evento para refinar a busca.
             </p>
           </div>
 
           {/* Search */}
           <Card className="mb-6">
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-3">
               <form onSubmit={handleSubmit} className="flex gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -194,6 +273,93 @@ export function PublicCertificatesPage() {
                   <span className="ml-1 hidden sm:inline">Buscar</span>
                 </Button>
               </form>
+
+              {/* Event filter dropdown */}
+              <div className="relative" ref={eventDropdownRef}>
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => setEventSearchOpen((v) => !v)}
+                    className="flex-1 text-left text-sm px-3 py-2 rounded-md border bg-background hover:bg-accent/50 transition-colors min-h-[40px] flex items-center justify-between"
+                    aria-haspopup="listbox"
+                    aria-expanded={eventSearchOpen}
+                  >
+                    <span className={selectedEvent ? "font-medium" : "text-muted-foreground"}>
+                      {selectedEvent ? (
+                        <span>
+                          {selectedEvent.title}
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {format(new Date(selectedEvent.date), "dd/MM/yyyy")}
+                          </span>
+                        </span>
+                      ) : eventsLoading ? (
+                        "Carregando eventos..."
+                      ) : (
+                        "Todos os eventos (filtro opcional)"
+                      )}
+                    </span>
+                    {selectedEvent && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          clearEventFilter();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            clearEventFilter();
+                          }
+                        }}
+                        className="p-1 rounded hover:bg-muted flex items-center"
+                        aria-label="Limpar filtro de evento"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </span>
+                    )}
+                  </button>
+                </div>
+                {eventSearchOpen && (
+                  <div
+                    role="listbox"
+                    className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto rounded-md border bg-popover shadow-md"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleEventSelect("")}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent border-b"
+                    >
+                      <span className="font-medium">Todos os eventos</span>
+                      <span className="text-xs text-muted-foreground block">
+                        Não filtrar por evento
+                      </span>
+                    </button>
+                    {events.length === 0 && !eventsLoading ? (
+                      <div className="px-3 py-3 text-sm text-muted-foreground">
+                        Nenhum evento concluído disponível
+                      </div>
+                    ) : (
+                      events.map((ev) => (
+                        <button
+                          key={ev.id}
+                          type="button"
+                          onClick={() => handleEventSelect(ev.id)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
+                        >
+                          <div className="font-medium truncate">{ev.title}</div>
+                          <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-0.5">
+                            <span>{format(new Date(ev.date), "dd/MM/yyyy")}</span>
+                            {ev.school_name && <span>· {ev.school_name}</span>}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -213,7 +379,9 @@ export function PublicCertificatesPage() {
                 <p className="text-sm text-muted-foreground max-w-sm">
                   {query.trim().length < 2
                     ? "Digite pelo menos 2 caracteres para buscar."
-                    : "Verifique se o nome está correto. Certificados só ficam disponíveis após a conclusão do evento."}
+                    : selectedEvent
+                      ? `Nenhum certificado encontrado para "${query}" no evento "${selectedEvent.title}". Verifique o nome ou tente outro evento.`
+                      : "Verifique se o nome está correto. Certificados só ficam disponíveis após a conclusão do evento."}
                 </p>
               </CardContent>
             </Card>
@@ -221,6 +389,14 @@ export function PublicCertificatesPage() {
 
           {!loading && results.length > 0 && (
             <div className="space-y-4">
+              {selectedEvent && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CalendarDays className="h-4 w-4" />
+                  <span>
+                    Filtrando por evento: <strong className="text-foreground">{selectedEvent.title}</strong>
+                  </span>
+                </div>
+              )}
               {results.map((student) => (
                 <Card key={student.id}>
                   <CardHeader className="pb-3">
@@ -295,6 +471,11 @@ export function PublicCertificatesPage() {
             <div className="text-center py-8 text-muted-foreground text-sm">
               <Award className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p>Digite seu nome para começar</p>
+              {events.length > 0 && (
+                <p className="text-xs mt-2">
+                  {events.length} evento(s) com certificados disponível(is)
+                </p>
+              )}
             </div>
           )}
         </div>

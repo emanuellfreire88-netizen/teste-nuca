@@ -1501,3 +1501,45 @@ Stage Summary:
   - `src/app/api/events/[id]/participants/route.ts` (POST handler: createMany → sequential create loop)
   - `src/app/api/events/[id]/participations/route.ts` (POST handler: createMany → sequential create loop)
 - **Pattern note for future work**: Never use `db.<Model>.createMany()` or `db.$transaction()` on this project — the Neon HTTP adapter rejects both. Use individual `create()` calls in a loop. The codebase already has this pattern documented in `src/app/api/events/route.ts`, `src/app/api/users/route.ts`, `src/app/api/schools/[id]/route.ts`, `src/app/api/students/[id]/route.ts`, and `src/app/api/attendance/route.ts`.
+
+---
+Task ID: feat-events-and-certificates-enhancements
+Agent: main (Z.ai Code)
+Task: Three feature requests: (1) add event selector to public certificate page, (2) add option to search students in events, (3) group participating students by school.
+
+Work Log:
+- Feature 1 — Public certificate page event selector:
+  - Created `src/app/api/certificates/events/route.ts` (PUBLIC, no auth) — returns completed events that have at least one attended participant, for the dropdown.
+  - Updated `src/app/api/certificates/lookup/route.ts` to accept optional `?event_id=X` query param. When provided, filters both the `event_participations` relation and the result set to that single event.
+  - Rewrote `src/components/public-certificates-page.tsx` to add an event filter dropdown below the name search. The dropdown loads completed events on mount, supports clearing the filter, and re-runs the search when the filter changes. Shows "Filtrando por evento: <name>" indicator when active. Empty-state message adapts to whether an event filter is set.
+- Feature 2 — "Buscar Alunos" tab (search students across events):
+  - Added new state to EventsPage: studentTabSearch, studentTabResults, studentTabLoading, studentTabSearched, studentTabSelectedId, studentTabEvents, studentTabEventsLoading.
+  - Added debounced useEffect that calls `/api/students?limit=50&search=...` when the user types ≥2 chars.
+  - Added useEffect that calls `/api/events?limit=100&student_id=X` when a student is selected, to show all events they participated in.
+  - Added a 5th tab "Buscar Alunos" (grid changed from 4 to 5 columns). The tab shows a search input, a student results list (avatar + name + school + grade), and when a student is selected, an "Eventos do Aluno" card listing each event with date, school, location, status badge, and participant count.
+- Feature 3 — Group by school:
+  - Add Students dialog (`src/components/events-page.tsx`): replaced the flat student list with school-grouped sections. Each school gets a sticky header with a School icon, school name, count badge, and a group-level "select all in this school" checkbox. Students without a school are grouped under "Sem escola" (sorted last).
+  - Event detail participants list: added a "Por escola" toggle button next to the Todos/Presentes/Faltaram filter. When on, participants are rendered in school-grouped sections (each with a header showing school name, total count, and present count) instead of the flat mobile-card/desktop-table layout. Each participant row shows avatar, name, grade/class, notes, attended badge (clickable to toggle), certificate button, and remove button.
+- Bonus fix — `src/lib/search.ts` (`ciContains` helper):
+  - Root cause: the shell env var `DATABASE_URL=file:...` overrides the `.env` file's `DATABASE_URL=postgresql://...`. The old `ciContains()` checked `process.env.DATABASE_URL` to detect the DB provider, saw `file:`, and returned `{ contains: search }` WITHOUT `mode: 'insensitive'`. On Postgres, `contains` is case-sensitive by default, so student searches like "silva" returned 0 results (the DB has "Silva").
+  - Fix: since the Prisma schema is hardcoded to `provider = "postgresql"`, simplified `ciContains()` to ALWAYS return `{ contains: search, mode: 'insensitive' }`. Removed the unreliable env-var detection. This fixes student search across the entire app (events page, reports tab, certificate tab, and the new Buscar Alunos tab).
+- Verified via Agent Browser:
+  - Feature 1: opened `/?certificados`, event dropdown showed both completed events, selected "Distribuição de mudas frutíferas", searched "silva" → 3 students each with 1 certificate for that event only. "Filtrando por evento" indicator shown.
+  - Feature 2: Events page → "Buscar Alunos" tab → typed "silva" → 24 students listed → clicked "Gabriel Antonio dos Santos Silva" → "Eventos do Aluno" card showed 2 events (Escuta Especializada + Distribuição de mudas) with dates, schools, status badges, participant counts.
+  - Feature 3 (dialog): opened "Escuta Especializada" event → "Adicionar Alunos" → 29 available students grouped under "ESCOLA BENÍCIO" (15) and "ESCOLA ESTADUAL" (14) headers, each with group-level checkbox.
+  - Feature 3 (detail view): clicked "Por escola" toggle → participants grouped under "Escola Conceição" (25 alunos, 8 presentes) and "Escola Pedro Ferreira" (16 alunos, 7 presentes), each with school header showing counts.
+- `bun run lint` passes with zero errors. Dev log shows all API calls returning 200.
+
+Stage Summary:
+- **3 new features delivered** + 1 bonus bug fix:
+  1. Public certificate page now has an event filter dropdown
+  2. New "Buscar Alunos" tab in Events page for searching students and viewing their event history
+  3. Add Students dialog and event detail participants list now group students by school
+  4. Fixed `ciContains()` — student search was case-sensitive due to shell env var override
+- **Files created**:
+  - `src/app/api/certificates/events/route.ts` (new public API for completed events list)
+- **Files modified**:
+  - `src/app/api/certificates/lookup/route.ts` (added optional event_id filter)
+  - `src/components/public-certificates-page.tsx` (event filter dropdown UI)
+  - `src/components/events-page.tsx` (new "Buscar Alunos" tab + group-by-school in dialog and detail view)
+  - `src/lib/search.ts` (fixed ciContains to always use insensitive mode)

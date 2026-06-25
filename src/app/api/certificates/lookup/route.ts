@@ -5,11 +5,15 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * GET /api/certificates/lookup?name=João
+ * GET /api/certificates/lookup?name=João[&event_id=abc]
  *
  * PUBLIC endpoint (no authentication required). Lets a student search for
  * their name and see which events they participated in that have
  * certificates available (i.e. events with status "completed").
+ *
+ * Optional `event_id` query param filters the results to a single event —
+ * used by the public certificate page when a student selects a specific
+ * event from the dropdown.
  *
  * Returns a list of students matching the name, each with their completed
  * events. Only exposes the minimum data needed for the public certificate
@@ -23,6 +27,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const name = (searchParams.get('name') || '').trim();
+    const eventId = (searchParams.get('event_id') || '').trim();
 
     if (name.length < 2) {
       return NextResponse.json(
@@ -33,16 +38,23 @@ export async function GET(req: Request) {
 
     // Case-insensitive search on full_name (PostgreSQL ILIKE).
     // Limit results to prevent abuse / data scraping.
+    // If event_id is provided, only return participations for that event.
+    const participationsWhere: Record<string, unknown> = {};
+    if (eventId) {
+      participationsWhere.event_id = eventId;
+    }
+
     const students = await db.student.findMany({
       where: {
         full_name: { contains: name, mode: 'insensitive' },
         // Only students who participated in at least one event
-        event_participations: { some: {} },
+        event_participations: { some: participationsWhere },
       },
       select: {
         id: true,
         full_name: true,
         event_participations: {
+          where: eventId ? { event_id: eventId } : undefined,
           select: {
             attended: true,
             event: {
