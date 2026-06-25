@@ -231,3 +231,6 @@ Add participants error: Error: Transactions are not supported in HTTP mode
  GET /api/events?limit=100&student_id=c2d9799f-3e8d-4425-9a26-b71a5756ec4d 200 in 1338ms (compile: 3ms, render: 1335ms)
  GET /api/events/564d51e9-bd49-43e8-b0ee-ff6beee00faf 200 in 1856ms (compile: 83ms, render: 1773ms)
  GET /api/students?limit=500 200 in 5.7s (compile: 2ms, render: 5.7s)
+ GET / 200 in 73ms (compile: 11ms, render: 62ms)
+ GET / 200 in 33ms (compile: 6ms, render: 27ms)
+ GET / 200 in 32ms (compile: 4ms, render: 28ms)
