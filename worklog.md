@@ -1543,3 +1543,39 @@ Stage Summary:
   - `src/components/public-certificates-page.tsx` (event filter dropdown UI)
   - `src/components/events-page.tsx` (new "Buscar Alunos" tab + group-by-school in dialog and detail view)
   - `src/lib/search.ts` (fixed ciContains to always use insensitive mode)
+
+---
+Task ID: cert-template-design
+Agent: main (Z.ai Code)
+Task: Reproduzir fielmente o modelo de certificado enviado pelo usuário (arquivo "Design sem nome.png") na geração do PDF do certificado público.
+
+Work Log:
+- Recebida imagem do usuário em `/home/z/my-project/upload/Design sem nome.png` (2000×1414px PNG, paisagem, proporção 1.414 = A4 landscape exato).
+- Análise via VLM (z-ai vision): identificou logo NUCA (topo-direita), selo UNICEF central, selos inferiores (UNICEF + MUNICÍPIO APROVADO), faixas onduladas azul/laranja.
+- Análise programática precisa com `sharp`: gerado mapa ASCII de conteúdo (60×28 grid) mapeando exatamente quais áreas da imagem têm gráficos vs. estão vazias. Descoberto que o selo central é um LOSANGO grande ocupando a banda central (y≈45-158mm, x≈95-185mm), e as zonas realmente vazias são as COLUNAS LATERAIS (esquerda x=0-90mm, direita x=200-292mm) ao longo de toda a altura do selo.
+- Criado `src/lib/certificate-template.ts` (227KB) com a imagem PNG convertida para base64 — embedded no código para funcionar no filesystem read-only da Vercel.
+- Reescrito `src/app/api/certificates/download/route.ts`:
+  - Mantidas todas as verificações de segurança (evento completed, aluno attended=true, só dados públicos).
+  - Usa a imagem do usuário como fundo de página inteira (A4 landscape 297×210mm, addImage).
+  - Layout em DUAS COLUNAS ao redor do selo central:
+    - COLUNA ESQUERDA (x=15-90mm): título "CERTIFICADO / DE PARTICIPAÇÃO" + frase do certificado ("Certificamos que [NOME] participou do evento [EVENTO]") com quebra de linha automática (splitTextToSize) para nomes longos.
+    - COLUNA DIREITA (x=205-290mm): bloco "INFORMAÇÕES DO EVENTO" com labels (DATA DE REALIZAÇÃO, LOCAL, ESCOLA) + caixa destacada para o CÓDIGO DE VALIDAÇÃO (roundedRect com fundo claro).
+  - O selo UNICEF central fica totalmente visível como âncora visual.
+  - Cores institucionais: azul escuro (#143C6E) para títulos/labels, azul (#006EC8) para nome do evento, cinzas para textos secundários.
+- Iteração de validação com VLM em 3 versões:
+  - v1: texto centralizado sobreposto ao selo → REPROVADO (sobreposição).
+  - v2: texto dividido acima/abaixo do selo → REPROVADO (nome do evento ainda sobre o selo — selo maior que o estimado).
+  - v3 (final): layout em duas colunas laterais → APROVADO pela VLM (sem sobreposições, selo visível, textos legíveis).
+- Testes com nome curto e nome longo (33 caracteres, "Maria Cecília Argemiro dos Santos") — ambos APROVADOS, quebra de linha funciona.
+- Verificação E2E com Agent Browser: página `/?certificados` carrega → busca "Maria Cecília" retorna 2 certificados → clique em "Baixar" → toast "Certificado baixado!" → PDF gerado (HTTP 200, ~1.6-2.7s). Sem erros no console ou dev.log.
+- `bun run lint` passa sem erros.
+
+Stage Summary:
+- Certificado PDF agora usa o modelo visual enviado pelo usuário como fundo, com textos variáveis sobrepostos em duas colunas laterais (preservando o selo UNICEF central como elemento visual).
+- **Arquivos criados**:
+  - `src/lib/certificate-template.ts` (imagem base64, 227KB)
+- **Arquivos modificados**:
+  - `src/app/api/certificates/download/route.ts` (rewrite completo da geração do PDF)
+- **Arquivos temporários removidos**: `analyze-map.mjs` (script de análise descartável).
+- **Decisão de design**: layout em duas colunas porque o modelo do usuário tem um selo central grande (losango), não deixando banda horizontal suficiente para texto centralizado acima/abaixo. As colunas laterais estavam totalmente vazias no template.
+- Pronto para uso em produção. Não foi feito push para GitHub (aguardando confirmação do usuário).
