@@ -1440,3 +1440,41 @@ Stage Summary:
   - PDF A4 retrato, imprimível, com nomes dos alunos e espaço em branco para assinatura à mão
   - Campos para preencher: Período, Turma, Série, Professor(a)
   - Vercel-safe (jspdf puro JS, sem escrita em filesystem)
+
+---
+Task ID: 10
+Agent: main
+Task: Corrigir erro ao criar evento + sistema de certificados públicos com busca por nome
+
+Work Log:
+- Diagnosticado erro de criação de evento: "Transactions are not supported in HTTP mode"
+  - Causa: db.event.create/update com 'include' (creator, school) dispara transação implícita no Prisma 6
+  - O adaptador Neon HTTP (necessário no serverless) não suporta transações
+  - Correção: Separar create/update (sem include) + findUnique separado para buscar relações
+  - Aplicado em POST /api/events e PUT /api/events/[id]
+- Corrigido .env local (estava apontando para SQLite file: em vez de Neon PostgreSQL)
+- Criado sistema de certificados públicos:
+  - GET /api/certificates/lookup?name=João (PÚBLICO, sem auth)
+    - Busca alunos por nome (case-insensitive), retorna apenas os que têm eventos concluídos onde compareceram
+    - Expõe apenas full_name + info do evento (sem CPF/email/phone)
+    - Limitado a 20 resultados para prevenir scraping
+  - GET /api/certificates/download?event_id=...&student_id=... (PÚBLICO, sem auth)
+    - Gera PDF de certificado (A4 paisagem, branded emerald)
+    - Valida: evento deve ser 'completed', aluno deve ter attended=true
+    - Usa jspdf (Vercel-safe, sem filesystem)
+  - Componente PublicCertificatesPage: busca + resultados com botões Baixar
+  - page.tsx: detecta ?certificados na URL via useSyncExternalStore (mostra página pública sem login)
+  - Events page: botão "Link de Certificados" copia URL pública para área de transferência
+- Restaurada rota /api/upload (acidentalmente deletada no commit anterior)
+- Verificado via curl: lookup retorna 3 Marias com certificados, download gera PDF válido (5892 bytes), evento não-completed retorna 400
+- Verificado via Agent Browser: página pública carrega sem login, busca retorna resultados com botões Baixar
+- Verificado: create event 201, update event 200, delete event 200 (todos funcionando)
+- Lint limpo, commits 598abb0 + 56c6cea pushed para GitHub (origin/main)
+
+Stage Summary:
+- ERRO DE EVENTO: CORRIGIDO — criar e editar eventos funciona novamente (erro era transação no Neon HTTP)
+- SISTEMA DE CERTIFICADOS: IMPLEMENTADO
+  - Link público: /?certificados (acessível sem login)
+  - Aluno digita o nome → vê certificados de eventos concluídos onde participou → baixa PDF
+  - Admin pode copiar o link público na página de Eventos (botão "Link de Certificados")
+  - Certificados só ficam disponíveis para eventos com status "completed" e alunos com attended=true
