@@ -125,25 +125,40 @@ export async function POST(
           );
         }
 
-        // Create participations in bulk
-        await db.eventParticipant.createMany({
-          data: newStudentIds.map(studentId => ({
-            event_id: id,
-            student_id: studentId,
-            added_by: _req.user!.userId,
-          })),
-        });
+        // NOTE: The Neon HTTP adapter does not support transactions, and Prisma
+        // wraps createMany in an implicit transaction. Insert one by one so
+        // the operation succeeds on serverless and partial successes are
+        // preserved if a single insert fails.
+        let created = 0;
+        for (const studentId of newStudentIds) {
+          try {
+            await db.eventParticipant.create({
+              data: {
+                event_id: id,
+                student_id: studentId,
+                added_by: _req.user!.userId,
+              },
+            });
+            created++;
+          } catch (err) {
+            // Ignore unique-constraint violations (race condition)
+            if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
+              continue;
+            }
+            console.error('Add participation insert error for', studentId, err);
+          }
+        }
 
         await logAction(
           _req.user!.userId,
           'add_event_participations',
-          `${newStudentIds.length} aluno(s) adicionado(s) ao evento: ${event.title}`,
+          `${created} aluno(s) adicionado(s) ao evento: ${event.title}`,
           _req
         );
 
         return NextResponse.json({
-          message: `${newStudentIds.length} aluno(s) adicionado(s) ao evento`,
-          added: newStudentIds.length,
+          message: `${created} aluno(s) adicionado(s) ao evento`,
+          added: created,
           already_participating: alreadyParticipating.size,
         }, { status: 201 });
       } else if (body.student_id) {

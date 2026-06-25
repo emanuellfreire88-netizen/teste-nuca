@@ -42,26 +42,42 @@ export async function POST(
       const newStudentIds = student_ids.filter((sid: string) => !existingIds.has(sid));
       const addedBy = _req.user!.userId;
 
-      if (newStudentIds.length > 0) {
-        await db.eventParticipant.createMany({
-          data: newStudentIds.map((student_id: string) => ({
-            event_id: id,
-            student_id,
-            added_by: addedBy,
-          })),
-        });
+      // NOTE: The Neon HTTP adapter does not support transactions, and Prisma
+      // wraps createMany in an implicit transaction. We therefore insert
+      // participants one by one so the operation succeeds on serverless and
+      // partial successes are preserved if a single insert fails (e.g. race
+      // condition where another request added the same student concurrently).
+      let addedCount = 0;
+      for (const student_id of newStudentIds) {
+        try {
+          await db.eventParticipant.create({
+            data: {
+              event_id: id,
+              student_id,
+              added_by: addedBy,
+            },
+          });
+          addedCount++;
+        } catch (err) {
+          // Ignore unique-constraint violations (student added concurrently
+          // by another request); surface other errors to the log.
+          if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
+            continue;
+          }
+          console.error('Add participant insert error for', student_id, err);
+        }
       }
 
       await logAction(
         _req.user!.userId,
         'add_event_participants',
-        `Adicionados ${newStudentIds.length} alunos ao evento: ${existingEvent.title}`,
+        `Adicionados ${addedCount} alunos ao evento: ${existingEvent.title}`,
         _req
       );
 
       return NextResponse.json({
-        message: `${newStudentIds.length} aluno(s) adicionado(s) ao evento`,
-        added: newStudentIds.length,
+        message: `${addedCount} aluno(s) adicionado(s) ao evento`,
+        added: addedCount,
         already_exists: existingIds.size,
       });
     } catch (error) {
