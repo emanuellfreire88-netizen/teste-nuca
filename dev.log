@@ -5,22 +5,13 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 639ms
+✓ Ready in 645ms
 ⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
 Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
- GET / 200 in 2.0s (compile: 1861ms, render: 175ms)
- GET / 200 in 1579ms (compile: 1326ms, render: 253ms)
-⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
- GET /api/auth/me 401 in 156ms (compile: 141ms, render: 15ms)
- GET / 200 in 34ms (compile: 5ms, render: 29ms)
- GET / 200 in 32ms (compile: 5ms, render: 26ms)
- GET / 200 in 53ms (compile: 7ms, render: 45ms)
- POST /api/auth/login 200 in 1481ms (compile: 47ms, render: 1434ms)
- GET /api/auth/me 200 in 445ms (compile: 4ms, render: 440ms)
- GET /api/reports 200 in 752ms (compile: 41ms, render: 710ms)
- GET /api/reports 200 in 769ms (compile: 51ms, render: 718ms)
- GET /api/schools?limit=100 200 in 267ms (compile: 37ms, render: 230ms)
- GET /api/schools?limit=100 200 in 278ms (compile: 50ms, render: 228ms)
- GET /api/students?school_id=9ed6bb56-2214-4a83-86e7-e971202d61d5&limit=100 200 in 503ms (compile: 60ms, render: 443ms)
- GET /api/attendance?school_id=9ed6bb56-2214-4a83-86e7-e971202d61d5&date=2026-06-24 200 in 275ms (compile: 50ms, render: 225ms)
- GET /api/attendance/sheet?school_id=9ed6bb56-2214-4a83-86e7-e971202d61d5&date=2026-06-24 200 in 1641ms (compile: 963ms, render: 678ms)
+ GET / 200 in 2.1s (compile: 1935ms, render: 207ms)
+ GET /?certificados 200 in 2.2s (compile: 1998ms, render: 186ms)
+ GET / 200 in 33ms (compile: 6ms, render: 27ms)
+ POST /api/auth/login 200 in 1807ms (compile: 388ms, render: 1419ms)
+ POST /api/events 201 in 1283ms (compile: 181ms, render: 1102ms)
+ PUT /api/events/d2295462-3e2f-44b0-abe4-1766322affb8 200 in 1752ms (compile: 650ms, render: 1103ms)
+ DELETE /api/events/d2295462-3e2f-44b0-abe4-1766322affb8 200 in 907ms (compile: 27ms, render: 879ms)

@@ -71,6 +71,8 @@ import {
   TrendingUp,
   Eye,
   QrCode,
+  Link2,
+  Copy,
 } from "lucide-react";
 
 // ── Custom Modal ────────────────────────────────────────────────────────────
@@ -979,12 +981,34 @@ export function EventsPage() {
             Gerencie eventos, acompanhe participacoes e reconha destaques
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={handleOpenCreate} className="shrink-0">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Evento
+        <div className="flex items-center gap-2">
+          {/* Copy the public certificate link so students can search their
+              name and download their certificates without logging in. */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              const url = `${window.location.origin}/?certificados`;
+              navigator.clipboard
+                .writeText(url)
+                .then(() => {
+                  toast.success("Link de certificados copiado! Compartilhe com os alunos.");
+                })
+                .catch(() => {
+                  toast.error("Erro ao copiar link");
+                });
+            }}
+            className="shrink-0"
+          >
+            <Link2 className="mr-2 h-4 w-4" />
+            Link de Certificados
           </Button>
-        )}
+          {isAdmin && (
+            <Button onClick={handleOpenCreate} className="shrink-0">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Evento
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}

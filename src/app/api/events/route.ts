@@ -179,7 +179,12 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       }
     }
 
-    const event = await db.event.create({
+    // NOTE: The Neon HTTP adapter does not support transactions, and Prisma
+    // wraps create+include in an implicit transaction. We split the operation
+    // into a plain INSERT (no include) followed by a separate findUnique to
+    // fetch the relations. This avoids the "Transactions are not supported in
+    // HTTP mode" error on Vercel/serverless.
+    const created = await db.event.create({
       data: {
         title,
         description: description || null,
@@ -191,6 +196,10 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
         school_id: school_id || null,
         category: eventCategory,
       },
+    });
+
+    const event = await db.event.findUnique({
+      where: { id: created.id },
       include: {
         creator: {
           select: { id: true, full_name: true },

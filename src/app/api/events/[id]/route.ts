@@ -116,9 +116,16 @@ export async function PUT(
       if (body.date !== undefined) updateData.date = new Date(body.date);
       if (body.school_id !== undefined) updateData.school_id = body.school_id || null;
 
-      const event = await db.event.update({
+      // NOTE: Neon HTTP adapter does not support transactions. Prisma wraps
+      // update+include in an implicit transaction, so we split into a plain
+      // UPDATE (no include) + a separate findUnique to fetch relations.
+      const updated = await db.event.update({
         where: { id },
         data: updateData,
+      });
+
+      const event = await db.event.findUnique({
+        where: { id: updated.id },
         include: {
           creator: {
             select: { id: true, full_name: true },
@@ -129,7 +136,7 @@ export async function PUT(
         },
       });
 
-      await logAction(_req.user!.userId, 'update_event', `Evento atualizado: ${event.title}`, _req);
+      await logAction(_req.user!.userId, 'update_event', `Evento atualizado: ${updated.title}`, _req);
 
       return NextResponse.json({ event });
     } catch (error) {

@@ -17,6 +17,7 @@ const LogsPage = dynamic(() => import("@/components/logs-page").then(m => ({ def
 const ReportsPage = dynamic(() => import("@/components/reports-page").then(m => ({ default: m.ReportsPage })), { ssr: false });
 const EventsPage = dynamic(() => import("@/components/events-page").then(m => ({ default: m.EventsPage })), { ssr: false });
 const SupportPage = dynamic(() => import("@/components/support-page").then(m => ({ default: m.SupportPage })), { ssr: false });
+const PublicCertificatesPage = dynamic(() => import("@/components/public-certificates-page").then(m => ({ default: m.PublicCertificatesPage })), { ssr: false });
 
 // Hydration-safe check: returns false on server, then true on client
 const emptySubscribe = () => () => {};
@@ -33,6 +34,22 @@ export default function Home() {
   const updateUser = useAuthStore((s) => s.updateUser);
   const hydrated = useHydrated();
   const [currentPage, setCurrentPage] = useState<PageKey>("dashboard");
+
+  // ── Public certificate page ──
+  // When the URL contains ?certificados (e.g. /?certificados), show the
+  // public certificate lookup page instead of the login/app. This lets
+  // students search and download their certificates without logging in,
+  // while keeping everything on the single "/" route.
+  // Uses useSyncExternalStore for hydration-safe reading (returns false on
+  // server, true on client) without calling setState inside an effect.
+  const showPublicCertificates = useSyncExternalStore(
+    () => () => {},
+    () => {
+      if (typeof window === "undefined") return false;
+      return new URLSearchParams(window.location.search).has("certificados");
+    },
+    () => false
+  );
 
   // Refresh the current user profile once on mount so that fields like
   // role, status and school_ids are always up to date (e.g. if an admin
@@ -59,6 +76,11 @@ export default function Home() {
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
+  }
+
+  // Public certificate lookup page (?certificados in URL) — no login required
+  if (showPublicCertificates) {
+    return <PublicCertificatesPage />;
   }
 
   // Not authenticated -> show login
