@@ -2125,3 +2125,40 @@ Stage Summary:
 - 404 ("Não encontrado") is used instead of 403 for all denials to prevent information leakage about resource existence. The only exception is `students-grouped` and `events/dashboard`, where an out-of-scope filter returns an empty payload rather than a 404 — this matches the existing pattern in `students/route.ts` (line 47-51) where out-of-scope `school_id` returns an empty list, and avoids breaking the UI's filter dropdowns.
 - Existing functionality preserved — all changes are additive (the school-scoping check is inserted between the existing fetch and the existing return/export logic). No query structure, response shape, or Neon HTTP adapter pattern (`createMany`/`$transaction`/`update({ include })` avoidance) was changed.
 - Lint passes with zero errors. TypeScript check on the 10 modified files shows no new errors.
+
+---
+Task ID: fix-button-colors
+Agent: button-color-fixer
+Task: Change "Novo...", "Nova..." and "Salvar Alterações" button colors to match the login "Entrar" button color
+
+Work Log:
+- Read login-page.tsx:296-309 to confirm the target color triplet: `bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white` (used on the "Entrar" submit button).
+- Read worklog.md tail to confirm prior work context (security audit follow-ups; no conflicting in-flight UI edits).
+- Inspected each of the 4 target files at the specified line ranges to capture exact current classNames and surrounding props (onClick, type, disabled, layout classes like `shrink-0 h-9`).
+- Edited `src/components/events-page.tsx`:
+  - Header "Novo Evento" `<Button>` (line ~1063): appended `bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white` to existing `className="shrink-0"`.
+  - Dialog submit `<Button type="button" onClick={handleSubmitForm} disabled={formSubmitting}>` (line ~2921): added new `className="bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white"`.
+- Edited `src/components/students-page.tsx`:
+  - Header "Novo Aluno" `<Button type="button" onClick={handleOpenCreate}>` (line ~1690): added the blue className triplet.
+  - Dialog submit `<Button type="button" onClick={handleSubmit} disabled={saving}>` (line ~743): added the blue className triplet.
+- Edited `src/components/schools-page.tsx`:
+  - Header "Nova escola" `<Button type="button" onClick={handleOpenCreate} className="shrink-0 h-9">` (line ~410): appended the blue triplet, preserving `shrink-0 h-9`.
+  - Dialog submit `<Button type="button" onClick={onSubmit} disabled={submitting || uploading}>` (line ~1187): added the blue className triplet.
+- Edited `src/components/users-page.tsx` (this file uses plain `<button>` elements with hardcoded shadcn-equivalent className strings rather than the shadcn `<Button>` wrapper, so the className needed surgical replacement):
+  - Header "Novo Usuário" `<button onClick={openCreate}>` (line ~542): replaced `bg-primary text-primary-foreground shadow hover:bg-primary/90` with `bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white shadow`, preserving all layout/focus/disabled classes and `h-9 px-4 py-2`.
+  - Create-mode dialog submit "Criar Usuário" `<button onClick={handleCreate} disabled={saving}>` (line ~814): same surgical replacement.
+  - Edit-mode dialog submit "Salvar Alterações" `<button onClick={handleEdit} disabled={saving}>` (line ~959): same surgical replacement.
+  - Reverted (out of scope) the "Resetar Senha" button at line ~1056 back to `bg-primary text-primary-foreground shadow hover:bg-primary/90` — it belongs to a separate Reset Password dialog not mentioned in the task spec. (An initial `replace_all` had caught it because it shared the identical primary-button className string; reverted to keep the change strictly within task scope.)
+- Verified shadcn `<Button>` color override works because the component uses `cn()`/tailwind-merge: passing `bg-[#2480dc]` etc. in `className` overrides the default-variant `bg-primary`/`hover:bg-primary/90` (tailwind-merge dedupes conflicting utilities, keeping the last one).
+- Ran `bun run lint` (`eslint .`) — exits with code 0, zero errors, zero warnings.
+- Verified with ripgrep: `2480dc` appears in events-page.tsx (2), students-page.tsx (2), schools-page.tsx (2), users-page.tsx (3) — all files meet the "at least 2 occurrences" requirement.
+
+Stage Summary:
+- Changed 8 buttons total across 4 files to match the login "Entrar" button color (`bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white`):
+  - events-page.tsx: 2 (header "Novo Evento" + dialog submit "Salvar Alterações"/"Criar Evento")
+  - students-page.tsx: 2 (header "Novo Aluno" + dialog submit "Salvar Alterações"/"Criar Aluno")
+  - schools-page.tsx: 2 (header "Nova escola" + dialog submit "Salvar Alterações"/"Criar Escola")
+  - users-page.tsx: 3 (header "Novo Usuário" + create-mode "Criar Usuário" + edit-mode "Salvar Alterações" — the create/edit user dialog uses two separate `<button>` elements instead of one conditional label like the other pages, so both were updated for visual consistency).
+- All existing layout classes (`shrink-0`, `h-9`, `px-4 py-2`, focus/disabled utilities) and props (`onClick`, `type`, `disabled`) were preserved — only color-related classes were changed.
+- The "Resetar Senha" button in the separate Reset Password dialog of users-page.tsx was intentionally left unchanged (out of task scope); it retains the original `bg-primary` styling.
+- Lint passes with zero errors.
