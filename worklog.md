@@ -2194,3 +2194,48 @@ Stage Summary:
 - Verificação VLM: 9/10, sem problemas visuais detectados
 - Frontend (`attendance-page.tsx`) não precisou mudar — o botão "Folha de Assinatura" continua chamando o mesmo endpoint
 - IMPORTANTE: senha do admin emanuell.fp.rocha@gmail.com foi resetada para `Admin@123` durante os testes — usuário precisa redefinir
+
+---
+Task ID: dev-admin-access-and-sheet-refinements
+Agent: main
+Task: Criar um admin dedicado para o agente de desenvolvimento (para não precisar resetar a senha do usuário real) e fazer ajustes finais no design da folha de assinatura.
+
+Work Log:
+- Criei `scripts/create-dev-admin.ts` — script idempotente que faz UPSERT de um admin de dev no Neon (Postgres) via driver HTTP @neondatabase/serverless
+  - Email: dev-admin@nuca.local, senha: DevAdmin@2026, role: Admin, must_change_password: false
+  - Usa `gen_random_uuid()` do Postgres para gerar o id (Prisma gera client-side, então raw SQL precisa gerar)
+  - Persiste credenciais em `.dev-credentials` (chmod 600) para sessões futuras
+  - Carrega `.env` manualmente (sempre sobrescrevendo process.env) para funcionar mesmo com shell env stale
+- Adicionei `.dev-credentials` ao `.gitignore`
+- Rodei o script → admin criado com id `9693158c-5f2f-4d80-accb-4d13977985e2`
+- Testei login via `curl POST /api/auth/login` → 200 OK, token JWT gerado, role: Admin confirmado
+- Login também funcionou pela UI (Agent Browser) — usuário aparece como "AD Administrador de Desenvolvimento"
+
+Ajustes finais no design da folha de assinatura (`src/app/api/attendance/sheet/route.ts`):
+- Aumentei altura mínima das linhas da tabela: 14mm → 16mm (mais espaço para assinar à mão)
+- Aumentei padding das células: 2 → 3 (mais respiro)
+- Aumentei tamanho do logo NUCA: 36×20mm → 42×24mm (mais visível)
+- Aumentei raio dos selos circulares: 10mm → 11mm
+- Aumentei altura do cabeçalho da tabela: 9mm → 10mm
+- Reposicionei os selos para ficarem centralizados verticalmente na banda colorida do rodapé
+
+BUG CRÍTICO CORRIGIDO — cabeçalho não repetia na página 2:
+- O VLM identificou que quando a tabela estourava para múltiplas páginas, só o rodapé (ondas + selos) repetia; a página 2 ficava sem ondas no topo, sem logo NUCA e sem título
+- Refatorei: extraí `drawPageHeader()` e `drawInfoFields()` como funções separadas
+- Adicionei hook `didDrawPage` no autoTable que chama `drawPageHeader()` em toda página com `pageNumber > 1`
+- Defini constantes de layout: HEADER_HEIGHT=32mm, INFO_FIELDS_HEIGHT=29mm, BOTTOM_RESERVE=42mm
+- Configurei `margin: { top: HEADER_HEIGHT, bottom: BOTTOM_RESERVE }` no autoTable — margin.top é usado nas páginas 2+ (startY sobrescreve só a página 1)
+- Info fields (Escola/Período/Turma/Série/Professor) continuam aparecendo só na página 1 (faz sentido, não precisa repetir)
+
+Verificação visual (VLM):
+- Escola Conceição (25 alunos → 2 páginas): nota 9/10, "consistência visual alta", ambas as páginas com cabeçalho completo
+- Escola Benício (15 alunos → 2 páginas): nota 8/10, página 2 fica um pouco vazia (3 alunos) mas isso é inevitável com linhas mais altas
+- Lint passou limpo
+- Login via UI funcionou com dev-admin@nuca.local
+
+Stage Summary:
+- **Novo admin criado**: dev-admin@nuca.local / DevAdmin@2026 (id 9693158c-5f2f-4d80-accb-4d13977985e2). Credenciais em `.dev-credentials`. Não preciso mais resetar a senha do usuário real.
+- **Script reutilizável**: `bun run scripts/create-dev-admin.ts` recria/atualiza o admin a qualquer momento (idempotente)
+- **Folha de assinatura melhorada**: linhas mais altas (16mm), logo maior (42mm), selos maiores (11mm raio), e cabeçalho agora repete em todas as páginas via hook didDrawPage do autoTable
+- **Arquivos modificados**: `scripts/create-dev-admin.ts` (novo), `src/app/api/attendance/sheet/route.ts`, `.gitignore`
+- **Senha do emanuell.fp.rocha@gmail.com** ainda está como Admin@123 do reset anterior — usuário pode trocar depois de logar

@@ -107,134 +107,151 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
     const margin = 14;
 
-    // ════════════════════════════════════════════════════════════════════════
-    // TOP WAVES — orange + sky-blue layered bezier curves
-    // ════════════════════════════════════════════════════════════════════════
-    const topWaveHeight = 30; // mm — total height of the wave region
+    // Vertical layout constants:
+    //   HEADER_HEIGHT       — waves + title + logo region (top of every page)
+    //   INFO_FIELDS_HEIGHT  — Escola/Período/Turma/Série/Professor (page 1 only)
+    //   Page 1 table starts at HEADER_HEIGHT + INFO_FIELDS_HEIGHT
+    //   Page 2+ table starts at HEADER_HEIGHT (set via autoTable margin.top)
+    const HEADER_HEIGHT = 32;       // mm — waves + title + small gap
+    const INFO_FIELDS_HEIGHT = 29;  // mm — 3 rows × ~8mm + gap
+    const BOTTOM_RESERVE = 42;      // mm — bottom waves + seals + footer text
 
-    // Orange wave (back layer) — flowing curve from top-left, dipping down to
-    // the right.
-    doc.setFillColor(...ORANGE);
-    doc.moveTo(0, 0);
-    doc.curveTo(
-      pageWidth * 0.35, topWaveHeight * 1.4,    // control point 1
-      pageWidth * 0.7, -topWaveHeight * 0.3,    // control point 2
-      pageWidth, topWaveHeight * 0.55           // end point
-    );
-    doc.lineTo(pageWidth, 0);
-    doc.lineTo(0, 0);
-    doc.close();
-    doc.fill();
+    /**
+     * Draws the page header (top waves + title + NUCA logo) on the CURRENT
+     * page. Called once for page 1 (manually) and again for every subsequent
+     * page via autoTable's didDrawPage hook so the header repeats.
+     */
+    const drawPageHeader = () => {
+      const topWaveHeight = 30;
 
-    // Sky-blue wave (front layer) — sits below the orange, creating depth.
-    doc.setFillColor(...SKY_BLUE);
-    doc.moveTo(0, topWaveHeight * 0.5);
-    doc.curveTo(
-      pageWidth * 0.3, topWaveHeight * 1.5,
-      pageWidth * 0.65, topWaveHeight * 0.2,
-      pageWidth, topWaveHeight * 0.95
-    );
-    doc.lineTo(pageWidth, 0);
-    doc.lineTo(0, 0);
-    doc.lineTo(0, topWaveHeight * 0.5);
-    doc.close();
-    doc.fill();
+      // ── Orange wave (back layer) ──
+      doc.setFillColor(...ORANGE);
+      doc.moveTo(0, 0);
+      doc.curveTo(
+        pageWidth * 0.35, topWaveHeight * 1.4,
+        pageWidth * 0.7, -topWaveHeight * 0.3,
+        pageWidth, topWaveHeight * 0.55
+      );
+      doc.lineTo(pageWidth, 0);
+      doc.lineTo(0, 0);
+      doc.close();
+      doc.fill();
 
-    // Royal-blue thin accent line under the waves
-    doc.setDrawColor(...ROYAL_BLUE);
-    doc.setLineWidth(0.6);
-    doc.line(0, topWaveHeight + 1, pageWidth, topWaveHeight + 1);
+      // ── Sky-blue wave (front layer) ──
+      doc.setFillColor(...SKY_BLUE);
+      doc.moveTo(0, topWaveHeight * 0.5);
+      doc.curveTo(
+        pageWidth * 0.3, topWaveHeight * 1.5,
+        pageWidth * 0.65, topWaveHeight * 0.2,
+        pageWidth, topWaveHeight * 0.95
+      );
+      doc.lineTo(pageWidth, 0);
+      doc.lineTo(0, 0);
+      doc.lineTo(0, topWaveHeight * 0.5);
+      doc.close();
+      doc.fill();
 
-    // ════════════════════════════════════════════════════════════════════════
-    // TITLE BLOCK — on the left, over the wave area
-    // ════════════════════════════════════════════════════════════════════════
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('Lista de Frequência', margin, 13);
+      // ── Royal-blue accent line under the waves ──
+      doc.setDrawColor(...ROYAL_BLUE);
+      doc.setLineWidth(0.6);
+      doc.line(0, topWaveHeight + 1, pageWidth, topWaveHeight + 1);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text('Folha de Assinatura Manual', margin, 18);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(`Data: ${dateDisplay}`, margin, 24);
-
-    // ════════════════════════════════════════════════════════════════════════
-    // NUCA LOGO — top-right corner
-    // ════════════════════════════════════════════════════════════════════════
-    const logoW = 36;
-    const logoH = 36 * (1080 / 1920); // ≈20.25mm — keep aspect ratio
-    const logoX = pageWidth - margin - logoW;
-    const logoY = 5;
-    if (NUCA_LOGO_B64) {
-      try {
-        doc.addImage(
-          `data:image/png;base64,${NUCA_LOGO_B64}`,
-          'PNG',
-          logoX, logoY,
-          logoW, logoH,
-          undefined,
-          'FAST'
-        );
-      } catch (imgErr) {
-        console.warn('[attendance/sheet] Failed to embed NUCA logo:', imgErr);
-        drawTextLogo(doc, logoX - 12, logoY + 3);
-      }
-    } else {
-      drawTextLogo(doc, logoX - 12, logoY + 3);
-    }
-
-    // ════════════════════════════════════════════════════════════════════════
-    // INFO FIELDS — Escola / Período / Turma / Série / Professor
-    // ════════════════════════════════════════════════════════════════════════
-    let y = topWaveHeight + 9;
-    const labelGap = 3;
-
-    const drawField = (
-      label: string,
-      value: string,
-      x: number,
-      fieldWidth: number
-    ) => {
+      // ── Title block (white over the waves) ──
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...NAVY);
-      doc.text(label, x, y);
-      const labelWidth = doc.getTextWidth(label);
+      doc.setFontSize(18);
+      doc.text('Lista de Frequência', margin, 13);
 
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...DARK_TEXT);
-      if (value) {
-        doc.text(value, x + labelWidth + 1, y);
-      }
+      doc.setFontSize(9);
+      doc.text('Folha de Assinatura Manual', margin, 18);
 
-      doc.setDrawColor(...ROYAL_BLUE);
-      doc.setLineWidth(0.3);
-      const lineX = x + labelWidth + (value ? doc.getTextWidth(value) + 1 : labelGap);
-      doc.line(lineX, y + 1, x + fieldWidth, y + 1);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(`Data: ${dateDisplay}`, margin, 24);
+
+      // ── NUCA logo (top-right) ──
+      const logoW = 42;
+      const logoH = 42 * (1080 / 1920); // ≈23.6mm — keep aspect ratio
+      const logoX = pageWidth - margin - logoW;
+      const logoY = 4;
+      if (NUCA_LOGO_B64) {
+        try {
+          doc.addImage(
+            `data:image/png;base64,${NUCA_LOGO_B64}`,
+            'PNG',
+            logoX, logoY,
+            logoW, logoH,
+            undefined,
+            'FAST'
+          );
+        } catch (imgErr) {
+          console.warn('[attendance/sheet] Failed to embed NUCA logo:', imgErr);
+          drawTextLogo(doc, logoX - 12, logoY + 3);
+        }
+      } else {
+        drawTextLogo(doc, logoX - 12, logoY + 3);
+      }
     };
 
-    // Row 1: Escola + Período
-    drawField('Escola:', school.name, margin, pageWidth / 2 - margin - 10);
-    drawField('Período:', '', pageWidth / 2 + 5, pageWidth / 2 - margin - 5);
-    y += 8;
+    /**
+     * Draws the info fields (Escola/Período/Turma/Série/Professor) starting
+     * at the given Y position. Only called on page 1 — subsequent pages
+     * skip these fields to save vertical space for the table.
+     * Returns the Y position after the fields.
+     */
+    const drawInfoFields = (startY: number) => {
+      let y = startY;
+      const labelGap = 3;
 
-    // Row 2: Turma + Série
-    drawField('Turma:', classFilter || '', margin, pageWidth / 2 - margin - 10);
-    drawField('Série:', gradeFilter || '', pageWidth / 2 + 5, pageWidth / 2 - margin - 5);
-    y += 8;
+      const drawField = (
+        label: string,
+        value: string,
+        x: number,
+        fieldWidth: number
+      ) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...NAVY);
+        doc.text(label, x, y);
+        const labelWidth = doc.getTextWidth(label);
 
-    // Row 3: Professor(a) — full width
-    drawField('Professor(a):', '', margin, pageWidth - margin * 2);
-    y += 5;
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...DARK_TEXT);
+        if (value) {
+          doc.text(value, x + labelWidth + 1, y);
+        }
+
+        doc.setDrawColor(...ROYAL_BLUE);
+        doc.setLineWidth(0.3);
+        const lineX = x + labelWidth + (value ? doc.getTextWidth(value) + 1 : labelGap);
+        doc.line(lineX, y + 1, x + fieldWidth, y + 1);
+      };
+
+      // Row 1: Escola + Período
+      drawField('Escola:', school.name, margin, pageWidth / 2 - margin - 10);
+      drawField('Período:', '', pageWidth / 2 + 5, pageWidth / 2 - margin - 5);
+      y += 8;
+
+      // Row 2: Turma + Série
+      drawField('Turma:', classFilter || '', margin, pageWidth / 2 - margin - 10);
+      drawField('Série:', gradeFilter || '', pageWidth / 2 + 5, pageWidth / 2 - margin - 5);
+      y += 8;
+
+      // Row 3: Professor(a) — full width
+      drawField('Professor(a):', '', margin, pageWidth - margin * 2);
+      y += 5;
+
+      return y;
+    };
+
+    // ── Draw header + info fields on page 1 ──
+    drawPageHeader();
+    const tableStartY = drawInfoFields(HEADER_HEIGHT - 3);
 
     // ════════════════════════════════════════════════════════════════════════
     // STUDENTS TABLE
     // ════════════════════════════════════════════════════════════════════════
-    const tableStartY = y;
-
     const body = students.map((s, i) => [
       String(i + 1),
       s.full_name,
@@ -246,7 +263,8 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       head: [['Nº', 'Nome do Aluno', 'Assinatura']],
       body,
       theme: 'grid',
-      margin: { left: margin, right: margin, bottom: 42 },
+      // margin.top is used by autoTable for pages 2+ (startY overrides page 1)
+      margin: { left: margin, right: margin, top: HEADER_HEIGHT, bottom: BOTTOM_RESERVE },
       columnStyles: {
         0: { cellWidth: 12, halign: 'center', valign: 'middle' },
         1: { cellWidth: 70 },
@@ -255,10 +273,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       styles: {
         font: 'helvetica',
         fontSize: 10,
-        cellPadding: 2,
+        cellPadding: 3,
         lineColor: [210, 210, 210],
         lineWidth: 0.2,
-        minCellHeight: 14,
+        minCellHeight: 16,
         valign: 'middle',
         textColor: DARK_TEXT,
       },
@@ -268,9 +286,14 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         fontStyle: 'bold',
         fontSize: 10,
         halign: 'center',
-        minCellHeight: 9,
+        minCellHeight: 10,
       },
-      didDrawCell: () => {},
+      // Repeat the page header on every new page autoTable creates.
+      didDrawPage: (data: { pageNumber: number }) => {
+        if (data.pageNumber > 1) {
+          drawPageHeader();
+        }
+      },
     });
 
     // ════════════════════════════════════════════════════════════════════════
@@ -315,8 +338,11 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       doc.line(0, waveTop - 1, pageWidth, waveTop - 1);
 
       // ── Institutional seals (bottom-left, on top of the waves) ──
-      drawUnicefSeal(doc, margin + 9, waveTop + bottomWaveHeight / 2);
-      drawMunicipioAprovadoSeal(doc, margin + 9 + 22, waveTop + bottomWaveHeight / 2);
+      // Vertically centered in the wave area so they sit clearly on the
+      // colored band, not floating above it.
+      const sealCenterY = waveTop + bottomWaveHeight / 2 + 1;
+      drawUnicefSeal(doc, margin + 11, sealCenterY);
+      drawMunicipioAprovadoSeal(doc, margin + 11 + 24, sealCenterY);
 
       // ── Page footer (right side, over the wave area) ──
       doc.setFont('helvetica', 'normal');
@@ -369,10 +395,10 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
 /**
  * Draws the Selo UNICEF as a filled royal-blue circle with white text.
- * (x, y) is the center of the seal; radius is 10mm.
+ * (x, y) is the center of the seal; radius is 11mm.
  */
 function drawUnicefSeal(doc: jsPDF, x: number, y: number) {
-  const r = 10;
+  const r = 11;
   // Outer blue circle
   doc.setFillColor(...ROYAL_BLUE);
   doc.circle(x, y, r, 'F');
@@ -395,10 +421,10 @@ function drawUnicefSeal(doc: jsPDF, x: number, y: number) {
 
 /**
  * Draws the "Município Aprovado" seal as a filled gold circle with black text.
- * (x, y) is the center of the seal; radius is 10mm.
+ * (x, y) is the center of the seal; radius is 11mm.
  */
 function drawMunicipioAprovadoSeal(doc: jsPDF, x: number, y: number) {
-  const r = 10;
+  const r = 11;
   // Outer gold circle
   doc.setFillColor(...GOLD);
   doc.circle(x, y, r, 'F');

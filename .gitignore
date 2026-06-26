@@ -8,3 +8,4 @@ db/*.db
 db/*.db-journal
 mini-services/*/node_modules/
 tool-results/
+.dev-credentials
