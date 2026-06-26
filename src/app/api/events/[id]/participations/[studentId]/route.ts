@@ -32,8 +32,13 @@ export async function PUT(
 
       const updateData: Record<string, unknown> = {};
       if (body.attended !== undefined) updateData.attended = Boolean(body.attended);
-      if (body.notes !== undefined) updateData.notes = body.notes ? sanitizeInput(body.notes) : null;
+      // VULN-8 FIX: sanitize free-text `notes` to prevent stored XSS.
+      // `String()` guards against non-string truthy payloads (e.g. objects).
+      if (body.notes !== undefined) updateData.notes = body.notes ? sanitizeInput(String(body.notes)) : null;
 
+      // NOTE: Neon HTTP adapter does not support transactions. Prisma's
+      // `update` with `include` triggers an implicit transaction, so we split
+      // into a plain UPDATE + a separate findUnique to fetch relations.
       const updated = await db.eventParticipant.update({
         where: {
           event_id_student_id: {
@@ -42,6 +47,15 @@ export async function PUT(
           },
         },
         data: updateData,
+      });
+
+      const participation = await db.eventParticipant.findUnique({
+        where: {
+          event_id_student_id: {
+            event_id: id,
+            student_id: studentId,
+          },
+        },
         include: {
           student: {
             select: {
@@ -63,11 +77,11 @@ export async function PUT(
       await logAction(
         _req.user!.userId,
         'update_event_participation',
-        `Participação atualizada: ${updated.student.full_name} no evento ${updated.event.title}`,
+        `Participação atualizada: ${participation?.student.full_name ?? studentId} no evento ${participation?.event.title ?? id}`,
         _req
       );
 
-      return NextResponse.json({ participation: updated });
+      return NextResponse.json({ participation });
     } catch (error) {
       console.error('Update event participation error:', error);
       return NextResponse.json(

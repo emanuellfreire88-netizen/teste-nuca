@@ -307,7 +307,7 @@ async function main() {
     db.event.create({
       data: {
         title: 'Amistoso de Futsal',
-        description: 'Jogo amistoso entre seleções das escolas do municipio.',
+        description: 'Jogo amistoso entre seleções das escolas do município.',
         date: new Date(now.getFullYear(), now.getMonth() + 2, 20, 14, 0),
         location: 'Quadra - CIEP Brizola',
         status: 'upcoming',

@@ -166,6 +166,7 @@ model Event {
   photo_url   String?
   school_id   String?
   category    String   @default("other") // sports, cultural, party, academic, other
+  public_certificates Boolean @default(false) // when true, this event's certificates appear on the public link
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { getUserSchoolIds, canUserAccessSchool } from '@/lib/user-schools';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -36,24 +37,33 @@ export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
 
     await logAction(req.user!.userId, 'export_report', `Exportação de relatório de eventos (${type}, ${format})`, req);
 
+    // ── School scoping (VULN-3 FIX) ──
+    // Non-admins are restricted to their assigned schools. The downstream
+    // helper functions enforce this per-entity (event_id / student_id /
+    // school_id); we also resolve the allowed list here so ranking (which
+    // has no explicit entity) can be scoped.
+    const userId = req.user!.userId;
+    const userRole = req.user!.role;
+    const allowedSchoolIds = await getUserSchoolIds(userId, userRole);
+
     switch (type) {
       case 'participants':
         if (!event_id) {
           return NextResponse.json({ error: 'event_id é obrigatório para relatório de participantes' }, { status: 400 });
         }
-        return await exportParticipants(format, event_id);
+        return await exportParticipants(format, event_id, userId, userRole);
       case 'ranking':
-        return await exportRanking(format);
+        return await exportRanking(format, allowedSchoolIds);
       case 'student_report':
         if (!student_id) {
           return NextResponse.json({ error: 'student_id é obrigatório para relatório de aluno' }, { status: 400 });
         }
-        return await exportStudentReport(format, student_id);
+        return await exportStudentReport(format, student_id, userId, userRole);
       case 'school_report':
         if (!school_id) {
           return NextResponse.json({ error: 'school_id é obrigatório para relatório de escola' }, { status: 400 });
         }
-        return await exportSchoolReport(format, school_id);
+        return await exportSchoolReport(format, school_id, userId, userRole);
       default:
         return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
     }
@@ -67,14 +77,29 @@ export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
 });
 
 // ─── Participants Export ──────────────────────────────────────────
-async function exportParticipants(format: string, event_id: string) {
+async function exportParticipants(
+  format: string,
+  event_id: string,
+  userId: string,
+  userRole: string
+) {
   const event = await db.event.findUnique({
     where: { id: event_id },
     include: { school: { select: { name: true } } },
   });
 
   if (!event) {
-    return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
+    return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+  }
+
+  // VULN-3 FIX: if the event belongs to a specific school, verify the
+  // caller has access to that school. Events without a school_id are
+  // considered cross-school / global and remain accessible to all.
+  if (event.school_id) {
+    const canAccess = await canUserAccessSchool(userId, userRole, event.school_id);
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+    }
   }
 
   const participants = await db.eventParticipant.findMany({
@@ -97,9 +122,9 @@ async function exportParticipants(format: string, event_id: string) {
     '#': i + 1,
     'Nome': p.student.full_name,
     'Escola': p.student.school?.name || '-',
-    'Serie': p.student.grade || '-',
+    'Série': p.student.grade || '-',
     'Turma': p.student.class || '-',
-    'Presenca': p.attended ? 'Presente' : 'Ausente',
+    'Presença': p.attended ? 'Presente' : 'Ausente',
   }));
 
   if (format === 'pdf') {
@@ -120,7 +145,7 @@ async function exportParticipants(format: string, event_id: string) {
 
     autoTable(doc, {
       startY: 42,
-      head: [['#', 'Nome', 'Escola', 'Serie', 'Turma', 'Presenca']],
+      head: [['#', 'Nome', 'Escola', 'Série', 'Turma', 'Presença']],
       body: participants.map((p, i) => [
         String(i + 1),
         p.student.full_name,
@@ -161,8 +186,17 @@ async function exportParticipants(format: string, event_id: string) {
 }
 
 // ─── Ranking Export ───────────────────────────────────────────────
-async function exportRanking(format: string) {
+async function exportRanking(
+  format: string,
+  allowedSchoolIds: string[] | null
+) {
+  // VULN-3 FIX: scope the participation query to the caller's allowed
+  // schools. `allowedSchoolIds === null` means Admin (no filter).
   const participations = await db.eventParticipant.findMany({
+    where:
+      allowedSchoolIds !== null
+        ? { student: { school_id: { in: allowedSchoolIds } } }
+        : {},
     select: {
       student_id: true,
       student: {
@@ -210,7 +244,7 @@ async function exportRanking(format: string) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('Ranking de Participacao', 14, 18);
+    doc.text('Ranking de Participação', 14, 18);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
@@ -256,14 +290,25 @@ async function exportRanking(format: string) {
 }
 
 // ─── Student Report Export ────────────────────────────────────────
-async function exportStudentReport(format: string, student_id: string) {
+async function exportStudentReport(
+  format: string,
+  student_id: string,
+  userId: string,
+  userRole: string
+) {
   const student = await db.student.findUnique({
     where: { id: student_id },
     include: { school: { select: { name: true } } },
   });
 
   if (!student) {
-    return NextResponse.json({ error: 'Aluno não encontrado' }, { status: 404 });
+    return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+  }
+
+  // VULN-3 FIX: verify the caller has access to the student's school.
+  const canAccess = await canUserAccessSchool(userId, userRole, student.school_id);
+  if (!canAccess) {
+    return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
 
   const participations = await db.eventParticipant.findMany({
@@ -289,7 +334,7 @@ async function exportStudentReport(format: string, student_id: string) {
     'Data': new Date(p.event.date).toLocaleDateString('pt-BR'),
     'Local': p.event.location || '-',
     'Categoria': p.event.category || 'other',
-    'Presenca': p.attended ? 'Presente' : 'Ausente',
+    'Presença': p.attended ? 'Presente' : 'Ausente',
   }));
 
   if (format === 'pdf') {
@@ -303,15 +348,15 @@ async function exportStudentReport(format: string, student_id: string) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('Relatorio do Aluno', 14, 18);
+    doc.text('Relatório do Aluno', 14, 18);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text(`Aluno: ${student.full_name}`, 14, 30);
-    doc.text(`Escola: ${student.school?.name || '-'} | Serie: ${student.grade || '-'} | Turma: ${student.class || '-'}`, 14, 40);
+    doc.text(`Escola: ${student.school?.name || '-'} | Série: ${student.grade || '-'} | Turma: ${student.class || '-'}`, 14, 40);
 
     autoTable(doc, {
       startY: 56,
-      head: [['#', 'Evento', 'Data', 'Local', 'Categoria', 'Presenca']],
+      head: [['#', 'Evento', 'Data', 'Local', 'Categoria', 'Presença']],
       body: participations.map((p, i) => [
         String(i + 1),
         p.event.title,
@@ -334,7 +379,7 @@ async function exportStudentReport(format: string, student_id: string) {
       doc.setTextColor(...DARK_TEXT);
       doc.text(`Total de eventos: ${participations.length}`, 14, finalY);
       const attended = participations.filter(p => p.attended).length;
-      doc.text(`Presencas: ${attended} | Faltas: ${participations.length - attended}`, 14, finalY + 7);
+      doc.text(`Presenças: ${attended} | Faltas: ${participations.length - attended}`, 14, finalY + 7);
     }
 
     addFooter(doc, pageWidth, pageHeight);
@@ -355,10 +400,10 @@ async function exportStudentReport(format: string, student_id: string) {
   const infoData = [
     { 'Campo': 'Nome', 'Valor': student.full_name },
     { 'Campo': 'Escola', 'Valor': student.school?.name || '-' },
-    { 'Campo': 'Serie', 'Valor': student.grade || '-' },
+    { 'Campo': 'Série', 'Valor': student.grade || '-' },
     { 'Campo': 'Turma', 'Valor': student.class || '-' },
     { 'Campo': 'Total Eventos', 'Valor': participations.length },
-    { 'Campo': 'Presencas', 'Valor': participations.filter(p => p.attended).length },
+    { 'Campo': 'Presenças', 'Valor': participations.filter(p => p.attended).length },
   ];
   const infoWs = XLSX.utils.json_to_sheet(infoData);
   XLSX.utils.book_append_sheet(wb, infoWs, 'Info');
@@ -378,13 +423,24 @@ async function exportStudentReport(format: string, student_id: string) {
 }
 
 // ─── School Report Export ─────────────────────────────────────────
-async function exportSchoolReport(format: string, school_id: string) {
+async function exportSchoolReport(
+  format: string,
+  school_id: string,
+  userId: string,
+  userRole: string
+) {
+  // VULN-3 FIX: verify the caller has access to the requested school.
+  const canAccessSchoolResult = await canUserAccessSchool(userId, userRole, school_id);
+  if (!canAccessSchoolResult) {
+    return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+  }
+
   const school = await db.school.findUnique({
     where: { id: school_id },
   });
 
   if (!school) {
-    return NextResponse.json({ error: 'Escola não encontrada' }, { status: 404 });
+    return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
 
   // Events linked to this school
@@ -428,7 +484,7 @@ async function exportSchoolReport(format: string, school_id: string) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('Relatorio da Escola', 14, 18);
+    doc.text('Relatório da Escola', 14, 18);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text(`Escola: ${school.name}`, 14, 30);
@@ -465,7 +521,7 @@ async function exportSchoolReport(format: string, school_id: string) {
       doc.text(`Total de eventos da escola: ${events.length}`, 14, finalY);
       doc.text(`Alunos participantes: ${uniqueStudentIds.size}`, 14, finalY + 7);
       const totalParts = events.reduce((sum, e) => sum + e._count.participants, 0);
-      doc.text(`Total de participacoes: ${totalParts}`, 14, finalY + 14);
+      doc.text(`Total de participações: ${totalParts}`, 14, finalY + 14);
     }
 
     addFooter(doc, pageWidth, pageHeight);
@@ -485,12 +541,12 @@ async function exportSchoolReport(format: string, school_id: string) {
   // School info sheet
   const infoData = [
     { 'Campo': 'Escola', 'Valor': school.name },
-    { 'Campo': 'Endereco', 'Valor': school.address || '-' },
+    { 'Campo': 'Endereço', 'Valor': school.address || '-' },
     { 'Campo': 'Telefone', 'Valor': school.phone || '-' },
     { 'Campo': 'Diretor(a)', 'Valor': school.director_name || '-' },
     { 'Campo': 'Total Eventos', 'Valor': events.length },
     { 'Campo': 'Alunos Participantes', 'Valor': uniqueStudentIds.size },
-    { 'Campo': 'Total Participacoes', 'Valor': studentParticipationCount.length },
+    { 'Campo': 'Total Participações', 'Valor': studentParticipationCount.length },
   ];
   const infoWs = XLSX.utils.json_to_sheet(infoData);
   XLSX.utils.book_append_sheet(wb, infoWs, 'Info');
@@ -512,7 +568,7 @@ async function exportSchoolReport(format: string, school_id: string) {
 // ─── Footer helper ────────────────────────────────────────────────
 function addFooter(doc: jsPDF, pageWidth: number, pageHeight: number) {
   const pageCount = doc.getNumberOfPages();
-  const generatedAt = new Date().toLocaleDateString('pt-BR') + ' as ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const generatedAt = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -523,7 +579,7 @@ function addFooter(doc: jsPDF, pageWidth: number, pageHeight: number) {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRAY_TEXT);
     doc.text('NUCA Plataforma', 14, pageHeight - 5);
-    doc.text(`Pagina ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+    doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
     doc.text(generatedAt, pageWidth - 14, pageHeight - 5, { align: 'right' });
   }
 }

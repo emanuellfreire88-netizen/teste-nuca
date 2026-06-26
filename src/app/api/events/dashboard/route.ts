@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
+import { getUserSchoolIds } from '@/lib/user-schools';
 
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   try {
@@ -28,6 +29,48 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const eventWhere: Record<string, unknown> = {};
     if (school_id) eventWhere.school_id = school_id;
     if (category) eventWhere.category = category;
+
+    // ── School scoping (VULN-3 FIX) ──
+    // Non-admins are restricted to their assigned schools. If they pass a
+    // school_id, we verify it's in their allowed set; otherwise we filter
+    // events to their allowed schools.
+    const allowedSchoolIds = await getUserSchoolIds(req.user!.userId, req.user!.role);
+
+    if (allowedSchoolIds !== null) {
+      if (school_id) {
+        if (!allowedSchoolIds.includes(school_id)) {
+          // Out-of-scope filter — return an empty dashboard rather than
+          // revealing that the school exists.
+          return NextResponse.json({
+            overall_ranking: [],
+            school_ranking: [],
+            category_ranking: [],
+            period_stats: {
+              total_events: 0,
+              total_participations: 0,
+              evolution: [],
+            },
+            most_popular_events: [],
+            never_participated: 0,
+            badge_alerts: [],
+            total_absences: 0,
+            total_absent_students: 0,
+            absent_ranking: [],
+          });
+        }
+        // school_id already applied to eventWhere above
+      } else {
+        eventWhere.school_id = { in: allowedSchoolIds };
+      }
+    }
+
+    // Student count filter mirrors the event scoping so that the
+    // `never_participated` and absence stats only consider students the
+    // caller can see.
+    const studentCountWhere: Record<string, unknown> =
+      allowedSchoolIds !== null
+        ? { status: 'active', school_id: { in: allowedSchoolIds } }
+        : { status: 'active' };
 
     const periodEventWhere: Record<string, unknown> = {
       ...eventWhere,
@@ -187,7 +230,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       .slice(0, 5);
 
     // ── Never Participated (students who never ATTENDED) ──
-    const totalStudents = await db.student.count({ where: { status: 'active' } });
+    const totalStudents = await db.student.count({ where: studentCountWhere });
     const studentsWithParticipations = new Set(participations.map((p) => p.student_id));
     const neverParticipated = totalStudents - studentsWithParticipations.size;
 

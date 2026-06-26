@@ -8,11 +8,13 @@ export const runtime = 'nodejs';
  * GET /api/certificates/events
  *
  * PUBLIC endpoint (no authentication required). Returns the list of events
- * that have certificates available — i.e. events with status "completed"
- * that have at least one participant marked as attended.
+ * that the admin has explicitly published to the public certificate link —
+ * i.e. events where `public_certificates = true` AND status is "completed"
+ * AND have at least one participant marked as attended.
  *
- * Used by the public certificate lookup page to populate the event filter
- * dropdown so a student can search their name within a specific event.
+ * Admins control which events appear on the public link via a toggle in
+ * the Events management page. This ensures only curated events are
+ * publicly searchable.
  *
  * Privacy: only event id, title, date, location, category and school name
  * are exposed. No student data is returned by this endpoint.
@@ -21,6 +23,7 @@ export async function GET() {
   try {
     const events = await db.event.findMany({
       where: {
+        public_certificates: true,
         status: 'completed',
         participants: { some: { attended: true } },
       },

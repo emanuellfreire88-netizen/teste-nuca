@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
+import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -148,12 +149,15 @@ export async function POST(
       const body = await _req.json();
       const { content } = body;
 
-      if (!content || !content.trim()) {
+      if (!content || !String(content).trim()) {
         return NextResponse.json(
           { error: 'Conteúdo da mensagem é obrigatório' },
           { status: 400 }
         );
       }
+
+      // VULN-8 FIX: sanitize message content to prevent stored XSS.
+      const sanitizedContent = sanitizeInput(String(content));
 
       // Mark all other messages in the ticket as read
       await db.supportMessage.updateMany({
@@ -170,7 +174,7 @@ export async function POST(
         data: {
           ticket_id: id,
           sender_id: _req.user!.userId,
-          content: content.trim(),
+          content: sanitizedContent,
         },
         select: {
           id: true,

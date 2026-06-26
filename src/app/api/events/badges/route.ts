@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { getUserSchoolIds, canUserAccessSchool } from '@/lib/user-schools';
 
 // GET: List badges (any authenticated user)
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
@@ -9,8 +10,41 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     const { searchParams } = new URL(req.url);
     const student_id = searchParams.get('student_id') || '';
 
+    // ── School scoping (VULN-6 FIX) ──
+    // Non-admins are restricted to their assigned schools.
+    const allowedSchoolIds = await getUserSchoolIds(req.user!.userId, req.user!.role);
+
     const where: Record<string, unknown> = {};
-    if (student_id) where.student_id = student_id;
+
+    if (allowedSchoolIds !== null) {
+      if (student_id) {
+        // Verify the requested student belongs to an allowed school.
+        const scopedStudent = await db.student.findUnique({
+          where: { id: student_id },
+          select: { school_id: true },
+        });
+        const canAccessStudent =
+          !!scopedStudent &&
+          (await canUserAccessSchool(
+            req.user!.userId,
+            req.user!.role,
+            scopedStudent.school_id
+          ));
+        if (!canAccessStudent) {
+          return NextResponse.json(
+            { error: 'Não encontrado' },
+            { status: 404 }
+          );
+        }
+        where.student_id = student_id;
+      } else {
+        // Scope badges to students in the caller's allowed schools.
+        where.student = { school_id: { in: allowedSchoolIds } };
+      }
+    } else if (student_id) {
+      // Admin filtering by student
+      where.student_id = student_id;
+    }
 
     const badges = await db.participationBadge.findMany({
       where,
@@ -95,11 +129,17 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       };
     }> = [];
     for (const badge of newBadges) {
+      // NOTE: Neon HTTP adapter does not support transactions. Prisma's
+      // `create` with `include` triggers an implicit transaction, so we
+      // split into a plain CREATE + a separate findUnique.
       const created = await db.participationBadge.create({
         data: {
           student_id: badge.student_id,
           badge_type: badge.badge_type,
         },
+      });
+      const full = await db.participationBadge.findUnique({
+        where: { id: created.id },
         include: {
           student: {
             select: {
@@ -111,7 +151,7 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
           },
         },
       });
-      awardedBadges.push(created);
+      if (full) awardedBadges.push(full);
     }
 
     await logAction(

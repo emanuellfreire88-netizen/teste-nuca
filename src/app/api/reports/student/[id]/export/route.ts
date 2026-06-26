@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { canUserAccessSchool } from '@/lib/user-schools';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -37,7 +38,22 @@ export async function GET(
 
     if (!student) {
       return NextResponse.json(
-        { error: 'Aluno nao encontrado' },
+        { error: 'Não encontrado' },
+        { status: 404 }
+      );
+    }
+
+    // VULN-2 FIX: verify the caller's school scope before exporting the
+    // student's full PII as a PDF. Use a generic 404 to avoid confirming
+    // that the resource exists.
+    const canAccess = await canUserAccessSchool(
+      _req.user!.userId,
+      _req.user!.role,
+      student.school_id
+    );
+    if (!canAccess) {
+      return NextResponse.json(
+        { error: 'Não encontrado' },
         { status: 404 }
       );
     }
@@ -63,16 +79,16 @@ export async function GET(
     const attendanceRate = totalEvents > 0 ? Math.round((attendedCount / totalEvents) * 100) : 0;
 
     const eventStatusLabels: Record<string, string> = {
-      upcoming: 'Proximo',
+      upcoming: 'Próximo',
       ongoing: 'Em Andamento',
-      completed: 'Concluido',
+      completed: 'Concluído',
       cancelled: 'Cancelado',
     };
 
     await logAction(
       _req.user!.userId,
       'export_report',
-      `Exportacao PDF do relatorio individual: ${student.full_name}`,
+      `Exportação PDF do relatório individual: ${student.full_name}`,
       _req
     );
 
@@ -88,7 +104,7 @@ export async function GET(
       doc.rect(0, 0, pageWidth, 35, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(20);
-      doc.text('Relatorio Individual do Aluno', margin, 18);
+      doc.text('Relatório Individual do Aluno', margin, 18);
       doc.setFontSize(10);
       doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, margin, 28);
 
@@ -110,13 +126,13 @@ export async function GET(
       if (student.cpf) infoItems.push(['CPF:', student.cpf, 'left']);
       if (student.rg) infoItems.push(['RG:', student.rg, 'right']);
       if (student.date_of_birth) infoItems.push(['Data de Nascimento:', new Date(student.date_of_birth).toLocaleDateString('pt-BR'), 'left']);
-      if (student.grade) infoItems.push(['Serie:', student.grade, 'right']);
+      if (student.grade) infoItems.push(['Série:', student.grade, 'right']);
       if (student.class) infoItems.push(['Turma:', student.class, 'left']);
       infoItems.push(['Escola:', student.school.name, 'right']);
       if (student.phone) infoItems.push(['Telefone:', student.phone, 'left']);
-      if (student.guardian_name) infoItems.push(['Responsavel:', student.guardian_name, 'right']);
-      if (student.guardian_phone) infoItems.push(['Tel. Responsavel:', student.guardian_phone, 'left']);
-      if (student.blood_type) infoItems.push(['Tipo Sanguineo:', student.blood_type, 'right']);
+      if (student.guardian_name) infoItems.push(['Responsável:', student.guardian_name, 'right']);
+      if (student.guardian_phone) infoItems.push(['Tel. Responsável:', student.guardian_phone, 'left']);
+      if (student.blood_type) infoItems.push(['Tipo Sanguíneo:', student.blood_type, 'right']);
       if (student.special_needs) infoItems.push(['Necessidades Especiais:', student.special_needs, 'left']);
       if (student.school.director_name) infoItems.push(['Diretor(a):', student.school.director_name, 'right']);
 
@@ -147,14 +163,14 @@ export async function GET(
       doc.rect(margin, y - 3, pageWidth - margin * 2, 12, 'F');
       doc.setTextColor(...BRAND_GREEN);
       doc.setFontSize(11);
-      doc.text(`Resumo de Frequencia: ${attendedCount} de ${totalEvents} eventos (${attendanceRate}%)`, margin + 4, y + 5);
+      doc.text(`Resumo de Frequência: ${attendedCount} de ${totalEvents} eventos (${attendanceRate}%)`, margin + 4, y + 5);
       y += 16;
 
       // ── Events Table ──
       if (participations.length > 0) {
         autoTable(doc, {
           startY: y,
-          head: [['Evento', 'Data', 'Local', 'Status', 'Presenca', 'Observacoes']],
+          head: [['Evento', 'Data', 'Local', 'Status', 'Presença', 'Observações']],
           body: participations.map((p) => [
             p.event.title,
             new Date(p.event.date).toLocaleDateString('pt-BR'),
@@ -177,7 +193,7 @@ export async function GET(
         doc.setFontSize(7);
         doc.setTextColor(...GRAY_TEXT);
         doc.text(
-          `NUCA Plataforma  |  Pagina ${i} de ${pageCount}`,
+          `NUCA Plataforma  |  Página ${i} de ${pageCount}`,
           pageWidth / 2,
           pageHeight - 6,
           { align: 'center' }
@@ -194,7 +210,7 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { error: 'Formato nao suportado' },
+      { error: 'Formato não suportado' },
       { status: 400 }
     );
   } catch (error) {

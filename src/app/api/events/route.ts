@@ -129,7 +129,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
-    const { title, description, date, location, status, photo_url, school_id, category } = body;
+    const { title, description, date, location, status, photo_url, school_id, category, public_certificates } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -195,6 +195,7 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
         photo_url: photo_url || null,
         school_id: school_id || null,
         category: eventCategory,
+        public_certificates: Boolean(public_certificates),
       },
     });
 

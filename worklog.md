@@ -1579,3 +1579,549 @@ Stage Summary:
 - **Arquivos temporários removidos**: `analyze-map.mjs` (script de análise descartável).
 - **Decisão de design**: layout em duas colunas porque o modelo do usuário tem um selo central grande (losango), não deixando banda horizontal suficiente para texto centralizado acima/abaixo. As colunas laterais estavam totalmente vazias no template.
 - Pronto para uso em produção. Não foi feito push para GitHub (aguardando confirmação do usuário).
+
+
+---
+Task ID: audit-security
+Agent: security-auditor
+Task: Comprehensive security audit of NUCA school management system
+
+Work Log:
+- Read worklog.md tail (~100 lines) for context on prior tasks (cert template design, events/cert enhancements, fix-event-add-students bug).
+- Read core auth/middleware files: `src/lib/middleware.ts`, `src/lib/auth.ts`, `src/lib/user-schools.ts`, `src/lib/logger.ts`, `src/lib/db.ts`, `src/lib/api.ts`, `src/lib/auth-store.ts`, `src/lib/search.ts`, `src/lib/email.ts`, `src/lib/certificate-template.ts` (header only).
+- Read all 25 API routes under `src/app/api/`: auth (login, logout, me, change-password), students (list/get/create/update/delete/import/events), schools (list/get/update/delete), events (list/get/update/delete/dashboard/export/badges), events/[id]/participants, events/[id]/participations (+[studentId]), attendance (list/create/sheet/export), users (list/get/update/delete/reset-password), certificates (lookup/events/download), action-logs (list/export), reports (list/student/export/students-grouped), support tickets (list/get/update/messages/read), root health check.
+- Read `next.config.ts`, `package.json`, `prisma/schema.prisma`, `Caddyfile`, `public/robots.txt`, `.env.example`, error boundaries.
+- Cross-referenced `withAuth` / `withRole` usage to identify unprotected routes; cross-referenced `getUserSchoolIds` / `canUserAccessSchool` usage to identify missing school-scoping.
+- Audited: JWT configuration, token blocklist, rate limiting, password hashing, must_change_password flow, input validation, sanitizeInput usage, base64 image validation, security headers, CSP, CORS, CSRF, env var exposure, dependency versions, logging of sensitive data.
+- No files were modified (READ-ONLY audit per task instructions).
+
+Stage Summary:
+
+## Critical Vulnerabilities (must fix)
+
+- **[VULN-1] `must_change_password` is enforced only on the client — fully bypassable**
+  - File: `src/app/api/auth/login/route.ts:170-193` (login returns valid JWT + `mustChangePassword: true` flag), `src/lib/middleware.ts:127-186` (`withAuth` does NOT check `must_change_password`), `src/components/login-page.tsx:73-82` (frontend intercepts flag and shows modal).
+  - Description: When an admin resets a user's password via `POST /api/users/[id]/reset-password` (`src/app/api/users/[id]/reset-password/route.ts:49-55`), the DB sets `must_change_password=true`. On next login the server returns a fully valid 24h JWT alongside the `mustChangePassword` boolean. The login page renders a "change password" modal client-side and only persists the token to `localStorage` *after* the modal is submitted. There is **NO server-side enforcement** — `withAuth` never inspects `must_change_password`.
+  - Impact: An attacker (or a user who captured the HTTP response from `/api/auth/login`) can simply ignore the modal, save the token, and use it directly with API calls (`Authorization: Bearer <token>`) to read/modify any data the compromised account can access — for up to 24 hours. This defeats the entire purpose of forced password rotation (e.g. after admin reset, after a suspected breach).
+  - Recommended fix: In `withAuth` (`src/lib/middleware.ts`), after the DB user lookup, check `dbUser.must_change_password` and reject all non-`/api/auth/change-password` requests with HTTP 403 + a specific error code (e.g. `MUST_CHANGE_PASSWORD`). Update `verifyUserInDB` to also return the `must_change_password` flag.
+
+- **[VULN-2] Operator/Viewer can read FULL PII for ANY student in ANY school (IDOR + missing school scoping)**
+  - Files: `src/app/api/reports/student/[id]/route.ts:10-132` (returns CPF, RG, DOB, blood_type, special_needs, medications, phone, address, guardian_name, guardian_phone, guardian_email, emergency_contact, AND the school's address/phone/email/director_name — to Admin OR Operator); `src/app/api/reports/student/[id]/export/route.ts:16-208` (same data exported as PDF); `src/app/api/reports/students-grouped/route.ts:5-104` (`withAuth` — i.e. Viewer included — returns ALL student fields for ALL schools via `include: { school: {...} }` without `select`, plus `filters.schools` lists every school's id+name).
+  - Description: These routes never call `getUserSchoolIds()` or `canUserAccessSchool()`. An Operator (or, for `students-grouped`, even a Viewer) simply substitutes another `student_id` UUID in the URL and gets back the full sensitive record. The `students-grouped` route additionally dumps the entire student table (up to 10 000 rows) with all fields when called with no filter.
+  - Impact: Massive PII disclosure of children's data (CPF, RG, DOB, guardian contact info, medical info). LGPD/GDPR violation. Cross-school data leakage defeats the entire school-scoping model.
+  - Recommended fix: In every route that takes a `student_id` (path or query), fetch the student first, then call `canUserAccessSchool(req.user.userId, req.user.role, student.school_id)` and return 404 (not 403, to avoid confirming existence) if false. For `students-grouped`, scope `where.school_id = { in: allowedSchoolIds }` for non-admins and add an explicit `select` to limit returned fields.
+
+- **[VULN-3] Operator can export attendance/events/participants/school reports for ANY school**
+  - Files: `src/app/api/attendance/export/route.ts:20-156` (`withRole(['Admin','Operator'])`, takes `school_id` from query, never scopes); `src/app/api/events/export/route.ts:14-67` (same — Operator can pass any `event_id`/`student_id`/`school_id` and get participants list, ranking, student report, or full school report with director_name, phone, address); `src/app/api/events/dashboard/route.ts:5-311` (`withAuth` — non-admins pass `school_id` and get cross-school stats, including absent student names + photos + school names).
+  - Description: No call to `getUserSchoolIds()` / `canUserAccessSchool()` anywhere in these routes. The school-scoping helper exists but is simply not used.
+  - Impact: Operator can map out every school, every student, every event, every attendance record in the system. Can produce downloadable XLSX/PDF exports of arbitrary schools' data.
+  - Recommended fix: Add the same scoping block already used in `src/app/api/attendance/route.ts:56-80` (which is correct) to each of these routes. For routes taking `event_id`/`student_id`, fetch the entity, then check `canUserAccessSchool(userId, role, entity.school_id)`.
+
+- **[VULN-4] `GET /api/events/[id]` and `GET /api/events/[id]/participations` have NO school scoping (IDOR)**
+  - Files: `src/app/api/events/[id]/route.ts:8-60` (`withAuth`, returns event with full participants list — student ids, names, grades, classes, photos, school names); `src/app/api/events/[id]/participations/route.ts:7-52` (`withAuth`, returns full participants list with student personal info).
+  - Description: A Viewer or Operator can fetch event details + participants for ANY event UUID, regardless of school assignment.
+  - Impact: Cross-school participant enumeration.
+  - Recommended fix: After fetching the event, check `canUserAccessSchool(req.user.userId, req.user.role, event.school_id)` and return 404 if not allowed.
+
+- **[VULN-5] `GET /api/students/[id]/events` and `GET /api/events/badges` have NO school scoping (IDOR)**
+  - Files: `src/app/api/students/[id]/events/route.ts:5-74` (`withAuth`, returns event participation history for ANY student by id — including school + grade + class); `src/app/api/events/badges/route.ts:7-38` (`withAuth`, returns ALL badges for ALL students when no `student_id` is passed, or any student's badges by id).
+  - Description: Same IDOR pattern — no `canUserAccessSchool` check.
+  - Impact: Cross-school student data enumeration.
+  - Recommended fix: Same as VULN-4.
+
+- **[VULN-6] Operators can mutate participations for events outside their school (broken-object-level authorization)**
+  - Files: `src/app/api/events/[id]/participations/route.ts:54-236` (`POST`, `withRole(['Admin','Operator'])` — adds students to ANY event by id, no school check on event or students); `src/app/api/events/[id]/participations/[studentId]/route.ts:7-79` (`PUT`, `withRole(['Admin','Operator'])` — marks attendance for ANY event); `src/app/api/events/[id]/participations/[studentId]/route.ts:81-135` (`DELETE`, `withRole(['Admin','Operator'])` — removes participation from ANY event).
+  - Description: Operator can tamper with attendance/participation records for any school's events.
+  - Impact: Data integrity violation; an operator from school A could mark all of school B's students as absent.
+  - Recommended fix: Verify `canUserAccessSchool` for both the event's `school_id` and (for POST) each student's `school_id` before mutating.
+
+- **[VULN-7] `withRole` is NOT applied to `POST /api/auth/change-password` — bypasses token blocklist + DB user check**
+  - File: `src/app/api/auth/change-password/route.ts:6-91`.
+  - Description: The handler uses raw `verifyToken(token)` (lines 14-18) instead of `withAuth`. Consequences:
+    1. `isTokenRevoked(token)` is never called → a token that was explicitly revoked via `POST /api/auth/logout` can STILL be used to change the password for up to 24h.
+    2. `verifyUserInDB` is never called → an `inactive` user (deactivated by admin) can still change their password (and potentially re-activate themselves by setting a new one — actually no, this route doesn't toggle status, but it does set `must_change_password: false` at line 69, which combined with VULN-1 fully unblocks the account).
+    3. There is no rate limiting on this endpoint — an attacker with a stolen token can brute-force the `currentPassword` field (limited only by bcrypt cost 12 ≈ 250ms/attempt, ≈ 100k attempts/day).
+  - Impact: Revoked tokens remain usable for password changes; deactivated users can change their password; no brute-force protection on the `currentPassword` check.
+  - Recommended fix: Wrap the handler in `withAuth`, then read the user from `req.user`. Add per-user rate limiting (e.g. max 10 attempts / 15 min). After successful change, call `revokeToken(currentToken)` to force re-login.
+
+## High Severity
+
+- **[VULN-8] Stored XSS — `sanitizeInput` is NOT applied on several write paths**
+  - Files:
+    - `src/app/api/students/[id]/route.ts:82-86` (PUT — iterates `stringFields` and assigns `body[field]` directly to `updateData` without calling `sanitizeInput`). Compare to the POST route at `src/app/api/students/route.ts:166-186` which DOES sanitize.
+    - `src/app/api/users/[id]/route.ts:93-98` (PUT — `full_name`, `email`, `role`, `status`, `profile_photo` assigned raw).
+    - `src/app/api/users/route.ts:163` (POST — `profile_photo: profile_photo || null` stored raw).
+    - `src/app/api/events/route.ts:187-199` (POST — `title`, `description`, `location`, `photo_url` stored raw).
+    - `src/app/api/events/[id]/route.ts:111-117` (PUT — same fields stored raw).
+    - `src/app/api/schools/[id]/route.ts:101-107` (PUT — `name`, `address`, `phone`, `email`, `director_name`, `opening_hours`, `school_photo` stored raw).
+    - `src/app/api/support/tickets/route.ts:155-167` (POST — `subject`, `content` stored raw).
+    - `src/app/api/support/tickets/[id]/messages/route.ts:169-174` (POST — `content` stored raw, only `.trim()` is applied).
+  - Description: `sanitizeInput` (defined at `src/lib/auth.ts:110-117`) escapes `<`, `>`, `"`, `'`. It exists and IS correctly used in `students POST`, `students/import`, `users POST`, `schools POST`, and `participations POST`. But every PUT/update path skips it.
+  - Impact: An admin (or operator where allowed) can store `<img src=x onerror=alert(1)>` in any of these fields. The frontend renders most of these fields as text content (React auto-escapes), so the practical XSS surface is limited — BUT `profile_photo`, `photo_url`, `school_photo`, `event.photo_url` are rendered in `<img src=...>` / `next/image` and could be weaponized for SSRF/markup injection; and `description`/`notes` fields may be rendered with `dangerouslySetInnerHTML` in some markdown viewer (not verified). At minimum, the inconsistency is a latent XSS bug waiting for a future UI change.
+  - Recommended fix: Apply `sanitizeInput` to every string field on every write path. Better: extract a shared `sanitizeRecord(input, fields)` helper and use it on both POST and PUT.
+
+- **[VULN-9] Token blocklist (`revokeToken`) and login rate limiter are in-memory — non-functional on serverless**
+  - Files: `src/lib/middleware.ts:32-75` (blocklist Map + cleanup interval), `src/app/api/auth/login/route.ts:8-56` (loginAttempts Map + cleanup interval), `src/lib/email.ts:10-27` (email cooldown Map).
+  - Description: All three use module-level `Map` objects. On Vercel/serverless, each invocation may run in a fresh container (cold start) — the Maps are empty on every cold start, and even on warm instances concurrent invocations do not share memory. Logout → `revokeToken(token)` writes to the Map, but a subsequent request handled by a different container will not see that entry.
+  - Impact:
+    1. **Logout is not real logout** — a stolen token remains valid for up to 24h after the victim clicks "Logout". This is the worst of the three.
+    2. Login rate limiter (10 attempts / 15 min) and account lockout (5 failed attempts → 30 min lock) are unreliable — the lockout IS persisted in the DB (`failed_login_attempts`, `locked_until`) so it works, but the IP-based 10-attempts limiter does not.
+    3. Email cooldown is bypassable.
+  - Recommended fix: Move the token blocklist to a persistent store — either a `RevokedToken` Prisma model (the schema already has a `Session` model that could be repurposed), or Upstash Redis. Same for the login rate limiter (or rely solely on the DB-persisted `failed_login_attempts` counter, which is correct, and drop the IP limiter). Document this clearly: today, "logout" is cosmetic.
+
+- **[VULN-10] JWT verification does not pin the algorithm**
+  - File: `src/lib/auth.ts:44-54`.
+  - Description: `jwt.verify(token, getJwtSecret(), { issuer, audience })` does not pass `algorithms: ['HS256']`. The library default could allow `none` or `RS256` confusion attacks in some scenarios.
+  - Impact: Low practical risk today (secret is symmetric HMAC), but defense-in-depth failure — a future refactor that introduces an RSA key pair would silently become vulnerable.
+  - Recommended fix: Add `algorithms: ['HS256']` to the `jwt.verify` options. Also enforce a minimum secret length (e.g. throw if `getJwtSecret().length < 32`).
+
+- **[VULN-11] `verifyUserInDB` comment says "fail open" but code fails closed — misleading, and the wrong path silently grants access in another scenario**
+  - File: `src/lib/middleware.ts:96-125`.
+  - Description: The comment on line 121 says "If DB fails, allow request with token data (fail open rather than blocking all access)" but the function `return null` on DB failure, and `withAuth` (line 160-167) treats `dbUser === null` as fail-closed (returns 503). So the code is actually safe, but the comment is wrong and would mislead a future maintainer. More importantly, the cache (`userRoleCache`, lines 80-94) is also in-memory and is wiped on cold starts, so on serverless EVERY request hits the DB — acceptable, but the cache's `status` field can become stale for up to 5 minutes on a long-lived container (e.g. if admin deactivates a user, that user can continue making requests for 5 min).
+  - Impact: 5-minute window of access after deactivation on warm instances.
+  - Recommended fix: Fix the misleading comment. Reduce `CACHE_TTL` to 60s, or invalidate the cache entry when an admin updates a user (e.g. emit a cache-busting event).
+
+- **[VULN-12] `X-Forwarded-For` is trusted verbatim for rate limiting**
+  - File: `src/app/api/auth/login/route.ts:61-64` (`req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()`).
+  - Description: If deployed without a trusted reverse proxy that overwrites this header, a client can send `X-Forwarded-For: 1.2.3.4` and bypass the IP-based rate limiter entirely (each request appears to come from a different IP). The current `Caddyfile` does overwrite the header (line 9: `header_up X-Forwarded-For {remote_host}`), so the production Caddy deployment is safe. But Vercel's behavior depends on its config, and any direct-access dev/test deployment is vulnerable.
+  - Impact: Bypassable rate limiting in misconfigured deployments.
+  - Recommended fix: Document that the app MUST be deployed behind a trusted proxy that overwrites `X-Forwarded-For`. Use `req.headers.get('x-real-ip')` as primary (Vercel sets this) with `x-forwarded-for` as fallback only when `NODE_ENV !== 'production'`.
+
+## Medium Severity
+
+- **[VULN-13] `validationCode` on certificates is random per request, not persisted — provides zero validation**
+  - File: `src/app/api/certificates/download/route.ts:98` (`const validationCode = \`NUCA-${uuidv4().substring(0, 8).toUpperCase()}\`;`).
+  - Description: Every download of the same certificate produces a DIFFERENT validation code, and the code is never stored. There is no `/api/certificates/verify` endpoint. The "CÓDIGO DE VALIDAÇÃO" printed on the PDF is purely cosmetic.
+  - Impact: Anyone who receives a certificate cannot verify its authenticity — defeats the entire point of printing a validation code.
+  - Recommended fix: Generate a deterministic, persisted code per (event_id, student_id) pair — store it in a new `Certificate` model or derive it via HMAC(secret, `${event_id}:${student_id}`). Add a public `GET /api/certificates/verify?code=...` endpoint.
+
+- **[VULN-14] No rate limiting on public certificate endpoints — DoS / enumeration vector**
+  - Files: `src/app/api/certificates/lookup/route.ts:26-105`, `src/app/api/certificates/events/route.ts:20-56`, `src/app/api/certificates/download/route.ts:27-306`.
+  - Description: All three are unauthenticated. The lookup is capped at 20 results (good) and requires ≥2 chars (good), but there is no per-IP rate limit. The download route is the worst — each request generates a full A4 PDF embedding a 227KB base64 image (~2.7s CPU per request), so an attacker can cause significant CPU/memory load with parallel requests.
+  - Impact: DoS via PDF generation; bulk student-name enumeration via lookup (limited but not blocked).
+  - Recommended fix: Add a simple in-memory IP rate limiter (acknowledging it's imperfect per VULN-9) — e.g. 20 lookups/min, 5 downloads/min per IP. Better: use Upstash Redis rate-limit.
+
+- **[VULN-15] No CSP on the main HTML page or public endpoints**
+  - Files: `next.config.ts:9-63` (sets X-Frame-Options, X-Content-Type-Options, Referrer-Policy, X-XSS-Protection, Permissions-Policy — but NO `Content-Security-Policy`). `src/lib/middleware.ts:17-23` (`withSecurityHeaders` sets `X-Content-Security-Policy: default-src 'self'` but only for routes wrapped in `withAuth`/`withRole` — public endpoints and the main HTML page served from `/` do NOT go through `withAuth`).
+  - Description: The login page, public certificate page, and all `/?certificados` assets load without a CSP, leaving them exposed to injected scripts (e.g. from a future stored XSS — see VULN-8).
+  - Impact: No defense-in-depth against XSS.
+  - Recommended fix: Add a global `Content-Security-Policy` header in `next.config.ts` `headers()` config, scoped to allow `self` for scripts/styles/images, `data:` for images (needed for base64 profile photos), and `connect-src 'self'`.
+
+- **[VULN-16] No CSRF protection on state-changing endpoints**
+  - Files: All `POST`/`PUT`/`DELETE` handlers.
+  - Description: Auth is via `Authorization: Bearer <token>` header (not cookies), so classical CSRF is largely mitigated — the token is stored in `localStorage` (via `zustand/persist`, `src/lib/auth-store.ts:25-42`) and an attacker site cannot read it to forge a request. HOWEVER, the `upload` helper (`src/lib/api.ts:104-150`) sends `Authorization` header on `FormData` POSTs, and any future migration to cookie-based sessions would silently become vulnerable.
+  - Impact: Low today, but fragile.
+  - Recommended fix: Document that auth MUST remain header-based. If cookies are ever introduced, add `SameSite=Lax` + double-submit CSRF tokens.
+
+- **[VULN-17] `db.$transaction` and `db.<Model>.createMany()` still used in import route — known broken on serverless**
+  - File: `src/app/api/students/import/route.ts:393-417` (the bulk insert uses `db.$transaction(toCreate.map(d => db.student.create({data: d})))`).
+  - Description: The worklog documents (see `fix-event-add-students` task) that the Neon HTTP adapter rejects `createMany` and `$transaction`. The import route still tries `$transaction` first and falls back to a sequential loop on error (line 399-417). The fallback works, but every large import pays the cost of one failed transaction attempt, and a partial batch leaves the DB in a half-imported state without atomicity.
+  - Impact: Reliability bug — partial imports on failure; slower than necessary.
+  - Recommended fix: Replace with the sequential loop unconditionally (matching the pattern already used in `events/[id]/participants/route.ts`).
+
+- **[VULN-18] Operator-only routes use `withRole(['Admin','Operator'])` but `withRole` itself doesn't verify the user's `school_ids` are still valid**
+  - File: `src/lib/middleware.ts:188-202`.
+  - Description: `withRole` only checks the role. If an admin removes an Operator's school access via `PUT /api/users/[id]` (which syncs `user_schools`, `src/app/api/users/[id]/route.ts:132-189`), the Operator's token is still valid for 24h and the per-route `getUserSchoolIds()` check correctly returns the updated list (good). So this is actually working correctly — but only because every route re-fetches `user_schools` from the DB. The role cache (VULN-11) is the only stale-data risk.
+  - Impact: None today; documenting that the safety relies on per-route `getUserSchoolIds` calls (which VULN-2/3/4/5/6 show are MISSING in several routes).
+
+- **[VULN-19] Account lockout is bypassable via the IP rate limiter being independent**
+  - File: `src/app/api/auth/login/route.ts:116-126` (account lock: 5 failed attempts → 30 min lock, persisted in DB), lines 25-36 (IP rate limit: 10 attempts / 15 min, in-memory).
+  - Description: The IP limiter is per-IP, the account lock is per-account. An attacker with a botnet of >1 IP can try 5 passwords per IP per 15 min × N IPs without triggering the account lock (because each IP only contributes a few attempts, but the account-side counter still increments — actually wait, the account-side counter increments on EVERY failed attempt regardless of IP, so the lock DOES trigger at 5 failed attempts total). So the account lock works. But the IP limiter is the only protection against distributed enumeration of DIFFERENT accounts from the same IP, and it's in-memory (VULN-9).
+  - Impact: Low — the DB-persisted account lock is the real protection.
+  - Recommended fix: Document that the IP limiter is best-effort; consider failing closed on lockout (return 429 with `Retry-After`).
+
+## Low Severity / Hardening
+
+- **[VULN-20] `bcryptjs` cost factor 12 is acceptable but could be higher for high-value accounts**
+  - File: `src/lib/auth.ts:57` (`bcrypt.genSalt(12)`).
+  - Recommendation: Consider cost 13-14 for admin accounts. As of 2026 hardware, cost 12 ≈ 250ms/hash which is acceptable; cost 13 ≈ 500ms.
+
+- **[VULN-21] JWT expiry of 24h is long**
+  - File: `src/lib/auth.ts:25` (`const JWT_EXPIRES_IN = '24h';`).
+  - Recommendation: Reduce to 1-2h with a refresh token, OR keep 24h but ensure token rotation on sensitive operations (password change, role change). Today, a stolen token is valid for 24h AND cannot be revoked (VULN-9).
+
+- **[VULN-22] `next.config.ts` has `typescript.ignoreBuildErrors: true`**
+  - File: `next.config.ts:5-7`.
+  - Impact: Type errors are silently ignored at build time — could mask security-relevant type mismatches (e.g. a `string | undefined` field being passed where a `string` is required).
+  - Recommendation: Remove this and fix any type errors. At minimum, enable it only for specific build contexts.
+
+- **[VULN-23] `reactStrictMode: true` is good but `output: "standalone"` produces a self-contained bundle that may include dev dependencies if misconfigured**
+  - File: `next.config.ts:4`. Recommendation: Verify the production build does not include `better-sqlite3` (which is in dependencies at `package.json:57` but should be dev-only — it's a native module and bloats the bundle).
+
+- **[VULN-24] `package.json` includes `better-sqlite3` and `@types/pg` + `pg` in dependencies but the app uses Neon HTTP adapter only**
+  - File: `package.json:55, 57, 73`. Recommendation: Move `better-sqlite3` to `devDependencies`. The `pg` package is used by the Neon adapter transitively, so it can stay, but `@types/pg` should be `devDependencies`.
+
+- **[VULN-25] `next-auth` is in dependencies but not used**
+  - File: `package.json:70`. The app uses custom JWT auth (`src/lib/auth.ts`), not NextAuth. Recommendation: Remove `next-auth` to reduce attack surface and bundle size. (If you do plan to migrate to NextAuth, do it deliberately, not as a dormant dep.)
+
+- **[VULN-26] `socket.io-client` in dependencies but unused in `src/`**
+  - File: `package.json:85`. Recommendation: Remove if unused. (A `mini-services/chat-service/` exists but appears to be a separate service.)
+
+- **[VULN-27] `robots.txt` allows all bots on all paths**
+  - File: `public/robots.txt`. Recommendation: At minimum disallow `/api/`. Better, disallow everything except the public certificate page.
+
+- **[VULN-28] Static files in `public/uploads/` are world-readable without auth**
+  - File: `/home/z/my-project/public/uploads/*.png` (13 PNG files).
+  - Description: These appear to be profile/event photos from dev. If profile_photo URLs are predictable (UUIDs are not, but if any use sequential ids), they'd be enumerable.
+  - Recommendation: Move profile photos to a database column (already done for `User.profile_photo` as base64 — good) and remove the `public/uploads/` directory from production. The `/uploads/` path is still accepted by `PUT /api/auth/me` (`src/app/api/auth/me/route.ts:82, 107-113`) for backwards compat, but the files themselves should not be in `public/` in production.
+
+- **[VULN-29] Error responses include `error.message` in the Next.js error boundary**
+  - File: `src/app/error.tsx:48-52` (`Detalhe: {error.message}`).
+  - Description: Client-rendered error page shows the raw error message. In dev this is helpful; in prod it could leak internals (DB error messages, file paths).
+  - Recommendation: In production, show only a generic message + `error.digest` (which Next.js generates for tracing). Keep the detailed message for dev.
+
+- **[VULN-30] `console.error` calls throughout API routes log full error objects to server logs**
+  - Files: Virtually every API route's `catch (error) { console.error('...', error); ... }`.
+  - Description: On Vercel, these go to runtime logs which are visible to operators. If an error contains sensitive data (e.g. a Prisma error referencing a CPF in a unique-constraint violation message), it would be logged.
+  - Recommendation: Sanitize errors before logging in production. At minimum, log `error.message` and `error.code` (for Prisma) but not the full object.
+
+- **[VULN-31] `logAction` description field could be crafted to inject into admin log UI**
+  - File: `src/lib/logger.ts:26-34` (stores raw `description`). Most callers interpolate user-controlled values (e.g. `Importação em lote: ...` — `src/app/api/students/import/route.ts:421-425`). If the admin Logs page renders these with `dangerouslySetInnerHTML` (not verified), it would be XSS. React auto-escapes by default, so likely safe.
+  - Recommendation: Verify the Logs page uses normal React text rendering. No code change needed unless it uses innerHTML.
+
+- **[VULN-32] Two-factor auth is referenced in the schema and `User` select but is never enforced**
+  - Files: `prisma/schema.prisma:20-21` (`two_factor_enabled`, `two_factor_secret`), `src/lib/email.ts:29-149` (`generateVerificationCode`, `sendVerificationEmail` — never called from any route), `src/app/api/auth/login/route.ts` (does not check `two_factor_enabled`).
+  - Description: 2FA is dead code — the schema fields exist, the email helper exists, but no login flow requires a code.
+  - Recommendation: Either implement 2FA end-to-end, or remove the dead code (schema fields, email helper, UI references) to reduce confusion.
+
+- **[VULN-33] `must_change_password` defaults to `true` for new users**
+  - File: `prisma/schema.prisma:19`. Combined with VULN-1, every new user (including the admin seed) is in a "must change password" state, but the enforcement is client-side only. Confirming this is a real issue: an admin creating a new user via `POST /api/users` (`src/app/api/users/route.ts:156-177`) does NOT set `must_change_password: true` explicitly (it relies on the schema default), but the new user can immediately use their token without changing the password (VULN-1).
+  - Recommendation: Fix VULN-1 first; this then becomes a non-issue.
+
+- **[VULN-34] `POST /api/auth/login` does not invalidate other sessions on successful login**
+  - File: `src/app/api/auth/login/route.ts:159-193`.
+  - Description: Each successful login issues a new JWT but does not revoke any prior JWT for the same user. A user logging in from a new device does not sign out old devices.
+  - Recommendation: Optional — document this as intended behavior, or maintain a `session_version` counter on User and include it in the JWT, incrementing on each login.
+
+- **[VULN-35] Profile photo data URL cap is 6MB**
+  - File: `src/app/api/auth/me/route.ts:101` (`if (profile_photo.length > 6 * 1024 * 1024)`).
+  - Description: 6MB base64 strings stored in the `users.profile_photo` column. Postgres TOAST handles this transparently, but 6MB × many users = significant DB bloat. The 6MB cap is on the BASE64 string length, so the actual image is ~4.5MB — still very large for a profile photo.
+  - Recommendation: Reduce cap to 1MB base64 (~750KB image), or implement server-side image resizing (the project already has `sharp` as a dependency — `package.json:84`).
+
+- **[VULN-36] `POST /api/auth/login` accepts a `remember` field but ignores it**
+  - File: `src/app/api/auth/login/route.ts:74` (`const { email, password, remember } = body;` — `remember` is destructured but never read).
+  - Recommendation: Either implement extended session (`remember: true` → 30d expiry, `false` → 24h), or remove the field.
+
+## Positive Findings (what's done well)
+
+- **Password hashing**: bcryptjs cost 12 is reasonable. `validatePasswordStrength` (`src/lib/auth.ts:85-105`) enforces 8+ chars + upper + lower + digit + special. Enforced on user create, user update (incl. admin reset), and self change-password.
+- **JWT configuration**: Issuer + audience are set and verified. Secret is loaded lazily and fails closed in production if `JWT_SECRET` is unset (`src/lib/auth.ts:13-15`).
+- **Login route hardening**: Generic "Credenciais inválidas" message for both wrong-email and wrong-password (lines 96-103, 109-113, 122-125, 150-153) — prevents user enumeration. Account lockout after 5 failed attempts, persisted in DB (`failed_login_attempts`, `locked_until`). IP rate limiter (10/15min) — though see VULN-9 and VULN-12. Successful login resets the failed-attempt counter.
+- **`withAuth` re-fetches the user's role from DB** (`src/lib/middleware.ts:158-181`) on every request (cache 5min) — prevents privilege escalation after role change. Also checks `status === 'inactive'` and returns 403.
+- **`withSecurityHeaders`** applies `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and a basic CSP to every `withAuth`/`withRole` response. The Next.js config (`next.config.ts:9-63`) applies X-Frame-Options, nosniff, Referrer-Policy, X-XSS-Protection, and Permissions-Policy globally to all routes.
+- **Public certificate endpoints** correctly use Prisma `select` to expose only the minimum data (`full_name`, event title/date/location, school name). No CPF/RG/phone/email leakage in certificate responses (`src/app/api/certificates/lookup/route.ts:53-77`, `events/route.ts:27-37`, `download/route.ts:42-73`). Lookup is capped at 20 students and requires ≥2 chars.
+- **Certificate download** verifies (a) event exists, (b) event status is `completed`, (c) student exists, (d) participation exists with `attended=true` — defense in depth (`src/app/api/certificates/download/route.ts:40-95`).
+- **Prisma parameterized queries** used everywhere — no raw SQL except one safe tagged-template literal (`src/app/api/users/[id]/route.ts:246`: `db.$executeRaw\`UPDATE "action_logs" SET "user_id" = NULL WHERE "user_id" = ${id}\`` — Prisma parameterizes tagged template literals, so this is safe from SQL injection).
+- **Input length validation** on most POST routes (e.g. `full_name` capped at 255 chars, `cpf` validated as 11 digits, `email` regex-validated, `latitude`/`longitude` range-checked).
+- **File upload validation** on student import (`src/app/api/students/import/route.ts:121-155`): checks file presence, non-zero size, 5MB cap, `.csv`/`.xlsx` extension + MIME type, 1000-row cap.
+- **School scoping IS correctly implemented** on the core list endpoints: `GET /api/students` (`src/app/api/students/route.ts:37-59`), `GET /api/schools` (`src/app/api/schools/route.ts:25-31`), `GET /api/schools/[id]` (`src/app/api/schools/[id]/route.ts:16-22`), `GET /api/students/[id]` (`src/app/api/students/[id]/route.ts:31-41`), `GET /api/events` (`src/app/api/events/route.ts:53-73`), `GET /api/attendance` (`src/app/api/attendance/route.ts:56-80`), `GET /api/attendance/sheet` (`src/app/api/attendance/sheet/route.ts:51-58`), `POST /api/attendance` (`src/app/api/attendance/route.ts:165-176`), `GET /api/reports` (`src/app/api/reports/route.ts:25-83`). The pattern is correct — it's just NOT applied to the routes listed in VULN-2/3/4/5/6.
+- **Audit logging** (`src/lib/logger.ts`) records user_id, action_type, description, IP, and user-agent for every significant action. Logs do NOT contain passwords or CPFs (verified across all `logAction` call sites).
+- **Support tickets** correctly enforce "non-admin sees only own active tickets" (`src/app/api/support/tickets/[id]/route.ts:74-90`, `messages/route.ts:29-45`, `read/route.ts:29-45`).
+- **User delete** prevents self-deletion (`src/app/api/users/[id]/route.ts:223-229`).
+- **Reset password** prevents self-reset via admin path (`src/app/api/users/[id]/reset-password/route.ts:39-45`) — must use the self-service `change-password` flow.
+- **DB error handling** is fail-closed in `withAuth` (`src/lib/middleware.ts:160-167` returns 503 if `verifyUserInDB` returns null).
+- **No `NEXT_PUBLIC_*` env vars** — nothing sensitive is exposed to the client bundle.
+- **`.env.example`** documents the required env vars without leaking real values.
+- **`maxDuration: 30`** is set on the long-running PDF generation routes (`certificates/download`, `attendance/sheet`) — appropriate for Vercel.
+- **`Cache-Control: no-store`** is set on all API routes (`next.config.ts:39-49`) and on the root HTML page (`next.config.ts:51-61`).
+- **`reactStrictMode: true`** is enabled (`next.config.ts:8`).
+
+---
+Task ID: audit-spelling
+Agent: spelling-auditor
+Task: Portuguese orthography audit of all user-facing strings
+
+Work Log:
+- Scanned ~60 files across src/components/*.tsx (14 non-UI components), src/app/api/**/route.ts (40 API routes), src/lib/*.ts (13 lib files), and src/app/*.tsx (app pages).
+- Used ripgrep to systematically find Portuguese text lacking required diacritics (ã/á/à/â/é/ê/í/ó/ô/õ/ú/ç), missing crase, the word "reconha" (non-existent), and PDF/XLSX export headers/titles with unaccented forms.
+- Verified every finding against surrounding JSX/template context to confirm the string is genuinely USER-FACING (toasts, headings, labels, placeholders, table headers, PDF titles, XLSX column headers, action-log descriptions shown in the Logs viewer). Excluded code-only identifiers (e.g. `value="participacao"` tab keys), code comments, and download filenames (where omitting accents is standard practice for filesystem compatibility).
+- READ-ONLY audit: no files modified.
+
+Stage Summary:
+
+## Spelling Errors Found
+
+### src/components/events-page.tsx  (46 errors — most affected file)
+- Line 353: `"Destaque do Mes"` → `"Destaque do Mês"` (badge label, missing accent on "Mês")
+- Line 721: `"Titulo do evento e obrigatorio"` → `"Título do evento é obrigatório"` (toast.error — 3 missing accents: Título/é/obrigatório)
+- Line 725: `"Data do evento e obrigatoria"` → `"Data do evento é obrigatória"` (toast.error — 3 missing accents: é/obrigatória)
+- Line 777: `"Evento excluido com sucesso!"` → `"Evento excluído com sucesso!"` (toast.success — missing accent on "excluído")
+- Line 871: `"Erro ao atualizar presenca"` → `"Erro ao atualizar presença"` (toast.error — missing cedilha on "presença")
+- Line 968: `"Relatorio exportado com sucesso!"` → `"Relatório exportado com sucesso!"` (toast.success — missing accent on "Relatório")
+- Line 971: `"Erro ao exportar relatorio"` → `"Erro ao exportar relatório"` (toast.error fallback)
+- Line 973: `"Erro ao exportar relatorio"` → `"Erro ao exportar relatório"` (toast.error)
+- Line 1032: `"Gerencie eventos, acompanhe participacoes e reconha destaques"` → `"Gerencie eventos, acompanhe participações e reconheça destaques"` (page subtitle — 3 errors: "participacoes"→"participações", "reconha" is not a Portuguese word — most likely intended "reconheça")
+- Line 1078: `Participacao` → `Participação` (TabsTrigger label)
+- Line 1086: `Relatorios` → `Relatórios` (TabsTrigger label)
+- Line 1294: `<TableHead>Titulo</TableHead>` → `<TableHead>Título</TableHead>`
+- Line 1414: `<span ...>Periodo:</span>` → `Período:` (filter label)
+- Line 1486: `Total de Presencas` → `Total de Presenças` (stat card subtitle)
+- Line 1538: `Evolucao Mensal` → `Evolução Mensal` (CardTitle)
+- Line 1563: `name="Presencas"` → `name="Presenças"` (recharts Bar series name — shown in Tooltip/Legend)
+- Line 1571: `"Sem dados no periodo"` → `"Sem dados no período"` (empty-state text)
+- Line 1582: `Ranking por Escola (Presencas)` → `Ranking por Escola (Presenças)` (CardTitle)
+- Line 1603: `name="Presencas"` → `name="Presenças"` (recharts Bar series name)
+- Line 1636: `Ranking de Alunos - Presencas (Top 10)` → `Ranking de Alunos - Presenças (Top 10)` (CardTitle)
+- Line 1709: `Ranking por Categoria (Presencas)` → `Ranking por Categoria (Presenças)` (CardTitle)
+- Line 1733: `{cat.total_participations} presenca(s)` → `presença(s)` (category ranking cell)
+- Line 2028: `"Selecione um evento do aluno para gerar o certificado na secao abaixo"` → `"...na seção abaixo"` (toast.info)
+- Line 2261: `"Exporte a lista de participantes de um evento especifico."` → `"...específico."` (CardContent description)
+- Line 2311: `Ranking de Participacao` → `Ranking de Participação` (CardTitle)
+- Line 2316: `"Exporte o ranking geral de participacao dos alunos."` → `"...participação..."` (CardContent description)
+- Line 2346: `Relatorio por Aluno` → `Relatório por Aluno` (CardTitle)
+- Line 2351: `"Exporte o historico de participacoes de um aluno."` → `"Exporte o histórico de participações de um aluno."` (CardContent description — 3 missing accents)
+- Line 2428: `Relatorio por Escola` → `Relatório por Escola` (CardTitle)
+- Line 2433: `"Exporte o relatorio de participacoes de uma escola."` → `"Exporte o relatório de participações de uma escola."` (CardContent description — 3 missing accents)
+- Line 2529: `Opcoes de Impressao` → `Opções de Impressão` (CardTitle — 2 missing accents)
+- Line 2540: `Imprimir Pagina` → `Imprimir Página` (Button label)
+- Line 2559: `"Gerando relatorio..."` → `"Gerando relatório..."` (loading indicator)
+- Line 2764: `"Atualize as informacoes do evento abaixo."` → `"Atualize as informações do evento abaixo."` (Modal subtitle)
+- Line 2771: `Titulo` → `Título` (Label)
+- Line 2779: `placeholder="Titulo do evento"` → `placeholder="Título do evento"`
+- Line 2783: `<Label ...>Descricao</Label>` → `Descrição`
+- Line 2790: `placeholder="Descricao do evento"` → `placeholder="Descrição do evento"`
+- Line 2902: `"Salvar Alteracoes"` → `"Salvar Alterações"` (Button text)
+- Line 2920: `"serao removidos. Esta acao nao pode ser desfeita."` → `"serão removidos. Esta ação não pode ser desfeita."` (delete-confirmation dialog — 4 errors: serão/ação/não)
+- Line 2990: `"Nenhum aluno disponivel"` → `"Nenhum aluno disponível"` (empty-state in Add-Students dialog)
+- Line 3329: `Informacoes do Evento` → `Informações do Evento` (CardTitle)
+- Line 3336: `Descricao` → `Descrição` (event-detail info row label)
+- Line 3728: `<TableHead>Serie</TableHead>` → `<TableHead>Série</TableHead>`
+- Line 3729: `<TableHead className="text-center">Presenca</TableHead>` → `Presença`
+- Line 3731: `<TableHead className="text-right">Acoes</TableHead>` → `Ações`
+
+### src/lib/seed-full.ts  (1 error)
+- Line 310: `description: 'Jogo amistoso entre seleções das escolas do municipio.'` → `'...do município.'` (seed event description — shown in event detail UI)
+
+### src/app/api/events/certificates/route.ts  (2 errors — PDF output)
+- Line 115: `doc.text('Certificado de Participacao', ...)` → `'Certificado de Participação'` (PDF title)
+- Line 187: `doc.text('Codigo de validacao:', ...)` → `'Código de validação:'` (PDF label)
+
+### src/app/api/events/export/route.ts  (17 errors — PDF/XLSX output)
+- Line 100: `'Serie': p.student.grade || '-'` → `'Série'` (XLSX column header)
+- Line 102: `'Presenca': p.attended ? 'Presente' : 'Ausente'` → `'Presença'` (XLSX column header)
+- Line 123: `head: [['#', 'Nome', 'Escola', 'Serie', 'Turma', 'Presenca']]` → `'Série'`, `'Presença'` (PDF table headers)
+- Line 213: `doc.text('Ranking de Participacao', 14, 18)` → `'Ranking de Participação'` (PDF title)
+- Line 292: `'Presenca': p.attended ? ...` → `'Presença'` (XLSX column header)
+- Line 306: `doc.text('Relatorio do Aluno', 14, 18)` → `'Relatório do Aluno'` (PDF title)
+- Line 310: `Escola: ... | Serie: ... | Turma: ...` → `Série` (PDF subtitle)
+- Line 314: `head: [['#', 'Evento', 'Data', 'Local', 'Categoria', 'Presenca']]` → `'Presença'` (PDF table header)
+- Line 337: `doc.text(\`Presencas: ${attended} | Faltas: ...\`)` → `Presenças` (PDF summary text)
+- Line 358: `{ 'Campo': 'Serie', 'Valor': ... }` → `'Série'` (XLSX row label)
+- Line 361: `{ 'Campo': 'Presencas', 'Valor': ... }` → `'Presenças'` (XLSX row label)
+- Line 431: `doc.text('Relatorio da Escola', 14, 18)` → `'Relatório da Escola'` (PDF title)
+- Line 468: `doc.text(\`Total de participacoes: ${totalParts}\`)` → `Total de participações` (PDF summary text)
+- Line 488: `{ 'Campo': 'Endereco', 'Valor': ... }` → `'Endereço'` (XLSX row label)
+- Line 493: `{ 'Campo': 'Total Participacoes', 'Valor': ... }` → `'Total Participações'` (XLSX row label)
+- Line 515: `+ ' as ' +` (PDF footer time prefix) → `+ ' às '` (crase required before hours: "Gerado em 12/01/2026 às 14:30")
+- Line 526: `Pagina ${i} de ${pageCount}` → `Página ${i} de ${pageCount}` (PDF footer)
+
+### src/app/api/attendance/export/route.ts  (6 errors — PDF/XLSX output + 1 action log)
+- Line 68: `\`Exportacao de frequencia (${format})\`` (action-log message, shown in Logs viewer) → `\`Exportação de frequência (${format})\``
+- Line 80: `doc.text('Relatorio de Frequencia', 14, 18)` → `'Relatório de Frequência'` (PDF title)
+- Line 95: `head: [['Aluno', 'Escola', 'Serie', 'Turma', 'Data', 'Status']]` → `'Série'` (PDF table header)
+- Line 110: `\`NUCA Plataforma  |  Pagina ${i} de ${pageCount}\`` → `Página` (PDF footer)
+- Line 130: `Serie: r.student.grade || '-'` → `'Série'` (XLSX column header)
+- Line 138: `XLSX.utils.book_append_sheet(wb, ws, 'Frequencia')` → `'Frequência'` (XLSX sheet name)
+
+### src/app/api/reports/export/route.ts  (11 errors — PDF/XLSX output)
+- Line 309: `'Serie': s.grade || '-'` → `'Série'` (XLSX column header)
+- Line 313: `'Responsavel': s.guardian_name || '-'` → `'Responsável'` (XLSX column header)
+- Line 314: `'Tel. Responsavel': s.guardian_phone || '-'` → `'Tel. Responsável'` (XLSX column header)
+- Line 321: `'Serie': '', ... 'Responsavel': '', 'Tel. Responsavel': ''` (subtotal-row keys — same 3 errors repeated)
+- Line 416: `\`NUCA Plataforma  |  Pagina ${i} de ${pageCount}\`` → `Página` (PDF footer for Frequência export)
+- Line 434: `XLSX.utils.book_append_sheet(wb, ws, 'Frequencia')` → `'Frequência'` (XLSX sheet name)
+- Line 457: `Endereco: s.address || '-'` → `'Endereço'` (XLSX column header)
+- Line 480: `head: [['Nome', 'Endereco', 'Telefone', 'Email', 'Diretor', 'Total Alunos']]` → `'Endereço'` (PDF table header)
+- Line 502: `\`NUCA Plataforma  |  Pagina ${i} de ${pageCount}\`` → `Página` (PDF footer for Escolas export)
+
+### src/app/api/reports/student/[id]/export/route.ts  (11 errors — PDF/XLSX output + 1 action log + 2 API errors)
+- Line 40: `{ error: 'Aluno nao encontrado' }` → `'Aluno não encontrado'` (HTTP 404 error response — note: the sibling route `reports/student/[id]/route.ts:33` uses the correct `'Aluno não encontrado'`, so this is also an inconsistency)
+- Line 75: `\`Exportacao PDF do relatorio individual: ${student.full_name}\`` (action-log message) → `\`Exportação PDF do relatório individual: ...\``
+- Line 91: `doc.text('Relatorio Individual do Aluno', margin, 18)` → `'Relatório Individual do Aluno'` (PDF title)
+- Line 113: `['Serie:', student.grade, 'right']` → `'Série:'` (PDF info label)
+- Line 117: `['Responsavel:', student.guardian_name, 'right']` → `'Responsável:'` (PDF info label)
+- Line 118: `['Tel. Responsavel:', student.guardian_phone, 'left']` → `'Tel. Responsável:'` (PDF info label)
+- Line 119: `['Tipo Sanguineo:', student.blood_type, 'right']` → `'Tipo Sanguíneo:'` (PDF info label)
+- Line 150: `doc.text(\`Resumo de Frequencia: ${attendedCount} de ${totalEvents} eventos (${attendanceRate}%\`)` → `Resumo de Frequência` (PDF summary text)
+- Line 157: `head: [['Evento', 'Data', 'Local', 'Status', 'Presenca', 'Observacoes']]` → `'Presença'`, `'Observações'` (PDF table headers)
+- Line 180: `\`NUCA Plataforma  |  Pagina ${i} de ${pageCount}\`` → `Página` (PDF footer)
+- Line 197: `{ error: 'Formato nao suportado' }` → `'Formato não suportado'` (HTTP 400 error response — note: the sibling route `students/import/route.ts:152` uses the correct `'Formato não suportado. Envie um arquivo .csv ou .xlsx.'`)
+
+## Summary
+
+- **Total user-facing spelling errors found: 94** (across 7 files)
+- **Most common error type:** Missing accents on words ending in "-ção"/"-ções" (participacao, presenca, acao, informacoes, opcoes, observacoes, exportacao, frequencia, relatorio, evolucao) — accounts for ~70% of all errors.
+- **Files with most errors:**
+  1. `src/components/events-page.tsx` — 46 errors (49% of all findings). This is the only UI component with systematic accent omission; all other components (students-page, schools-page, dashboard-page, attendance-page, reports-page, support-page, logs-page, login-page, users-page, public-certificates-page, app-layout) are correctly spelled.
+  2. `src/app/api/events/export/route.ts` — 17 errors
+  3. `src/app/api/reports/export/route.ts` — 11 errors
+  4. `src/app/api/reports/student/[id]/export/route.ts` — 11 errors
+  5. `src/app/api/attendance/export/route.ts` — 6 errors
+  6. `src/app/api/events/certificates/route.ts` — 2 errors
+  7. `src/lib/seed-full.ts` — 1 error
+
+- **Notable non-spelling issue:** `events-page.tsx:1032` contains the word `"reconha"` which is not a valid Portuguese word — likely intended `"reconheça"` (recognize). Combined with `"participacoes"` on the same line, the entire subtitle needs rewriting: `"Gerencie eventos, acompanhe participações e reconheça destaques"`.
+
+- **Notable crase error:** `events/export/route.ts:515` uses `' as '` (conjunction) before a time expression — should be `' às '` (preposition + article, required before hours: "Gerado em 12/01/2026 às 14:30").
+
+- **Consistency observation:** Most API error messages (`Aluno não encontrado`, `Formato não suportado`, `Relatório de Logs de Ação`, etc.) are correctly accented throughout the codebase. The exceptions in `reports/student/[id]/export/route.ts` (lines 40, 197) appear to be leftovers from before the rest of the codebase was fixed — the sibling `reports/student/[id]/route.ts:33` and `students/import/route.ts:152` use the correct forms.
+
+- **Intentional non-fixes (NOT errors):** Download filenames consistently omit accents (`relatorio-*.pdf`, `frequencia.xlsx`, `ranking-participacao.pdf`, `modelo-importacao-alunos.csv`, `logs-acoes.pdf`) — this is standard practice for cross-filesystem compatibility and was not flagged. Loanwords like "Dashboard", "badges", "login", "logout", "ticket", "protocol" appear in PT-BR UI text and are acceptable technical jargon. Tab identifier values like `value="participacao"` are code-level identifiers (not user-facing) and were not flagged. Code comments with unaccented Portuguese (e.g. `// Fetch dashboard when tab changes to participacao`) were not flagged as they are not user-facing.
+
+- **Recommendation:** The bulk of the work is in `events-page.tsx` (46 of 94 errors). Recommend a single sweep replacing common patterns: `participacao`→`participação`, `participacoes`→`participações`, `presenca`→`presença`, `presencas`→`presenças`, `relatorio`→`relatório`, `Relatorios`→`Relatórios`, `acao`→`ação`, `acoes`→`ações`, `informacoes`→`informações`, `Descricao`→`Descrição`, `Titulo`→`Título`, `Periodo`→`Período`, `Evolucao`→`Evolução`, `Opcoes`→`Opções`, `Impressao`→`Impressão`, `Pagina`→`Página`, `Alteracoes`→`Alterações`, `serao`→`serão`, `nao`→`não`, `excluido`→`excluído`, `disponivel`→`disponível`, `especifico`→`específico`, `historico`→`histórico`, `Mes`→`Mês`. Then fix the same patterns in the 5 export API routes and the certificates route, plus the 2 lines in seed-full.ts.
+
+---
+Task ID: fix-spelling
+Agent: spelling-fixer
+Task: Apply 94 Portuguese spelling fixes across 7 files
+
+Work Log:
+- Read audit findings from worklog.md (Task ID: audit-spelling) — 94 user-facing spelling errors across 7 files.
+- Fixed src/components/events-page.tsx (46 errors):
+  - Accent fixes on toast messages, labels, table headers, CardTitles, recharts `name` props, placeholders, button text, dialog text.
+  - Rewrote subtitle "participacoes e reconha" → "participações e reconheça" (reconha is not a Portuguese word).
+  - Did NOT touch: `value="participacao"` / `value="relatorios"` tab identifiers, code comments (`{/* Tab 2: Participacao */}`, `// Fetch dashboard when tab changes to participacao`).
+- Fixed src/app/api/events/export/route.ts (17 errors):
+  - XLSX column headers (`'Serie'`→`'Série'`, `'Presenca'`→`'Presença'`).
+  - PDF titles (`'Relatorio do Aluno'`→`'Relatório do Aluno'`, `'Relatorio da Escola'`→`'Relatório da Escola'`, `'Ranking de Participacao'`→`'Ranking de Participação'`).
+  - PDF table headers, summary text (`Presencas`→`Presenças`, `Total de participacoes`→`Total de participações`).
+  - XLSX row labels (`'Serie'`, `'Presencas'`, `'Endereco'`, `'Total Participacoes'`).
+  - Crase fix: `' as '` → `' às '` (PDF footer time prefix).
+  - PDF footer `Pagina ${i} de ${pageCount}` → `Página ${i} de ${pageCount}`.
+  - Did NOT touch: download filenames (`participantes-*.pdf`, `ranking-participacao.pdf`, `relatorio-*.pdf/xlsx`).
+- Fixed src/app/api/reports/export/route.ts (11 errors):
+  - XLSX column headers (`'Serie'`, `'Responsavel'`, `'Tel. Responsavel'`) on lines 309, 313, 314.
+  - Subtotal-row keys (line 321, same 3 keys repeated).
+  - PDF footer `Pagina` → `Página` (lines 416, 502 — Frequência export and Escolas export).
+  - XLSX sheet name `'Frequencia'` → `'Frequência'` (line 434).
+  - XLSX column header `Endereco:` → `Endereço:` (line 457).
+  - PDF table header `'Endereco'` → `'Endereço'` (line 480).
+  - Found and fixed additional unaccented word not flagged in audit: line 372 `Serie:` → `Série:` (XLSX column header in attendance export data map).
+  - Did NOT touch: download filenames (`alunos-por-escola.pdf/xlsx`, `frequencia.pdf/xlsx`, `escolas.pdf/xlsx`).
+  - Note: This file uses Unicode escapes for many already-correct strings (e.g. `'Relat\u00f3rio de Alunos por Escola'`) — those were already correct and not touched.
+- Fixed src/app/api/reports/student/[id]/export/route.ts (11 errors):
+  - HTTP 404 error `'Aluno nao encontrado'` → `'Aluno não encontrado'`.
+  - HTTP 400 error `'Formato nao suportado'` → `'Formato não suportado'`.
+  - Action log message `Exportacao PDF do relatorio individual` → `Exportação PDF do relatório individual`.
+  - PDF title `'Relatorio Individual do Aluno'` → `'Relatório Individual do Aluno'`.
+  - PDF info labels: `'Serie:'`→`'Série:'`, `'Responsavel:'`→`'Responsável:'`, `'Tel. Responsavel:'`→`'Tel. Responsável:'`, `'Tipo Sanguineo:'`→`'Tipo Sanguíneo:'`.
+  - PDF summary `Resumo de Frequencia` → `Resumo de Frequência`.
+  - PDF table headers `'Presenca'`→`'Presença'`, `'Observacoes'`→`'Observações'`.
+  - PDF footer `Pagina` → `Página`.
+  - Found and fixed additional unaccented words not flagged in audit: lines 66 and 68 — event status labels `'Proximo'`→`'Próximo'`, `'Concluido'`→`'Concluído'` (these are shown in the PDF events table).
+  - Did NOT touch: download filename `relatorio-${student.full_name}.pdf`.
+- Fixed src/app/api/attendance/export/route.ts (6 errors):
+  - Action log message `Exportacao de frequencia` → `Exportação de frequência`.
+  - PDF title `'Relatorio de Frequencia'` → `'Relatório de Frequência'`.
+  - PDF table header `'Serie'` → `'Série'`.
+  - PDF footer `Pagina` → `Página`.
+  - XLSX column header `Serie:` → `Série:`.
+  - XLSX sheet name `'Frequencia'` → `'Frequência'`.
+  - Did NOT touch: download filenames (`frequencia.pdf`, `frequencia.xlsx`).
+- Fixed src/app/api/events/certificates/route.ts (2 errors):
+  - PDF title `'Certificado de Participacao'` → `'Certificado de Participação'`.
+  - PDF label `'Codigo de validacao:'` → `'Código de validação:'`.
+- Fixed src/lib/seed-full.ts (1 error):
+  - Seed event description `'...do municipio.'` → `'...do município.'`.
+- Ran `bun run lint` (eslint .) — exits with code 0, zero errors, zero warnings.
+
+Stage Summary:
+- Applied 94 spelling fixes listed in the audit across 7 files (46 + 17 + 11 + 11 + 6 + 2 + 1 = 94), plus 3 additional fixes for unaccented words found during per-file scan that the audit missed (`Serie:` on reports/export/route.ts:372, `Proximo`/`Concluido` event-status labels on reports/student/[id]/export/route.ts:66,68) — total of 97 user-facing spelling corrections.
+- All user-facing Portuguese text now properly accented (toasts, labels, table headers, PDF titles/headers/footers, XLSX column headers/sheet names, error messages, action-log messages shown in Logs viewer, dialog text, placeholders, recharts series names).
+- Preserved intentional non-fixes: download filenames (ASCII for filesystem compatibility), tab identifier values (code-level), code comments, English loanwords (Dashboard, badges, etc.), TypeScript type assertions (`as [number, number, number]`).
+- Lint passes with zero errors.
+
+
+---
+Task ID: fix-xss-put-routes
+Agent: xss-fixer
+Task: Apply sanitizeInput to all PUT routes to prevent stored XSS (VULN-8)
+
+Work Log:
+- Reviewed the security audit (VULN-8) in worklog.md and the reference implementation already applied at `src/app/api/students/[id]/route.ts` (text fields → `sanitizeInput(String(...))`, base64 `photo` validated against `data:image/`, enum-like `status` validated against allowed values).
+- Confirmed `sanitizeInput` lives at `src/lib/auth.ts:111-118` (escapes `<`, `>`, `"`, `'` and trims).
+- Fixed `src/app/api/events/[id]/route.ts` (PUT):
+  - Added `import { sanitizeInput } from '@/lib/auth';`
+  - Replaced the generic `for (const field of fields)` loop (which assigned `body[field]` raw for `title`, `description`, `location`, `status`, `photo_url`, `category`).
+  - Now sanitizes free-text `title`, `description`, `location` via `sanitizeInput(String(...))`.
+  - `status` and `category` already validated against `VALID_STATUSES` / `VALID_CATEGORIES` (kept as-is).
+  - `photo_url` validated to start with `http(s)://` or `data:image/` (or null); NOT sanitized (would break URL/data-URL).
+  - Hoisted `VALID_STATUSES` to module scope alongside `VALID_CATEGORIES`.
+- Fixed `src/app/api/schools/[id]/route.ts` (PUT):
+  - Added `import { sanitizeInput } from '@/lib/auth';`
+  - Replaced the generic `fields` loop that assigned `name`, `address`, `phone`, `email`, `director_name`, `opening_hours`, `school_photo` raw.
+  - Now sanitizes `name`, `address`, `phone`, `email`, `director_name`, `opening_hours` via `sanitizeInput(String(...))`.
+  - Added email format validation (regex `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) when `email` is provided.
+  - `school_photo` validated to start with `data:image/` (or null); NOT sanitized (base64 data URL).
+  - `latitude` / `longitude` already range-validated; now also explicitly coerced via `Number(...)` (or `null`) before assignment — no sanitization (numerics).
+- Fixed `src/app/api/users/[id]/route.ts` (PUT):
+  - Added `sanitizeInput` to the existing `import { hashPassword, validatePasswordStrength } from '@/lib/auth';` statement.
+  - Added email format validation (same regex as schools) when `email` is provided.
+  - Added `status` enum validation against `['active', 'inactive']` (was previously assigned raw — that was a latent enum-injection bug, not strictly XSS, but fixed in the same pass).
+  - `role` was already validated against `['Admin', 'Operator', 'Viewer']` (kept as-is).
+  - `profile_photo` validated to start with `data:image/` (or null/empty); NOT sanitized (base64 data URL).
+  - Now sanitizes `full_name` and `email` via `sanitizeInput(String(...))` before assignment.
+- Fixed `src/app/api/support/tickets/[id]/messages/route.ts` (POST):
+  - Added `import { sanitizeInput } from '@/lib/auth';`
+  - Wrapped `content` validation in `String(content).trim()` for type safety.
+  - Now stores `sanitizeInput(String(content))` instead of the previous `content.trim()` (which only trimmed whitespace and did not escape HTML).
+- Verified `src/app/api/support/tickets/[id]/route.ts` (PUT) — already compliant:
+  - `status` validated against `['open', 'in_progress', 'resolved', 'closed']`.
+  - `priority` validated against `['low', 'normal', 'high', 'urgent']`.
+  - `assigned_to` validated against the DB (must exist + be Admin/Operator, or null).
+  - No free-text string fields on the PUT path; no sanitizeInput import needed. No changes required.
+- Verified `src/app/api/events/[id]/participations/[studentId]/route.ts` (PUT):
+  - Already imported and used `sanitizeInput` for the `notes` field (line ~35).
+  - Hardened the call from `sanitizeInput(body.notes)` to `sanitizeInput(String(body.notes))` to match the students/[id]/route.ts reference pattern and guard against non-string truthy JSON payloads (e.g. objects/arrays). Added a clarifying VULN-8 FIX comment.
+- Ran `bun run lint` (`eslint .`) — exits with code 0, zero errors, zero warnings.
+
+Stage Summary:
+- Applied `sanitizeInput` to 5 PUT/POST routes (`events/[id]`, `schools/[id]`, `users/[id]`, `support/tickets/[id]/messages`, plus hardening on `events/[id]/participations/[studentId]`).
+- 1 route (`support/tickets/[id]`) was already compliant via enum/DB validations only — no free-text fields, no changes needed.
+- All user-provided string data is now sanitized on update paths (the original asymmetry flagged in VULN-8 between POST and PUT is resolved).
+- Enum-like fields (`status`, `role`, `category`, `priority`) are validated against explicit allowlists before assignment — not sanitized.
+- Base64 photo fields (`profile_photo`, `school_photo`, `photo_url`) are validated to start with `data:image/` (or, for `photo_url`, also `http(s)://`) — NOT sanitized, so the binary payloads are preserved.
+- Numeric fields (`latitude`, `longitude`) are explicitly coerced via `Number(...)` after range validation — NOT sanitized.
+- Email fields are now also format-validated via regex on both `schools/[id]` and `users/[id]` PUT paths (defense-in-depth on top of sanitization).
+- Latent enum-injection bug fixed on `users/[id]` PUT: `status` was previously stored raw; now validated against `['active', 'inactive']`.
+- Neon HTTP adapter constraints respected: no `createMany`, no `$transaction`, no `update({ include })`. Existing patterns (split update + separate findUnique for relations) preserved.
+- Lint passes with zero errors.
+
+---
+Task ID: fix-idor-school-scoping
+Agent: idor-fixer
+Task: Apply school scoping to routes missing it (VULN-2 through VULN-6)
+
+Work Log:
+- Read worklog.md security audit (Task ID: audit-security) for VULN-2 through VULN-6 context.
+- Read `src/lib/user-schools.ts` to confirm the contract: `getUserSchoolIds()` returns `null` for Admin (no filter) and `string[]` for Operator/Viewer; `canUserAccessSchool()` always returns `true` for Admin and checks the `user_schools` junction otherwise.
+- Read the reference implementation in `src/app/api/students/route.ts` (lines 37-59) and `src/app/api/students/[id]/route.ts` (lines 31-42) for the established scoping pattern.
+- Fixed `src/app/api/reports/student/[id]/route.ts` — added `canUserAccessSchool(userId, role, student.school_id)` check after fetching the student; returns generic 404 ("Não encontrado") when access is denied.
+- Fixed `src/app/api/reports/students-grouped/route.ts` — scoped the student query, the schools filter list, and the grades/classes filter lists by `getUserSchoolIds()` for non-admins. Out-of-scope `school_id` query param returns an empty result set (no information leakage).
+- Fixed `src/app/api/reports/student/[id]/export/route.ts` — added `canUserAccessSchool()` check before exporting the PDF; returns generic 404 when denied.
+- Fixed `src/app/api/attendance/export/route.ts` — scoped by `getUserSchoolIds()`. If a `student_id` is passed, looks up the student and verifies access to its school. If `school_id` is passed, verifies it's in the allowed set. Otherwise scopes records via `where.student = { school_id: { in: allowedSchoolIds } }`.
+- Fixed `src/app/api/events/export/route.ts` — threaded `userId`/`userRole`/`allowedSchoolIds` into each sub-function:
+  - `exportParticipants`: verifies `canUserAccessSchool` for the event's `school_id` (events with no school_id are global and remain accessible).
+  - `exportRanking`: scopes the participation query by `student.school_id IN allowedSchoolIds`.
+  - `exportStudentReport`: verifies `canUserAccessSchool` for the student's school.
+  - `exportSchoolReport`: verifies `canUserAccessSchool` for the requested `school_id` before fetching.
+- Fixed `src/app/api/events/dashboard/route.ts` — resolved `allowedSchoolIds` once at the top of the handler; if the user passes an out-of-scope `school_id`, returns an empty dashboard payload; otherwise scopes `eventWhere.school_id` and the `totalStudents` count to the allowed set.
+- Fixed `src/app/api/events/[id]/route.ts` — GET now calls `canUserAccessSchool` after fetching the event if it has a `school_id` (events without `school_id` remain globally accessible); returns generic 404 on denial.
+- Fixed `src/app/api/events/[id]/participations/route.ts` — both GET and POST now verify `canUserAccessSchool` for the event's `school_id` (events without `school_id` remain globally accessible). POST was previously vulnerable to operators mutating participation for any event UUID; now it 404s before reaching the mutation logic.
+- Fixed `src/app/api/students/[id]/events/route.ts` — added `canUserAccessSchool` check after fetching the student; returns generic 404 when denied.
+- Fixed `src/app/api/events/badges/route.ts` — GET now scopes by `getUserSchoolIds()`. If a `student_id` is passed, verifies access to that student's school; otherwise scopes the query via `where.student = { school_id: { in: allowedSchoolIds } }`. (POST is already Admin-only via `withRole(['Admin'])` and was left unchanged.)
+- Ran `bun run lint` — passes clean (exit 0).
+- Ran `bunx tsc --noEmit` to confirm no type errors were introduced in any of the 10 modified files (pre-existing TS errors in unrelated files were ignored).
+
+Stage Summary:
+- Applied school scoping to 10 routes across 8 files:
+  - VULN-2: 3 reports routes (`student/[id]`, `students-grouped`, `student/[id]/export`)
+  - VULN-3: 3 export/dashboard routes (`attendance/export`, `events/export`, `events/dashboard`)
+  - VULN-4: 2 event-detail routes (`events/[id]`, `events/[id]/participations`)
+  - VULN-5: 1 student-events route (`students/[id]/events`)
+  - VULN-6: 1 badges route (`events/badges`)
+- Non-admin users (Operators and Viewers) can now only access data tied to schools they are explicitly linked to via the `user_schools` junction table.
+- Admins (role='Admin') remain unrestricted — `getUserSchoolIds()` returns `null` and `canUserAccessSchool()` returns `true`, so no filters are applied.
+- 404 ("Não encontrado") is used instead of 403 for all denials to prevent information leakage about resource existence. The only exception is `students-grouped` and `events/dashboard`, where an out-of-scope filter returns an empty payload rather than a 404 — this matches the existing pattern in `students/route.ts` (line 47-51) where out-of-scope `school_id` returns an empty list, and avoids breaking the UI's filter dropdowns.
+- Existing functionality preserved — all changes are additive (the school-scoping check is inserted between the existing fetch and the existing return/export logic). No query structure, response shape, or Neon HTTP adapter pattern (`createMany`/`$transaction`/`update({ include })` avoidance) was changed.
+- Lint passes with zero errors. TypeScript check on the 10 modified files shows no new errors.

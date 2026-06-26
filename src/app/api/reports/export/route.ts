@@ -306,19 +306,19 @@ async function exportStudentsGrouped(format: string, searchParams: URLSearchPara
       'CPF': s.cpf || '-',
       'RG': s.rg || '-',
       'Data Nascimento': s.date_of_birth ? new Date(s.date_of_birth).toLocaleDateString('pt-BR') : '-',
-      'Serie': s.grade || '-',
+      'Série': s.grade || '-',
       'Turma': s.class || '-',
       'Status': s.status === 'active' ? 'Ativo' : 'Inativo',
       'Telefone': s.phone || '-',
-      'Responsavel': s.guardian_name || '-',
-      'Tel. Responsavel': s.guardian_phone || '-',
+      'Responsável': s.guardian_name || '-',
+      'Tel. Responsável': s.guardian_phone || '-',
     }));
 
     // Add subtotal row
     data.push({
       '#': 0,
       'Nome': `TOTAL: ${school.students.length} aluno(s)`,
-      'CPF': '', 'RG': '', 'Data Nascimento': '', 'Serie': '', 'Turma': '', 'Status': '', 'Telefone': '', 'Responsavel': '', 'Tel. Responsavel': '',
+      'CPF': '', 'RG': '', 'Data Nascimento': '', 'Série': '', 'Turma': '', 'Status': '', 'Telefone': '', 'Responsável': '', 'Tel. Responsável': '',
     });
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -369,7 +369,7 @@ async function exportAttendanceReport(format: string) {
   const data = records.map((r) => ({
     Aluno: r.student.full_name,
     Escola: r.student.school.name,
-    Serie: r.student.grade || '-',
+    Série: r.student.grade || '-',
     Turma: r.student.class || '-',
     Data: new Date(r.date).toLocaleDateString('pt-BR'),
     Status: r.status === 'present' ? 'Presente' : 'Ausente',
@@ -413,7 +413,7 @@ async function exportAttendanceReport(format: string) {
       doc.setFontSize(7);
       doc.setTextColor(...GRAY_TEXT);
       doc.text(
-        `NUCA Plataforma  |  Pagina ${i} de ${pageCount}`,
+        `NUCA Plataforma  |  Página ${i} de ${pageCount}`,
         pageWidth / 2,
         pageHeight - 6,
         { align: 'center' }
@@ -431,7 +431,7 @@ async function exportAttendanceReport(format: string) {
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(data);
-  XLSX.utils.book_append_sheet(wb, ws, 'Frequencia');
+  XLSX.utils.book_append_sheet(wb, ws, 'Frequência');
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
   return new NextResponse(buffer, {
@@ -454,7 +454,7 @@ async function exportSchools(format: string) {
 
   const data = schools.map((s) => ({
     Nome: s.name,
-    Endereco: s.address || '-',
+    Endereço: s.address || '-',
     Telefone: s.phone || '-',
     Email: s.email || '-',
     Diretor: s.director_name || '-',
@@ -477,7 +477,7 @@ async function exportSchools(format: string) {
 
     autoTable(doc, {
       startY: 42,
-      head: [['Nome', 'Endereco', 'Telefone', 'Email', 'Diretor', 'Total Alunos']],
+      head: [['Nome', 'Endereço', 'Telefone', 'Email', 'Diretor', 'Total Alunos']],
       body: schools.map((s) => [
         s.name,
         s.address || '-',
@@ -499,7 +499,7 @@ async function exportSchools(format: string) {
       doc.setFontSize(7);
       doc.setTextColor(...GRAY_TEXT);
       doc.text(
-        `NUCA Plataforma  |  Pagina ${i} de ${pageCount}`,
+        `NUCA Plataforma  |  Página ${i} de ${pageCount}`,
         pageWidth / 2,
         pageHeight - 6,
         { align: 'center' }

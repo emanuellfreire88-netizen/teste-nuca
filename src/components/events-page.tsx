@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -140,6 +141,7 @@ interface EventData {
   photo_url: string | null;
   school_id: string | null;
   category: string;
+  public_certificates: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -188,6 +190,7 @@ interface EventFormData {
   category: string;
   school_id: string;
   photo_url: string;
+  public_certificates: boolean;
 }
 
 interface DashboardData {
@@ -269,6 +272,7 @@ const emptyForm: EventFormData = {
   category: "other",
   school_id: "",
   photo_url: "",
+  public_certificates: false,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -350,7 +354,7 @@ const badgeTypeLabels: Record<string, string> = {
   "5_events": "Participante Bronze",
   "10_events": "Participante Prata",
   "20_events": "Participante Ouro",
-  monthly_winner: "Destaque do Mes",
+  monthly_winner: "Destaque do Mês",
 };
 
 const badgeTypeColors: Record<string, string> = {
@@ -712,17 +716,18 @@ export function EventsPage() {
       category: event.category || "other",
       school_id: event.school_id || "",
       photo_url: event.photo_url || "",
+      public_certificates: event.public_certificates ?? false,
     });
     setDialogOpen(true);
   };
 
   const handleSubmitForm = async () => {
     if (!formData.title.trim()) {
-      toast.error("Titulo do evento e obrigatorio");
+      toast.error("Título do evento é obrigatório");
       return;
     }
     if (!formData.date) {
-      toast.error("Data do evento e obrigatoria");
+      toast.error("Data do evento é obrigatória");
       return;
     }
 
@@ -738,6 +743,7 @@ export function EventsPage() {
         category: formData.category || "other",
         school_id: formData.school_id || null,
         photo_url: formData.photo_url.trim() || null,
+        public_certificates: formData.public_certificates,
       };
 
       if (editingEvent) {
@@ -774,7 +780,7 @@ export function EventsPage() {
     try {
       setDeleteLoading(true);
       await api.delete(`/events/${deletingEvent.id}`);
-      toast.success("Evento excluido com sucesso!");
+      toast.success("Evento excluído com sucesso!");
       setDeleteDialogOpen(false);
       setDeletingEvent(null);
       handleBackToList();
@@ -868,7 +874,7 @@ export function EventsPage() {
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
-        toast.error("Erro ao atualizar presenca");
+        toast.error("Erro ao atualizar presença");
       }
     }
   };
@@ -965,12 +971,12 @@ export function EventsPage() {
       });
       const filename = `${type}-${new Date().toISOString().slice(0, 10)}.${format === "pdf" ? "pdf" : "xlsx"}`;
       await api.download(`/events/export?${params.toString()}`, filename);
-      toast.success("Relatorio exportado com sucesso!");
+      toast.success("Relatório exportado com sucesso!");
     } catch (err) {
       if (err instanceof ApiError) {
-        toast.error(err.message || "Erro ao exportar relatorio");
+        toast.error(err.message || "Erro ao exportar relatório");
       } else {
-        toast.error("Erro ao exportar relatorio");
+        toast.error("Erro ao exportar relatório");
       }
     } finally {
       setExportLoading(false);
@@ -1029,7 +1035,7 @@ export function EventsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Eventos</h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie eventos, acompanhe participacoes e reconha destaques
+            Gerencie eventos, acompanhe participações e reconheça destaques
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1075,7 +1081,7 @@ export function EventsPage() {
           </TabsTrigger>
           <TabsTrigger value="participacao" className="gap-1.5">
             <BarChart3 className="h-4 w-4 hidden sm:inline" />
-            Participacao
+            Participação
           </TabsTrigger>
           <TabsTrigger value="destaques" className="gap-1.5">
             <Star className="h-4 w-4 hidden sm:inline" />
@@ -1083,7 +1089,7 @@ export function EventsPage() {
           </TabsTrigger>
           <TabsTrigger value="relatorios" className="gap-1.5">
             <FileText className="h-4 w-4 hidden sm:inline" />
-            Relatorios
+            Relatórios
           </TabsTrigger>
           <TabsTrigger value="buscar-alunos" className="gap-1.5">
             <Search className="h-4 w-4 hidden sm:inline" />
@@ -1250,6 +1256,12 @@ export function EventsPage() {
                           {categoryLabels[event.category] || event.category}
                         </Badge>
                       )}
+                      {event.public_certificates && (
+                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+                          <Award className="h-3 w-3 mr-1" />
+                          Certificado público
+                        </Badge>
+                      )}
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
                       <div className="flex items-center gap-2 text-muted-foreground">
@@ -1291,7 +1303,7 @@ export function EventsPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-12"></TableHead>
-                          <TableHead>Titulo</TableHead>
+                          <TableHead>Título</TableHead>
                           <TableHead>Categoria</TableHead>
                           <TableHead>Data</TableHead>
                           <TableHead>Local</TableHead>
@@ -1300,7 +1312,7 @@ export function EventsPage() {
                           <TableHead className="text-center">
                             Participantes
                           </TableHead>
-                          <TableHead className="text-right">Acoes</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1411,7 +1423,7 @@ export function EventsPage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Periodo:</span>
+              <span className="text-sm font-medium">Período:</span>
             </div>
             <select
               value={dashboardPeriod}
@@ -1422,7 +1434,7 @@ export function EventsPage() {
               className={nativeSelectClass + " w-[180px]"}
             >
               <option value="week">Esta Semana</option>
-              <option value="month">Este Mes</option>
+              <option value="month">Este Mês</option>
               <option value="year">Este Ano</option>
             </select>
             <Button
@@ -1483,7 +1495,7 @@ export function EventsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">
-                          Total de Presencas
+                          Total de Presenças
                         </p>
                         <p className="text-2xl font-bold">
                           {dashboardData.period_stats.total_participations}
@@ -1535,7 +1547,7 @@ export function EventsPage() {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <TrendingUp className="h-5 w-5" />
-                      Evolucao Mensal
+                      Evolução Mensal
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1560,7 +1572,7 @@ export function EventsPage() {
                             type="monotone"
                             dataKey="participations"
                             stroke="#3b82f6"
-                            name="Presencas"
+                            name="Presenças"
                             strokeWidth={2}
                           />
                         </LineChart>
@@ -1568,7 +1580,7 @@ export function EventsPage() {
                     ) : (
                       <div className="flex flex-col items-center justify-center h-[280px] text-muted-foreground">
                         <BarChart3 className="h-8 w-8 mb-2" />
-                        <p className="text-sm">Sem dados no periodo</p>
+                        <p className="text-sm">Sem dados no período</p>
                       </div>
                     )}
                   </CardContent>
@@ -1579,7 +1591,7 @@ export function EventsPage() {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <School className="h-5 w-5" />
-                      Ranking por Escola (Presencas)
+                      Ranking por Escola (Presenças)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1600,7 +1612,7 @@ export function EventsPage() {
                           <Tooltip />
                           <Bar
                             dataKey="total_participations"
-                            name="Presencas"
+                            name="Presenças"
                             radius={[0, 4, 4, 0]}
                           >
                             {dashboardData.school_ranking
@@ -1633,7 +1645,7 @@ export function EventsPage() {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <Trophy className="h-5 w-5" />
-                      Ranking de Alunos - Presencas (Top 10)
+                      Ranking de Alunos - Presenças (Top 10)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1706,7 +1718,7 @@ export function EventsPage() {
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                       <Medal className="h-5 w-5" />
-                      Ranking por Categoria (Presencas)
+                      Ranking por Categoria (Presenças)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1730,7 +1742,7 @@ export function EventsPage() {
                                 </span>
                               </div>
                               <span className="text-sm font-medium">
-                                {cat.total_participations} presenca(s)
+                                {cat.total_participations} presença(s)
                               </span>
                             </div>
                             <Progress
@@ -2025,7 +2037,7 @@ export function EventsPage() {
                             className="mt-3 w-full"
                             onClick={() => {
                               toast.info(
-                                "Selecione um evento do aluno para gerar o certificado na secao abaixo"
+                                "Selecione um evento do aluno para gerar o certificado na seção abaixo"
                               );
                             }}
                           >
@@ -2258,7 +2270,7 @@ export function EventsPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Exporte a lista de participantes de um evento especifico.
+                  Exporte a lista de participantes de um evento específico.
                 </p>
                 <select
                   value={reportEventId}
@@ -2308,12 +2320,12 @@ export function EventsPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Trophy className="h-5 w-5" />
-                  Ranking de Participacao
+                  Ranking de Participação
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Exporte o ranking geral de participacao dos alunos.
+                  Exporte o ranking geral de participação dos alunos.
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -2343,12 +2355,12 @@ export function EventsPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Relatorio por Aluno
+                  Relatório por Aluno
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Exporte o historico de participacoes de um aluno.
+                  Exporte o histórico de participações de um aluno.
                 </p>
                 <div className="space-y-2">
                   <div className="relative">
@@ -2425,12 +2437,12 @@ export function EventsPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <School className="h-5 w-5" />
-                  Relatorio por Escola
+                  Relatório por Escola
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Exporte o relatorio de participacoes de uma escola.
+                  Exporte o relatório de participações de uma escola.
                 </p>
                 <select
                   value={reportSchoolId}
@@ -2526,7 +2538,7 @@ export function EventsPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Printer className="h-5 w-5" />
-                Opcoes de Impressao
+                Opções de Impressão
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -2537,7 +2549,7 @@ export function EventsPage() {
                   onClick={() => window.print()}
                 >
                   <Printer className="mr-2 h-4 w-4" />
-                  Imprimir Pagina
+                  Imprimir Página
                 </Button>
                 <Button
                   variant="outline"
@@ -2556,7 +2568,7 @@ export function EventsPage() {
             <div className="flex items-center justify-center gap-2 py-4">
               <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
               <span className="text-sm text-muted-foreground">
-                Gerando relatorio...
+                Gerando relatório...
               </span>
             </div>
           )}
@@ -2761,14 +2773,14 @@ export function EventsPage() {
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {editingEvent
-              ? "Atualize as informacoes do evento abaixo."
+              ? "Atualize as informações do evento abaixo."
               : "Preencha os dados para criar um novo evento."}
           </p>
         </div>
         <div className="space-y-4 px-6 pb-2">
           <div className="space-y-2">
             <Label htmlFor="event-title">
-              Titulo <span className="text-destructive">*</span>
+              Título <span className="text-destructive">*</span>
             </Label>
             <Input
               id="event-title"
@@ -2776,18 +2788,18 @@ export function EventsPage() {
               onChange={(e) =>
                 setFormData({ ...formData, title: e.target.value })
               }
-              placeholder="Titulo do evento"
+              placeholder="Título do evento"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="event-description">Descricao</Label>
+            <Label htmlFor="event-description">Descrição</Label>
             <Textarea
               id="event-description"
               value={formData.description}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              placeholder="Descricao do evento"
+              placeholder="Descrição do evento"
               rows={3}
             />
           </div>
@@ -2830,7 +2842,7 @@ export function EventsPage() {
                 <option value="sports">Esportivo</option>
                 <option value="cultural">Cultural</option>
                 <option value="party">Festa</option>
-                <option value="academic">Academico</option>
+                <option value="academic">Acadêmico</option>
                 <option value="other">Outro</option>
               </select>
             </div>
@@ -2843,9 +2855,9 @@ export function EventsPage() {
                 }
                 className={nativeSelectClass}
               >
-                <option value="upcoming">Proximo</option>
+                <option value="upcoming">Próximo</option>
                 <option value="ongoing">Em Andamento</option>
-                <option value="completed">Concluido</option>
+                <option value="completed">Concluído</option>
                 <option value="cancelled">Cancelado</option>
               </select>
             </div>
@@ -2878,6 +2890,24 @@ export function EventsPage() {
               placeholder="https://exemplo.com/foto.jpg"
             />
           </div>
+          <div className="flex items-start gap-3 p-3 rounded-md border bg-muted/30">
+            <Switch
+              id="public-certificates"
+              checked={formData.public_certificates}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, public_certificates: checked })
+              }
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="public-certificates" className="cursor-pointer">
+                Publicar certificados no link público
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Quando ativado, os certificados deste evento ficam disponíveis
+                para consulta e download no link público de certificados. Disponível apenas para eventos concluídos.
+              </p>
+            </div>
+          </div>
         </div>
         <div className="flex justify-end gap-2 p-6 pt-4">
           <Button
@@ -2899,7 +2929,7 @@ export function EventsPage() {
                 Salvando...
               </>
             ) : editingEvent ? (
-              "Salvar Alteracoes"
+              "Salvar Alterações"
             ) : (
               "Criar Evento"
             )}
@@ -2917,7 +2947,7 @@ export function EventsPage() {
           <p className="text-sm text-muted-foreground mt-1">
             Tem certeza que deseja excluir o evento{" "}
             <strong>{deletingEvent?.title}</strong>? Todos os participantes
-            serao removidos. Esta acao nao pode ser desfeita.
+            serão removidos. Esta ação não pode ser desfeita.
           </p>
         </div>
         <div className="flex justify-end gap-2 px-6 pb-6">
@@ -2987,7 +3017,7 @@ export function EventsPage() {
             {filteredAvailableStudents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                 <Users className="h-8 w-8 mb-2" />
-                <p className="text-sm">Nenhum aluno disponivel</p>
+                <p className="text-sm">Nenhum aluno disponível</p>
               </div>
             ) : (
               <div className="p-2 space-y-1">
@@ -3326,14 +3356,14 @@ function EventDetailView({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Informacoes do Evento
+            Informações do Evento
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {event.description && (
             <div className="flex items-start gap-3">
               <span className="text-sm text-muted-foreground shrink-0">
-                Descricao
+                Descrição
               </span>
               <p className="text-sm whitespace-pre-wrap">
                 {event.description}
@@ -3725,10 +3755,10 @@ function EventDetailView({
                     <TableRow>
                       <TableHead>Aluno</TableHead>
                       <TableHead>Escola</TableHead>
-                      <TableHead>Serie</TableHead>
-                      <TableHead className="text-center">Presenca</TableHead>
+                      <TableHead>Série</TableHead>
+                      <TableHead className="text-center">Presença</TableHead>
                       <TableHead>Notas</TableHead>
-                      <TableHead className="text-right">Acoes</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

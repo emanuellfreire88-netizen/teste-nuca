@@ -77,7 +77,7 @@ export function isTokenRevoked(token: string): boolean {
 // ---------------------------------------------------------------------------
 // Cache verified user roles in memory with TTL to reduce DB queries
 // ---------------------------------------------------------------------------
-const userRoleCache = new Map<string, { role: string; status: string; cachedAt: number }>();
+const userRoleCache = new Map<string, { role: string; status: string; must_change_password: boolean; cachedAt: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const CACHE_MAX_SIZE = 1000; // Prevent unbounded memory growth
 
@@ -93,11 +93,11 @@ if (typeof setInterval !== 'undefined') {
   }, 10 * 60 * 1000).unref?.(); // Don't prevent process exit
 }
 
-async function verifyUserInDB(userId: string): Promise<{ role: string; status: string } | null> {
+async function verifyUserInDB(userId: string): Promise<{ role: string; status: string; must_change_password: boolean } | null> {
   // Check cache first
   const cached = userRoleCache.get(userId);
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL) {
-    return { role: cached.role, status: cached.status };
+    return { role: cached.role, status: cached.status, must_change_password: cached.must_change_password };
   }
 
   // Evict oldest entries if cache is too large
@@ -109,14 +109,14 @@ async function verifyUserInDB(userId: string): Promise<{ role: string; status: s
   try {
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true, status: true },
+      select: { id: true, role: true, status: true, must_change_password: true },
     });
 
     if (!user) return null;
 
     // Update cache
-    userRoleCache.set(userId, { role: user.role, status: user.status, cachedAt: Date.now() });
-    return { role: user.role, status: user.status };
+    userRoleCache.set(userId, { role: user.role, status: user.status, must_change_password: user.must_change_password, cachedAt: Date.now() });
+    return { role: user.role, status: user.status, must_change_password: user.must_change_password };
   } catch {
     // If DB fails, allow request with token data (fail open rather than blocking all access)
     console.error('Failed to verify user in DB, using token data');
@@ -173,11 +173,34 @@ export function withAuth(handler: HandlerFunction): HandlerFunction {
       ));
     }
 
+    // VULN-1 FIX: Enforce must_change_password server-side.
+    // If the user's password was reset by an admin, they MUST change it
+    // before accessing any other endpoint. Only the password-change
+    // endpoint and the auth/me endpoint (to read own user info) are allowed.
+    if (dbUser.must_change_password) {
+      const url = new URL(req.url);
+      const allowedPaths = [
+        '/api/auth/change-password',
+        '/api/auth/me',
+        '/api/auth/logout',
+      ];
+      if (!allowedPaths.some((p) => url.pathname === p)) {
+        return withSecurityHeaders(NextResponse.json(
+          {
+            error: 'Você deve alterar sua senha antes de continuar.',
+            must_change_password: true,
+          },
+          { status: 403 }
+        ));
+      }
+    }
+
     // Update the payload with the current role from DB
     // This prevents privilege escalation if role was changed after token was issued
     (req as AuthenticatedRequest).user = {
       ...payload,
       role: dbUser.role,
+      must_change_password: dbUser.must_change_password,
     };
 
     const response = await handler(req as AuthenticatedRequest, context);

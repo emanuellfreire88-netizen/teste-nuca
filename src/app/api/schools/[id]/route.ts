@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
+import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 import { canUserAccessSchool } from '@/lib/user-schools';
 
@@ -70,6 +71,16 @@ export async function PUT(
           { status: 400 }
         );
       }
+      // Validate email format if provided
+      if (body.email !== undefined && body.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(String(body.email))) {
+          return NextResponse.json(
+            { error: 'E-mail inválido' },
+            { status: 400 }
+          );
+        }
+      }
       // Validate latitude/longitude ranges
       if (body.latitude !== undefined && body.latitude !== null) {
         const lat = Number(body.latitude);
@@ -99,12 +110,32 @@ export async function PUT(
       }
 
       const updateData: Record<string, unknown> = {};
-      const fields = ['name', 'address', 'phone', 'email', 'director_name', 'opening_hours', 'school_photo'];
-      for (const field of fields) {
-        if (body[field] !== undefined) updateData[field] = body[field];
+      // VULN-8 FIX: sanitize free-text fields to prevent stored XSS.
+      // `school_photo` is a base64 data URL and is validated but NOT sanitized (would break it).
+      const textFields = ['name', 'address', 'phone', 'email', 'director_name', 'opening_hours'];
+      for (const field of textFields) {
+        if (body[field] !== undefined) {
+          updateData[field] = body[field] ? sanitizeInput(String(body[field])) : null;
+        }
       }
-      if (body.latitude !== undefined) updateData.latitude = body.latitude;
-      if (body.longitude !== undefined) updateData.longitude = body.longitude;
+      // Validate school_photo: must be a base64 image data URL or null
+      if (body.school_photo !== undefined) {
+        const photo = body.school_photo ? String(body.school_photo) : null;
+        if (photo && !photo.startsWith('data:image/')) {
+          return NextResponse.json(
+            { error: 'Foto da escola inválida' },
+            { status: 400 }
+          );
+        }
+        updateData.school_photo = photo;
+      }
+      // Numeric fields: convert to number or null (already range-validated above)
+      if (body.latitude !== undefined) {
+        updateData.latitude = body.latitude === null ? null : Number(body.latitude);
+      }
+      if (body.longitude !== undefined) {
+        updateData.longitude = body.longitude === null ? null : Number(body.longitude);
+      }
 
       const school = await db.school.update({
         where: { id },

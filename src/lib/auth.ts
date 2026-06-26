@@ -31,6 +31,7 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: string;
+  must_change_password?: boolean;
 }
 
 export function generateToken(payload: JwtPayload): string {

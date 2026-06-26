@@ -9,7 +9,8 @@ export const runtime = 'nodejs';
  *
  * PUBLIC endpoint (no authentication required). Lets a student search for
  * their name and see which events they participated in that have
- * certificates available (i.e. events with status "completed").
+ * certificates available (i.e. events where the admin has published
+ * `public_certificates = true` AND status is "completed").
  *
  * Optional `event_id` query param filters the results to a single event —
  * used by the public certificate page when a student selects a specific
@@ -39,7 +40,10 @@ export async function GET(req: Request) {
     // Case-insensitive search on full_name (PostgreSQL ILIKE).
     // Limit results to prevent abuse / data scraping.
     // If event_id is provided, only return participations for that event.
-    const participationsWhere: Record<string, unknown> = {};
+    // Only events with public_certificates=true appear on the public link.
+    const participationsWhere: Record<string, unknown> = {
+      event: { public_certificates: true, status: 'completed' },
+    };
     if (eventId) {
       participationsWhere.event_id = eventId;
     }
@@ -47,14 +51,16 @@ export async function GET(req: Request) {
     const students = await db.student.findMany({
       where: {
         full_name: { contains: name, mode: 'insensitive' },
-        // Only students who participated in at least one event
+        // Only students who participated in at least one published event
         event_participations: { some: participationsWhere },
       },
       select: {
         id: true,
         full_name: true,
         event_participations: {
-          where: eventId ? { event_id: eventId } : undefined,
+          where: eventId
+            ? { event_id: eventId, event: { public_certificates: true, status: 'completed' } }
+            : { event: { public_certificates: true, status: 'completed' } },
           select: {
             attended: true,
             event: {
@@ -76,13 +82,14 @@ export async function GET(req: Request) {
       take: 20, // Cap at 20 students to prevent data scraping
     });
 
-    // Filter: only show events that are "completed" (certificates available).
-    // Also only show events where the student actually attended.
+    // Filter: only show events where the student actually attended.
+    // (The public_certificates + completed filters are already applied via
+    // the where clause above, but we double-check attended here.)
     const result = students.map((s) => ({
       id: s.id,
       full_name: s.full_name,
       certificates: s.event_participations
-        .filter((ep) => ep.event.status === 'completed' && ep.attended)
+        .filter((ep) => ep.attended)
         .map((ep) => ({
           event_id: ep.event.id,
           student_id: s.id,

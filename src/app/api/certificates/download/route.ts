@@ -47,6 +47,7 @@ export async function GET(req: Request) {
         location: true,
         category: true,
         status: true,
+        public_certificates: true,
         school: { select: { name: true } },
       },
     });
@@ -55,6 +56,14 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { error: 'Evento não encontrado' },
         { status: 404 }
+      );
+    }
+
+    // Only events explicitly published by the admin issue public certificates
+    if (!event.public_certificates) {
+      return NextResponse.json(
+        { error: 'Certificado não disponível para este evento' },
+        { status: 403 }
       );
     }
 

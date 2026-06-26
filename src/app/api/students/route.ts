@@ -163,7 +163,10 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       }
     }
 
-    const student = await db.student.create({
+    // NOTE: Neon HTTP adapter does not support transactions. Prisma's
+    // `create` with `include` triggers an implicit transaction, so we split
+    // into a plain CREATE + a separate findUnique to fetch relations.
+    const created = await db.student.create({
       data: {
         full_name: sanitizeInput(full_name),
         cpf: cpf ? sanitizeInput(cpf) : null,
@@ -184,6 +187,10 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
         status: status || 'active',
         photo: photo || null,
       },
+    });
+
+    const student = await db.student.findUnique({
+      where: { id: created.id },
       include: {
         school: {
           select: { id: true, name: true },

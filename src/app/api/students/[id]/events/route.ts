@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
+import { canUserAccessSchool } from '@/lib/user-schools';
 
 export async function GET(
   req: AuthenticatedRequest,
@@ -14,7 +15,21 @@ export async function GET(
       const student = await db.student.findUnique({ where: { id } });
       if (!student) {
         return NextResponse.json(
-          { error: 'Aluno não encontrado' },
+          { error: 'Não encontrado' },
+          { status: 404 }
+        );
+      }
+
+      // VULN-5 FIX: verify the caller has access to the student's school
+      // before exposing the student's event participation history.
+      const canAccess = await canUserAccessSchool(
+        _req.user!.userId,
+        _req.user!.role,
+        student.school_id
+      );
+      if (!canAccess) {
+        return NextResponse.json(
+          { error: 'Não encontrado' },
           { status: 404 }
         );
       }

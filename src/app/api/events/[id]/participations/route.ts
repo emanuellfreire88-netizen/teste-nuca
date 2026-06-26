@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
+import { canUserAccessSchool } from '@/lib/user-schools';
 
 export async function GET(
   req: AuthenticatedRequest,
@@ -19,6 +20,23 @@ export async function GET(
           { error: 'Evento não encontrado' },
           { status: 404 }
         );
+      }
+
+      // VULN-4 FIX: if the event belongs to a specific school, verify the
+      // caller has access to that school. Events without a school_id are
+      // considered cross-school / global and remain accessible to all.
+      if (event.school_id) {
+        const canAccess = await canUserAccessSchool(
+          _req.user!.userId,
+          _req.user!.role,
+          event.school_id
+        );
+        if (!canAccess) {
+          return NextResponse.json(
+            { error: 'Não encontrado' },
+            { status: 404 }
+          );
+        }
       }
 
       const participations = await db.eventParticipant.findMany({
@@ -67,6 +85,24 @@ export async function POST(
           { error: 'Evento não encontrado' },
           { status: 404 }
         );
+      }
+
+      // VULN-4/VULN-6 FIX: if the event belongs to a specific school,
+      // operators must have access to that school before they can mutate
+      // participations. Events without a school_id are global and remain
+      // open to all operators.
+      if (event.school_id) {
+        const canAccess = await canUserAccessSchool(
+          _req.user!.userId,
+          _req.user!.role,
+          event.school_id
+        );
+        if (!canAccess) {
+          return NextResponse.json(
+            { error: 'Não encontrado' },
+            { status: 404 }
+          );
+        }
       }
 
       // Support two modes:
@@ -191,12 +227,24 @@ export async function POST(
           );
         }
 
-        const participation = await db.eventParticipant.create({
+        // NOTE: Neon HTTP adapter does not support transactions. Prisma's
+        // `create` with `include` triggers an implicit transaction, so we
+        // split into a plain CREATE + a separate findUnique.
+        const created = await db.eventParticipant.create({
           data: {
             event_id: id,
             student_id,
             notes: notes ? sanitizeInput(notes) : null,
             added_by: _req.user!.userId,
+          },
+        });
+
+        const participation = await db.eventParticipant.findUnique({
+          where: {
+            event_id_student_id: {
+              event_id: id,
+              student_id,
+            },
           },
           include: {
             student: {

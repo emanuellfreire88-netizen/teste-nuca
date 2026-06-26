@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
+import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 import { canUserAccessSchool } from '@/lib/user-schools';
 
@@ -80,9 +81,28 @@ export async function PUT(
       }
 
       const updateData: Record<string, unknown> = {};
-      const stringFields = ['full_name', 'cpf', 'rg', 'blood_type', 'special_needs', 'medications', 'class', 'grade', 'phone', 'address', 'guardian_name', 'guardian_phone', 'guardian_email', 'emergency_contact', 'status', 'photo'];
-      for (const field of stringFields) {
-        if (body[field] !== undefined) updateData[field] = body[field] || null;
+      // VULN-8 FIX: sanitize all free-text fields to prevent stored XSS.
+      // `photo` is a base64 data URL and must NOT be sanitized (would break it).
+      const textFields = ['full_name', 'cpf', 'rg', 'blood_type', 'special_needs', 'medications', 'class', 'grade', 'phone', 'address', 'guardian_name', 'guardian_phone', 'guardian_email', 'emergency_contact'];
+      for (const field of textFields) {
+        if (body[field] !== undefined) {
+          updateData[field] = body[field] ? sanitizeInput(String(body[field])) : null;
+        }
+      }
+      // `status` is an enum-like string, validate against allowed values
+      if (body.status !== undefined) {
+        updateData.status = body.status === 'active' || body.status === 'inactive' ? body.status : 'active';
+      }
+      // `photo` is a base64 data URL — validate it starts with data:image/ or is null
+      if (body.photo !== undefined) {
+        const photo = body.photo ? String(body.photo) : null;
+        if (photo && !photo.startsWith('data:image/')) {
+          return NextResponse.json(
+            { error: 'Foto inválida' },
+            { status: 400 }
+          );
+        }
+        updateData.photo = photo;
       }
 
       // Handle school_id separately — don't allow setting it to null/empty
@@ -109,9 +129,17 @@ export async function PUT(
         updateData.date_of_birth = body.date_of_birth ? new Date(body.date_of_birth) : null;
       }
 
-      const student = await db.student.update({
+      // NOTE: Neon HTTP adapter does not support transactions. Prisma's
+      // `update` with `include` (relation) triggers an implicit transaction,
+      // so we split it: update first (scalar fields only), then fetch the
+      // student + school relation in a separate query.
+      const updated = await db.student.update({
         where: { id },
         data: updateData,
+      });
+
+      const student = await db.student.findUnique({
+        where: { id: updated.id },
         include: {
           school: {
             select: { id: true, name: true },
@@ -119,7 +147,7 @@ export async function PUT(
         },
       });
 
-      await logAction(_req.user!.userId, 'update_student', `Aluno atualizado: ${student.full_name}`, _req);
+      await logAction(_req.user!.userId, 'update_student', `Aluno atualizado: ${updated.full_name}`, _req);
 
       return NextResponse.json({ student });
     } catch (error) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { canUserAccessSchool } from '@/lib/user-schools';
 
 export async function GET(
   req: AuthenticatedRequest,
@@ -30,7 +31,21 @@ export async function GET(
 
     if (!student) {
       return NextResponse.json(
-        { error: 'Aluno não encontrado' },
+        { error: 'Não encontrado' },
+        { status: 404 }
+      );
+    }
+
+    // VULN-2 FIX: verify the caller's school scope before exposing full PII.
+    // Use a generic 404 message so we don't reveal that the resource exists.
+    const canAccess = await canUserAccessSchool(
+      _req.user!.userId,
+      _req.user!.role,
+      student.school_id
+    );
+    if (!canAccess) {
+      return NextResponse.json(
+        { error: 'Não encontrado' },
         { status: 404 }
       );
     }

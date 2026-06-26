@@ -112,7 +112,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     doc.setFontSize(28);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(22, 163, 74);
-    doc.text('Certificado de Participacao', pageWidth / 2, 50, { align: 'center' });
+    doc.text('Certificado de Participação', pageWidth / 2, 50, { align: 'center' });
 
     // ── Subtitle ──
     doc.setFontSize(11);
@@ -184,7 +184,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(120, 120, 120);
-    doc.text('Codigo de validacao:', pageWidth / 2 - 30, codeY);
+    doc.text('Código de validação:', pageWidth / 2 - 30, codeY);
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(22, 163, 74);

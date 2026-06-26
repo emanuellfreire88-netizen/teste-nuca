@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
+import { sanitizeInput } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
+import { canUserAccessSchool } from '@/lib/user-schools';
 
 const VALID_CATEGORIES = ['sports', 'cultural', 'party', 'academic', 'other'];
+const VALID_STATUSES = ['upcoming', 'ongoing', 'completed', 'cancelled'];
 
 export async function GET(
   req: AuthenticatedRequest,
@@ -48,6 +51,23 @@ export async function GET(
         );
       }
 
+      // VULN-4 FIX: if the event belongs to a specific school, verify the
+      // caller has access to that school. Events without a school_id are
+      // considered cross-school / global and remain accessible to all.
+      if (event.school_id) {
+        const canAccess = await canUserAccessSchool(
+          _req.user!.userId,
+          _req.user!.role,
+          event.school_id
+        );
+        if (!canAccess) {
+          return NextResponse.json(
+            { error: 'Não encontrado' },
+            { status: 404 }
+          );
+        }
+      }
+
       return NextResponse.json({ event });
     } catch (error) {
       console.error('Get event error:', error);
@@ -83,7 +103,7 @@ export async function PUT(
         );
       }
 
-      const validStatuses = ['upcoming', 'ongoing', 'completed', 'cancelled'];
+      const validStatuses = VALID_STATUSES;
       if (body.status !== undefined && !validStatuses.includes(body.status)) {
         return NextResponse.json(
           { error: 'Status inválido' },
@@ -109,12 +129,33 @@ export async function PUT(
       }
 
       const updateData: Record<string, unknown> = {};
-      const fields = ['title', 'description', 'location', 'status', 'photo_url', 'category'];
-      for (const field of fields) {
-        if (body[field] !== undefined) updateData[field] = body[field];
+      // VULN-8 FIX: sanitize free-text fields to prevent stored XSS.
+      // `photo_url` is a URL/data-URL and is validated but NOT sanitized (would break it).
+      // `status` and `category` are enum-like and validated above — assign as-is.
+      const textFields = ['title', 'description', 'location'];
+      for (const field of textFields) {
+        if (body[field] !== undefined) {
+          updateData[field] = body[field] ? sanitizeInput(String(body[field])) : null;
+        }
+      }
+      if (body.status !== undefined) updateData.status = body.status;
+      if (body.category !== undefined) updateData.category = body.category;
+      // Validate photo_url: must start with http(s)://, data:image/, or be null
+      if (body.photo_url !== undefined) {
+        const photoUrl = body.photo_url ? String(body.photo_url) : null;
+        if (photoUrl && !/^https?:\/\//i.test(photoUrl) && !photoUrl.startsWith('data:image/')) {
+          return NextResponse.json(
+            { error: 'URL da foto inválida' },
+            { status: 400 }
+          );
+        }
+        updateData.photo_url = photoUrl;
       }
       if (body.date !== undefined) updateData.date = new Date(body.date);
       if (body.school_id !== undefined) updateData.school_id = body.school_id || null;
+      if (body.public_certificates !== undefined) {
+        updateData.public_certificates = Boolean(body.public_certificates);
+      }
 
       // NOTE: Neon HTTP adapter does not support transactions. Prisma wraps
       // update+include in an implicit transaction, so we split into a plain

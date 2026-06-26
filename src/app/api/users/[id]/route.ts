@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { hashPassword, validatePasswordStrength } from '@/lib/auth';
+import { hashPassword, validatePasswordStrength, sanitizeInput } from '@/lib/auth';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 
@@ -82,6 +82,17 @@ export async function PUT(
         }
       }
 
+      // Validate email format if provided
+      if (email !== undefined && email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(String(email))) {
+          return NextResponse.json(
+            { error: 'E-mail inválido' },
+            { status: 400 }
+          );
+        }
+      }
+
       const validRoles = ['Admin', 'Operator', 'Viewer'];
       if (role && !validRoles.includes(role)) {
         return NextResponse.json(
@@ -90,12 +101,42 @@ export async function PUT(
         );
       }
 
+      const validStatuses = ['active', 'inactive'];
+      if (status !== undefined && status !== null && !validStatuses.includes(status)) {
+        return NextResponse.json(
+          { error: 'Status inválido. Use: active ou inactive' },
+          { status: 400 }
+        );
+      }
+
+      // Validate profile_photo: must be a base64 image data URL or null
+      if (profile_photo !== undefined && profile_photo !== null && profile_photo !== '') {
+        const photoStr = String(profile_photo);
+        if (!photoStr.startsWith('data:image/')) {
+          return NextResponse.json(
+            { error: 'Foto de perfil inválida' },
+            { status: 400 }
+          );
+        }
+      }
+
       const updateData: Record<string, unknown> = {};
-      if (full_name !== undefined) updateData.full_name = full_name;
-      if (email !== undefined) updateData.email = email;
+      // VULN-8 FIX: sanitize free-text fields to prevent stored XSS.
+      // `email` is sanitized (it's a string the user controls) — the regex above
+      // already restricts its shape but we escape any stray <,>,",'.
+      // `role` and `status` are enum-like and validated above — assign as-is.
+      // `profile_photo` is a base64 data URL and is validated but NOT sanitized (would break it).
+      if (full_name !== undefined) {
+        updateData.full_name = full_name ? sanitizeInput(String(full_name)) : null;
+      }
+      if (email !== undefined) {
+        updateData.email = email ? sanitizeInput(String(email)) : null;
+      }
       if (role !== undefined) updateData.role = role;
       if (status !== undefined) updateData.status = status;
-      if (profile_photo !== undefined) updateData.profile_photo = profile_photo;
+      if (profile_photo !== undefined) {
+        updateData.profile_photo = profile_photo ? String(profile_photo) : null;
+      }
       if (password) {
         // Validate password strength on update too
         const passwordCheck = validatePasswordStrength(password);
