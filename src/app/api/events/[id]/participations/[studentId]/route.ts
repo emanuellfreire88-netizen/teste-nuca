@@ -49,7 +49,7 @@ export async function PUT(
         data: updateData,
       });
 
-      const participation = await db.eventParticipant.findUnique({
+      const updatedParticipation = await db.eventParticipant.findUnique({
         where: {
           event_id_student_id: {
             event_id: id,
@@ -77,11 +77,11 @@ export async function PUT(
       await logAction(
         _req.user!.userId,
         'update_event_participation',
-        `Participação atualizada: ${participation?.student.full_name ?? studentId} no evento ${participation?.event.title ?? id}`,
+        `Participação atualizada: ${updatedParticipation?.student.full_name ?? studentId} no evento ${updatedParticipation?.event.title ?? id}`,
         _req
       );
 
-      return NextResponse.json({ participation });
+      return NextResponse.json({ participation: updatedParticipation });
     } catch (error) {
       console.error('Update event participation error:', error);
       return NextResponse.json(
