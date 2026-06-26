@@ -2239,3 +2239,38 @@ Stage Summary:
 - **Folha de assinatura melhorada**: linhas mais altas (16mm), logo maior (42mm), selos maiores (11mm raio), e cabeçalho agora repete em todas as páginas via hook didDrawPage do autoTable
 - **Arquivos modificados**: `scripts/create-dev-admin.ts` (novo), `src/app/api/attendance/sheet/route.ts`, `.gitignore`
 - **Senha do emanuell.fp.rocha@gmail.com** ainda está como Admin@123 do reset anterior — usuário pode trocar depois de logar
+
+---
+Task ID: signature-sheet-redesign-v2
+Agent: main (continuation)
+Task: Redesenhar a folha de assinatura usando a imagem-template enviada pelo usuário como full-page background (mesmo padrão do certificado), ajustando apenas os textos para caber no layout.
+
+Work Log:
+- Analisada a imagem de referência "Documento A4 Modelo de Orçamento Moderno Rosa e Preto.png" (1414×2000px, A4 retrato) com VLM. Confirmada estrutura: ondas coloridas no topo (~40mm) + logo NUCA, selo hexagonal UNICEF "selo unicef 2025·2028" no centro (~130mm), ondas no rodapé + 2 selos pequenos (UNICEF azul + Município Aprovado dourado).
+- Copiada a imagem para `public/uploads/attendance-sheet-template.png` (165KB).
+- Gerado `src/lib/attendance-sheet-template.ts` exportando `ATTENDANCE_SHEET_TEMPLATE_PNG_BASE64` (220KB, data URL embedded) — mesmo padrão do `certificate-template.ts`.
+- Reescrito completamente `src/app/api/attendance/sheet/route.ts`:
+  * Removida a abordagem anterior que desenhava ondas/selos manualmente com jsPDF paths.
+  * Adotada a abordagem do certificado: imagem PNG como full-page A4 portrait background via `doc.addImage()`.
+  * Overlay de textos: título "FOLHA DE ASSINATURA" (navy, 20pt, centralizado) + subtítulo "Lista de Frequência Manual" (royal-blue, 10pt) + divisor com accent laranja.
+  * Campos de info (Escola/Data/Turma/Série/Professor) em grid 2 colunas com labels bold navy + valores cinza-escuro + underline royal-blue.
+  * Tabela de assinaturas com autoTable: células branco sólido (mascaram o selo hexagonal onde a tabela passa por cima), cabeçalho navy, zebra stripe cinza claro.
+  * Paginação MANUAL (chunks de alunos por página) em vez de depender do autoTable didDrawPage — porque didDrawPage dispara DEPOIS da tabela, o que cobriria a tabela com o background nas páginas 2+. Pág 1 comporta ~10 alunos, págs 2+ comportam ~13.
+  * Rodapé discreto (page X de Y + data) no canto superior direito da faixa do rodapé, sem cobrir os selos institucionais.
+  * Pequeno accent dot sky-blue ao lado do texto de rodapé (detalhe de marca).
+- Lint passou limpo (`bun run lint`).
+- Testado via curl: login dev-admin → HTTP 200, geração da folha → HTTP 200, PDF 199KB, 2 páginas.
+- Validado visualmente com VLM:
+  * Página 1: nota 9/10 — fundo template presente, título legível, info fields preenchidos, tabela correta, sem problemas visuais.
+  * Página 2: nota 9/10 — fundo template presente, tabela continua numeração (12-16), layout consistente.
+- Testado end-to-end com Agent Browser: login → navegar para Frequência → selecionar Escola Pedro Ferreira → clicar "Folha de Assinatura" → GET /api/attendance/sheet retornou 200, sem erros no console.
+
+Stage Summary:
+- Abordagem mudou de "desenhar elementos com jsPDF" (v1) para "usar imagem PNG como full-page background + overlay de textos" (v2), exatamente como foi feito com o certificado. Isso garante fidelidade total ao template visual enviado pelo usuário.
+- Arquivos criados:
+  * `public/uploads/attendance-sheet-template.png`
+  * `src/lib/attendance-sheet-template.ts`
+- Arquivo reescrito: `src/app/api/attendance/sheet/route.ts`
+- Paginação manual implementada para garantir que o background seja pintado ANTES da tabela em cada página (autoTable's didDrawPage pinta depois, o que cobriria a tabela).
+- Nota visual: 9/10 em ambas as páginas (validado por VLM).
+- Credenciais dev-admin já estavam criadas (Task ID anterior), reutilizadas com sucesso: `dev-admin@nuca.local` / `DevAdmin@2026`.
