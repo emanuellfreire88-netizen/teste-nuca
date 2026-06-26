@@ -740,7 +740,7 @@ function StudentFormDialog({
           >
             Cancelar
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={saving}>
+          <Button type="button" onClick={handleSubmit} disabled={saving} className="bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white">
             {saving
               ? "Salvando..."
               : isEditing
@@ -1687,7 +1687,7 @@ function StudentsList({
               <FileUp className="h-4 w-4 mr-2" />
               Importar
             </Button>
-            <Button type="button" onClick={handleOpenCreate}>
+            <Button type="button" onClick={handleOpenCreate} className="bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white">
               <Plus className="h-4 w-4 mr-2" />
               Novo Aluno
             </Button>

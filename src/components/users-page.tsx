@@ -539,7 +539,7 @@ export function UsersPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white shadow h-9 px-4 py-2"
         >
           <Plus className="h-4 w-4" />
           Novo Usuário
@@ -811,7 +811,7 @@ export function UsersPage() {
             type="button"
             onClick={handleCreate}
             disabled={saving}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white shadow h-9 px-4 py-2"
           >
             {saving ? (
               <>
@@ -956,7 +956,7 @@ export function UsersPage() {
             type="button"
             onClick={handleEdit}
             disabled={saving}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white shadow h-9 px-4 py-2"
           >
             {saving ? (
               <>

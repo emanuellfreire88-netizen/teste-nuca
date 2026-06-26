@@ -407,7 +407,7 @@ export function SchoolsPage() {
               <Button
                 type="button"
                 onClick={handleOpenCreate}
-                className="shrink-0 h-9"
+                className="shrink-0 h-9 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white"
               >
                 <Plus className="mr-1.5 h-4 w-4" />
                 Nova escola
@@ -1184,6 +1184,7 @@ function SchoolFormDialog({
             type="button"
             onClick={onSubmit}
             disabled={submitting || uploading}
+            className="bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white"
           >
             {submitting ? (
               <>
