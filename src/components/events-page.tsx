@@ -328,9 +328,9 @@ const statusBadgeClass: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  upcoming: "Proximo",
+  upcoming: "Próximo",
   ongoing: "Em Andamento",
-  completed: "Concluido",
+  completed: "Concluído",
   cancelled: "Cancelado",
 };
 
@@ -338,7 +338,7 @@ const categoryLabels: Record<string, string> = {
   sports: "Esportivo",
   cultural: "Cultural",
   party: "Festa",
-  academic: "Academico",
+  academic: "Acadêmico",
   other: "Outro",
 };
 
@@ -1133,7 +1133,7 @@ export function EventsPage() {
                   <option value="sports">Esportivo</option>
                   <option value="cultural">Cultural</option>
                   <option value="party">Festa</option>
-                  <option value="academic">Academico</option>
+                  <option value="academic">Acadêmico</option>
                   <option value="other">Outro</option>
                 </select>
                 <select
@@ -1142,9 +1142,9 @@ export function EventsPage() {
                   className={nativeSelectClass}
                 >
                   <option value="all">Todos os Status</option>
-                  <option value="upcoming">Proximo</option>
+                  <option value="upcoming">Próximo</option>
                   <option value="ongoing">Em Andamento</option>
-                  <option value="completed">Concluido</option>
+                  <option value="completed">Concluído</option>
                   <option value="cancelled">Cancelado</option>
                 </select>
                 <div className="flex gap-2">
