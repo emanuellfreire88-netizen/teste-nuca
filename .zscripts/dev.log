@@ -565,10 +565,10 @@ error: script "db:push" exited with code 1
  GET / 200 in 54ms (compile: 9ms, render: 45ms)
  GET / 200 in 40ms (compile: 6ms, render: 34ms)
 ==========================================
-[2026-07-15 11:26:49] Starting: bun install
+[2026-07-15 13:48:22] Starting: bun install
 ==========================================
 [BUN] Installing dependencies...
-[0.11ms] ".env"
+[0.03ms] ".env"
 bun install v1.3.14 (0d9b296a)
 
 $ node scripts/postinstall.js
@@ -576,22 +576,22 @@ $ node scripts/postinstall.js
 Environment variables loaded from .env
 Prisma schema loaded from prisma/schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 168ms
+✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 107ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
 ✅ [postinstall] Prisma client generated
 
-Checked 957 installs across 1023 packages (no changes) [2.23s]
+Checked 957 installs across 1023 packages (no changes) [2.04s]
 ==========================================
-[2026-07-15 11:26:51] Completed: bun install
+[2026-07-15 13:48:24] Completed: bun install
 [LOG] Step: bun install | Duration: 2s
 ==========================================
 
 ==========================================
-[2026-07-15 11:26:51] Starting: bun run db:push
+[2026-07-15 13:48:24] Starting: bun run db:push
 ==========================================
 [BUN] Setting up database...
 $ prisma db push
