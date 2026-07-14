@@ -40,6 +40,7 @@ import {
   BarChart3,
   FileText,
   CalendarDays,
+  Calendar,
   LogOut,
   Menu,
   Sun,
@@ -58,6 +59,7 @@ export type PageKey =
   | "schools"
   | "students"
   | "attendance"
+  | "calendar"
   | "events"
   | "users"
   | "reports"
@@ -77,6 +79,7 @@ const navItems: NavItem[] = [
   { key: "students", label: "Alunos", icon: GraduationCap },
   { key: "users", label: "Usuários", icon: Users, adminOnly: true },
   { key: "attendance", label: "Frequência", icon: ClipboardCheck },
+  { key: "calendar", label: "Calendário", icon: Calendar },
   { key: "events", label: "Eventos", icon: CalendarDays },
   { key: "reports", label: "Relatórios", icon: BarChart3 },
   { key: "logs", label: "Logs", icon: FileText, adminOnly: true },

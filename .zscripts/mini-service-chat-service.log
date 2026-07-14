@@ -3,7 +3,7 @@ bun install v1.3.14 (0d9b296a)
 
 + socket.io@4.8.3
 
-22 packages installed [86.00ms]
+22 packages installed [101.00ms]
 [chat-service] Running bun run dev...
 $ bun --hot index.ts
 [chat-service] Socket.IO server listening on port 3003

@@ -2274,3 +2274,152 @@ Stage Summary:
 - Paginação manual implementada para garantir que o background seja pintado ANTES da tabela em cada página (autoTable's didDrawPage pinta depois, o que cobriria a tabela).
 - Nota visual: 9/10 em ambas as páginas (validado por VLM).
 - Credenciais dev-admin já estavam criadas (Task ID anterior), reutilizadas com sucesso: `dev-admin@nuca.local` / `DevAdmin@2026`.
+
+---
+
+## Task 2: Calendar Feature Backend (Prisma Schema + API Endpoints)
+**Date**: 2026-03-04
+**Status**: ✅ Completed
+
+### What was done
+
+#### 1. Prisma Schema Addition
+- Added `CalendarEvent` model to `prisma/schema.prisma` with fields:
+  - `id` (UUID, primary key)
+  - `title` (String, required)
+  - `description` (String?, optional)
+  - `date` (DateTime, required — the date/time of the event)
+  - `end_date` (DateTime?, optional — for multi-day events)
+  - `type` (String, default "event" — event, reminder, holiday, meeting, announcement)
+  - `color` (String?, optional — visual color code like "#FF5722")
+  - `school_id` (String?, optional — associated school)
+  - `created_by` (String, required)
+  - `created_at` / `updated_at` timestamps
+- Added reverse relations:
+  - `calendar_events CalendarEvent[]` in `User` model
+  - `calendar_events CalendarEvent[]` in `School` model
+- Model mapped to `calendar_events` table
+- Ran `bun run db:push` — schema synced successfully
+
+#### 2. API Endpoints — `/api/calendar/route.ts`
+Created with full CRUD operations:
+
+**GET /api/calendar**
+- Query params: `month` (YYYY-MM, required), `school_id` (optional), `type` (optional)
+- Returns all CalendarEvents for the given month, plus existing Event records (mapped as type "event" with source "events") for a unified calendar view
+- School-scoped using `getUserSchoolIds` — Admin sees all, non-admins see only their schools' events + events with no school_id
+- Returns combined array with `source` field ("calendar" vs "events") to distinguish origins
+
+**POST /api/calendar**
+- Creates a new CalendarEvent
+- Body: `{ title, description?, date, end_date?, type, color?, school_id? }`
+- Validates: title (required, max 255 chars), date (required), type (must be in valid list), end_date must be after date, school_id must exist
+- Auth: `withRole(['Admin', 'Operator'])` — only Admin and Operator can create
+- Audit logged via `logAction`
+- Uses split create+findUnique pattern (Neon HTTP adapter doesn't support transactions)
+
+**PUT /api/calendar**
+- Updates a CalendarEvent
+- Body: `{ id, title?, description?, date?, end_date?, type?, color?, school_id? }`
+- Only the creator or Admin can update
+- Validates type, school_id existence, and end_date > date
+- Audit logged
+
+**DELETE /api/calendar**
+- Deletes a CalendarEvent
+- Body: `{ id }`
+- Only the creator or Admin can delete
+- Audit logged
+
+### Files Modified
+1. `prisma/schema.prisma` — added CalendarEvent model + relations on User and School
+2. `src/app/api/calendar/route.ts` — new file with GET, POST, PUT, DELETE handlers
+
+### Technical Notes
+- All error messages in Portuguese (consistent with existing codebase)
+- Exports `dynamic = 'force-dynamic'` and `runtime = 'nodejs'`
+- Follows same patterns as `/api/events/route.ts` (withAuth, withRole, getUserSchoolIds, logAction, split create+findUnique for Neon HTTP)
+- ESLint passed with no errors
+- Dev server running normally
+
+## Task 3: Calendar Frontend Page Component
+**Date**: 2026-07-14
+**Status**: ✅ Completed
+
+### What was done
+- Created `src/components/calendar-page.tsx` — full-featured calendar page component
+- Modified `src/components/app-layout.tsx` — added "calendar" to PageKey type, added Calendar nav item, imported Calendar icon from lucide-react
+- Modified `src/app/page.tsx` — added CalendarPage dynamic import and render case
+
+### Implementation details
+
+#### calendar-page.tsx features:
+- **Layout**: Full calendar month view with left sidebar (mini calendar + legend + stats) and main grid area
+- **Calendar Grid**: 7-column grid (Dom–Sáb) with event badges per day cell, today highlighted with primary color, outside-month days dimmed
+- **Event Types & Colors**: event (#3B82F6), reminder (#F59E0B), holiday (#16A34A), meeting (#8B5CF6), announcement (#EA580C)
+- **Event Badges**: Colored pills with tiny dot indicator, truncated titles, "+N mais" overflow indicator
+- **Create/Edit Event Dialog**: Fields for title, description, date, end date, type, school, color preview; pre-fills date when opened from day click
+- **Event Detail Sheet**: Shows all events for selected day with type badge, date, description, school, creator info; Edit/Delete buttons (restricted to creator or Admin)
+- **Filters**: Type filter (dropdown with checkboxes) and school filter (select dropdown)
+- **Responsive**: Mobile shows list view instead of grid; desktop shows full calendar grid
+- **API Integration**: GET /api/calendar?month=YYYY-MM, POST /api/calendar, PUT /api/calendar, DELETE /api/calendar
+- **State**: React useState/useEffect for currentMonth, selectedDate, events, loading, dialog states
+- **All UI text in Portuguese (Brazilian)**
+
+#### Navigation changes:
+- Added `Calendar` icon import from lucide-react (alongside existing `CalendarDays`)
+- Added `"calendar"` to `PageKey` type union
+- Added nav item `{ key: "calendar", label: "Calendário", icon: Calendar }` after "Frequência" and before "Eventos"
+- Added `CalendarPage` dynamic import and `case "calendar"` render in page.tsx
+
+### Files created/modified
+- CREATED: `src/components/calendar-page.tsx`
+- MODIFIED: `src/components/app-layout.tsx`
+- MODIFIED: `src/app/page.tsx`
+
+### Lint
+- No lint errors
+
+
+---
+Task ID: calendar-feature
+Agent: main
+Task: Adicionar recurso de Calendário ao sistema NUCA para avisos de eventos e outros tipos de lembretes.
+
+Work Log:
+- Analisada a estrutura atual do projeto: Prisma schema, componentes, API routes, navegação.
+- Adicionado modelo `CalendarEvent` ao `prisma/schema.prisma` com campos: id, title, description, date, end_date, type (event/reminder/holiday/meeting/announcement), color, school_id, created_by + timestamps. Reverse relations adicionados a User e School.
+- Executado `bun run db:push` — schema sincronizado com sucesso.
+- Criado `src/app/api/calendar/route.ts` (413 linhas) com endpoints:
+  * GET /api/calendar?month=YYYY-MM — retorna CalendarEvents + Events existentes (unified view), scoped por escola
+  * POST /api/calendar — cria CalendarEvent (Admin/Operator), valida campos
+  * PUT /api/calendar — atualiza CalendarEvent (somente criador ou Admin)
+  * DELETE /api/calendar — remove CalendarEvent (somente criador ou Admin)
+- Criado `src/components/calendar-page.tsx` (1017 linhas) com:
+  * Visual mensal em grid 7 colunas (Dom-Sáb)
+  * Mini calendário lateral (react-day-picker)
+  * Navegação de mês (< Mês Ano >), botão "Hoje"
+  * Filtros por tipo e escola
+  * Badges coloridos por tipo de evento (Evento=azul, Lembrete=amber, Feriado=verde, Reunião=roxo, Aviso=laranja)
+  * Diálogo de criação/edição com campos: título, descrição, data, data fim, tipo, escola
+  * Painel de detalhe ao clicar em evento
+  * Responsivo (lista no mobile, grid no desktop)
+- Modificado `src/components/app-layout.tsx`: adicionado "calendar" ao PageKey + nav item "Calendário" com ícone Calendar
+- Modificado `src/app/page.tsx`: adicionado import dinâmico + case "calendar" no render switch
+- Lint passou limpo.
+- Testado com Agent Browser end-to-end:
+  * Login → Navegação → Calendário: página renderiza corretamente
+  * Criação de evento: POST /api/calendar retornou 201
+  * Evento "Reunião de Planejamento" aparece como badge no dia 14
+  * Clique no badge abre painel de detalhe com título e data
+  * Sem erros no console do browser
+  * Network requests: GET 200, POST 201, re-fetch 200 — tudo funcionando
+- VLM validação visual: nota 8/10 (layout limpo, organizado, funcional)
+
+Stage Summary:
+- Funcionalidade de Calendário completa: backend (Prisma + API) + frontend (componente + navegação)
+- 5 tipos de evento suportados: Evento, Lembrete, Feriado, Reunião, Aviso
+- Integração com escolas existentes (filtro por escola)
+- Visual unificado: mostra tanto CalendarEvents quanto Events do sistema
+- Arquivos criados: `src/app/api/calendar/route.ts`, `src/components/calendar-page.tsx`
+- Arquivos modificados: `prisma/schema.prisma`, `src/components/app-layout.tsx`, `src/app/page.tsx`

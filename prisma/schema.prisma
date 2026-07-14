@@ -33,6 +33,7 @@ model User {
   support_messages SupportMessage[]
   assigned_tickets SupportTicket[] @relation("TicketAssignee")
   user_schools    UserSchool[]
+  calendar_events CalendarEvent[]
 
   @@map("users")
 }
@@ -66,9 +67,10 @@ model School {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  students      Student[]
-  events        Event[]
-  user_schools  UserSchool[]
+  students        Student[]
+  events          Event[]
+  user_schools    UserSchool[]
+  calendar_events CalendarEvent[]
 
   @@map("schools")
 }
@@ -225,4 +227,23 @@ model SupportMessage {
   sender      User      @relation(fields: [sender_id], references: [id])
 
   @@map("support_messages")
+}
+
+model CalendarEvent {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  end_date    DateTime?
+  type        String    @default("event")  // event, reminder, holiday, meeting, announcement
+  color       String?
+  school_id   String?
+  created_by  String
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  school      School?   @relation(fields: [school_id], references: [id])
+  creator     User      @relation(fields: [created_by], references: [id])
+
+  @@map("calendar_events")
 }

@@ -385,3 +385,182 @@ Validation Error Count: 1
 
 Prisma CLI Version : 6.19.2
 error: script "db:push" exited with code 1
+==========================================
+[2026-07-14 11:11:24] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.04ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+$ node scripts/postinstall.js
+🔧 [postinstall] Running prisma generate...
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 130ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+✅ [postinstall] Prisma client generated
+
+Checked 957 installs across 1023 packages (no changes) [1.76s]
+==========================================
+[2026-07-14 11:11:25] Completed: bun install
+[LOG] Step: bun install | Duration: 1s
+==========================================
+
+==========================================
+[2026-07-14 11:11:25] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-orange-brook-apv361yg.c-7.us-east-1.aws.neon.tech"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 129ms
+
+==========================================
+[2026-07-14 11:11:37] Completed: bun run db:push
+[LOG] Step: bun run db:push | Duration: 12s
+==========================================
+
+==========================================
+[2026-07-14 11:11:37] Starting: Starting Next.js dev server
+==========================================
+[BUN] Starting development server...
+==========================================
+[2026-07-14 11:11:37] Completed: Starting Next.js dev server
+[LOG] Step: Starting Next.js dev server | Duration: 0s
+==========================================
+
+==========================================
+$ next dev -p 3000 -H 0.0.0.0
+[2026-07-14 11:11:37] Starting: Waiting for Next.js dev server
+==========================================
+Waiting for Next.js dev server to be ready on localhost:3000...
+Attempt 1/60: Next.js dev server not ready yet, waiting...
+▲ Next.js 16.1.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+- Environments: .env
+
+✓ Starting...
+✓ Ready in 976ms
+○ Compiling / ...
+Attempt 2/60: Next.js dev server not ready yet, waiting...
+ GET / 200 in 4.8s (compile: 4.6s, render: 213ms)
+ GET / 200 in 793ms (compile: 504ms, render: 289ms)
+ GET / 200 in 40ms (compile: 5ms, render: 35ms)
+Next.js dev server is ready!
+==========================================
+[2026-07-14 11:11:44] Completed: Waiting for Next.js dev server
+[LOG] Step: Waiting for Next.js dev server | Duration: 7s
+==========================================
+
+==========================================
+[2026-07-14 11:11:44] Starting: Health check
+==========================================
+[BUN] Performing health check...
+ GET / 200 in 38ms (compile: 6ms, render: 32ms)
+[BUN] Health check passed
+==========================================
+[2026-07-14 11:11:44] Completed: Health check
+[LOG] Step: Health check | Duration: 0s
+==========================================
+
+==========================================
+[2026-07-14 11:11:44] Starting: Starting mini-services
+==========================================
+Found mini-services directory, scanning for sub-services...
+Checking service: chat-service
+Starting chat-service in background...
+[chat-service] Started in background (PID: 1324)
+[chat-service] Log: /home/z/my-project/.zscripts/mini-service-chat-service.log
+Mini-services startup completed. Started 1 service(s).
+==========================================
+[2026-07-14 11:11:44] Completed: Starting mini-services
+[LOG] Step: Starting mini-services | Duration: 0s
+==========================================
+
+Next.js dev server is running in background (PID: 1224).
+Use 'kill 1224' to stop it.
+ GET / 200 in 62ms (compile: 17ms, render: 45ms)
+ GET / 200 in 38ms (compile: 6ms, render: 31ms)
+ GET / 200 in 42ms (compile: 11ms, render: 31ms)
+ GET / 200 in 43ms (compile: 6ms, render: 36ms)
+ GET / 200 in 43ms (compile: 7ms, render: 36ms)
+ GET / 200 in 38ms (compile: 11ms, render: 27ms)
+==========================================
+[2026-07-14 12:02:00] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.06ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+$ node scripts/postinstall.js
+🔧 [postinstall] Running prisma generate...
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Error: Prisma schema validation - (get-dmmf wasm)
+Error code: P1012
+error: Type "CalendarEvent" is neither a built-in type, nor refers to another model, composite type, or enum.
+  -->  prisma/schema.prisma:36
+   | 
+35 |   user_schools    UserSchool[]
+36 |   calendar_events CalendarEvent[]
+   | 
+
+Validation Error Count: 1
+[Context: getDmmf]
+
+Prisma CLI Version : 6.19.2
+⚠️ [postinstall] prisma generate failed: Command failed: npx prisma generate
+
+Checked 957 installs across 1023 packages (no changes) [1449.00ms]
+==========================================
+[2026-07-14 12:02:02] Completed: bun install
+[LOG] Step: bun install | Duration: 2s
+==========================================
+
+==========================================
+[2026-07-14 12:02:02] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-orange-brook-apv361yg.c-7.us-east-1.aws.neon.tech"
+Error: P1012
+
+error: Type "CalendarEvent" is neither a built-in type, nor refers to another model, composite type, or enum.
+  -->  prisma/schema.prisma:36
+   | 
+35 |   user_schools    UserSchool[]
+36 |   calendar_events CalendarEvent[]
+   | 
+
+
+error: script "db:push" exited with code 1
+ GET / 200 in 452ms (compile: 245ms, render: 207ms)
+ GET / 200 in 38ms (compile: 5ms, render: 34ms)
+ GET / 200 in 54ms (compile: 14ms, render: 40ms)
+ POST /api/auth/login 200 in 2.1s (compile: 453ms, render: 1665ms)
+ GET /api/auth/me 200 in 833ms (compile: 337ms, render: 496ms)
+ GET /api/reports 200 in 1534ms (compile: 109ms, render: 1425ms)
+ GET /api/reports 200 in 258ms (compile: 3ms, render: 255ms)
+ GET /api/schools?limit=100 200 in 977ms (compile: 286ms, render: 691ms)
+ GET /api/calendar?month=2026-07 200 in 1027ms (compile: 217ms, render: 809ms)
+ GET /api/schools?limit=100 200 in 232ms (compile: 3ms, render: 228ms)
+ GET /api/calendar?month=2026-07 200 in 261ms (compile: 3ms, render: 258ms)
+ POST /api/calendar 201 in 1330ms (compile: 2ms, render: 1327ms)
+ GET /api/calendar?month=2026-07 200 in 979ms (compile: 3ms, render: 976ms)
+ GET / 200 in 98ms (compile: 8ms, render: 91ms)
+ GET / 200 in 54ms (compile: 9ms, render: 45ms)
+ GET / 200 in 40ms (compile: 6ms, render: 34ms)
