@@ -1,6 +1,18 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy-initialize the Resend client so the module can be imported even when
+// RESEND_API_KEY is not set (e.g., during build or in environments that don't
+// use email). The client is created on first use, never at module-eval time.
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 // Configurable sender email - defaults to Resend onboarding sender
 // For production, set RESEND_FROM_EMAIL to your verified domain email (e.g., "nuca@seudominio.com")
@@ -48,7 +60,7 @@ export async function sendVerificationEmail(
   }
 
   try {
-    const { error, data } = await resend.emails.send({
+    const { error, data } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: [toEmail],
       subject: 'Seu código de verificação - Nuca Plataforma',

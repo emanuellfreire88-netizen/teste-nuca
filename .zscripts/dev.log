@@ -564,3 +564,50 @@ error: script "db:push" exited with code 1
  GET / 200 in 98ms (compile: 8ms, render: 91ms)
  GET / 200 in 54ms (compile: 9ms, render: 45ms)
  GET / 200 in 40ms (compile: 6ms, render: 34ms)
+==========================================
+[2026-07-15 11:26:49] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.11ms] ".env"
+bun install v1.3.14 (0d9b296a)
+
+$ node scripts/postinstall.js
+🔧 [postinstall] Running prisma generate...
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 168ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+✅ [postinstall] Prisma client generated
+
+Checked 957 installs across 1023 packages (no changes) [2.23s]
+==========================================
+[2026-07-15 11:26:51] Completed: bun install
+[LOG] Step: bun install | Duration: 2s
+==========================================
+
+==========================================
+[2026-07-15 11:26:51] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Error: Prisma schema validation - (get-config wasm)
+Error code: P1012
+error: Environment variable not found: DIRECT_URL.
+  -->  prisma/schema.prisma:8
+   | 
+ 7 |   url       = env("DATABASE_URL")
+ 8 |   directUrl = env("DIRECT_URL")
+   | 
+
+Validation Error Count: 1
+[Context: getConfig]
+
+Prisma CLI Version : 6.19.2
+error: script "db:push" exited with code 1
