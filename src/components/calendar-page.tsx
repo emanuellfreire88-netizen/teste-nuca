@@ -282,7 +282,7 @@ export function CalendarPage() {
         date: format(formDate, "yyyy-MM-dd"),
         end_date: formEndDate ? format(formEndDate, "yyyy-MM-dd") : undefined,
         type: formType,
-        school_id: formSchoolId || undefined,
+        school_id: formSchoolId && formSchoolId !== 'none' ? formSchoolId : undefined,
         color: formColor || undefined,
       };
 
@@ -344,7 +344,7 @@ export function CalendarPage() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h2 className="text-lg font-semibold min-w-[180px] text-center capitalize">
+          <h2 className="text-sm sm:text-lg font-semibold text-center capitalize truncate">
             {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
           </h2>
           <Button
@@ -403,7 +403,7 @@ export function CalendarPage() {
           {/* School Filter */}
           {schools.length > 0 && (
             <Select value={schoolFilter} onValueChange={setSchoolFilter}>
-              <SelectTrigger className="w-[160px] h-8 text-xs">
+              <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs">
                 <SelectValue placeholder="Escola" />
               </SelectTrigger>
               <SelectContent>
@@ -960,14 +960,14 @@ export function CalendarPage() {
               <div className="flex flex-col gap-1.5">
                 <Label>Escola</Label>
                 <Select
-                  value={formSchoolId}
-                  onValueChange={setFormSchoolId}
+                  value={formSchoolId || "__none__"}
+                  onValueChange={(val) => setFormSchoolId(val === "__none__" ? "" : val)}
                 >
                   <SelectTrigger className="h-9">
                     <SelectValue placeholder="Nenhuma" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Nenhuma</SelectItem>
+                    <SelectItem value="__none__">Nenhuma</SelectItem>
                     {schools.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}

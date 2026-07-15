@@ -564,7 +564,7 @@ export function AppLayout({
       {/* Main area */}
       <div className={`flex-1 flex flex-col min-w-0 transition-[padding] duration-300 ${collapsed ? "lg:pl-20" : "lg:pl-72"}`}>
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-1 sm:gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-3 sm:px-6">
           {/* Mobile menu toggle */}
           <Button
             variant="ghost"
@@ -577,8 +577,8 @@ export function AppLayout({
           </Button>
 
           {/* Current page title */}
-          <div className="flex-1">
-            <h2 className="text-base font-semibold capitalize">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm sm:text-base font-semibold capitalize truncate">
               {navItems.find((i) => i.key === currentPage)?.label || "Dashboard"}
             </h2>
           </div>
@@ -633,7 +633,7 @@ export function AppLayout({
 
         {/* Main content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-6 min-h-full flex flex-col">{children}</div>
+          <div className="p-3 sm:p-6 min-h-full flex flex-col">{children}</div>
         </main>
       </div>
 

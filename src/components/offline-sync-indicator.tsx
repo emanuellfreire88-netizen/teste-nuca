@@ -96,7 +96,7 @@ function ConflictResolutionDialog({
                   Conflito #{idx + 1} — {conflict.type === 'attendance' ? 'Frequência' : 'Participação'}
                 </p>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Local version */}
                   <button
                     type="button"
@@ -290,7 +290,7 @@ export function OfflineSyncIndicator() {
           </button>
         </PopoverTrigger>
 
-        <PopoverContent align="end" className="w-80 p-0">
+        <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] p-0">
           <div className="p-4 space-y-4">
             {/* Status header */}
             <div className="flex items-center gap-2">

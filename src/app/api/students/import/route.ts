@@ -389,32 +389,23 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       });
     }
 
-    // ── Bulk insert in a transaction ──
+    // ── Bulk insert (sequential, since Neon HTTP adapter does not support $transaction) ──
     if (toCreate.length > 0) {
-      try {
-        await db.$transaction(
-          toCreate.map((data) => db.student.create({ data }))
-        );
-        result.created = toCreate.length;
-      } catch (txError) {
-        console.error('Bulk insert transaction error:', txError);
-        // Fallback: insert one by one so partial successes are preserved
-        let created = 0;
-        for (const data of toCreate) {
-          try {
-            await db.student.create({ data });
-            created++;
-          } catch {
-            result.skipped++;
-            result.errors.push({
-              row: 0,
-              name: String(data.full_name),
-              reason: 'Erro ao criar aluno (possível CPF duplicado ou dados inválidos)',
-            });
-          }
+      let created = 0;
+      for (const data of toCreate) {
+        try {
+          await db.student.create({ data });
+          created++;
+        } catch {
+          result.skipped++;
+          result.errors.push({
+            row: 0,
+            name: String(data.full_name),
+            reason: 'Erro ao criar aluno (possível CPF duplicado ou dados inválidos)',
+          });
         }
-        result.created = created;
       }
+      result.created = created;
     }
 
     await logAction(

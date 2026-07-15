@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken, hashPassword, validatePasswordStrength, comparePassword } from '@/lib/auth';
+import { isTokenRevoked } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
@@ -12,6 +13,12 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+    
+    // Check if token has been revoked (e.g. after logout)
+    if (isTokenRevoked(token)) {
+      return NextResponse.json({ error: 'Token inválido ou expirado' }, { status: 401 });
+    }
+    
     const payload = verifyToken(token);
     if (!payload) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });

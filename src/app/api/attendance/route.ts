@@ -53,6 +53,12 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       where.student = { school_id };
     }
 
+    // Pagination to prevent loading all records at once
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const rawLimit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(Math.max(1, rawLimit), 200);
+    const skip = (page - 1) * limit;
+
     // ── Scope attendance to the operator's assigned schools ──
     // Non-admins can only see attendance for students in their schools.
     const allowedSchoolIds = await getUserSchoolIds(req.user!.userId, req.user!.role);
@@ -78,12 +84,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
         school_id: { in: allowedSchoolIds },
       };
     }
-
-    // Pagination to prevent loading all records at once
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const rawLimit = parseInt(searchParams.get('limit') || '50');
-    const limit = Math.min(Math.max(1, rawLimit), 200);
-    const skip = (page - 1) * limit;
 
     const [records, total] = await Promise.all([
       db.attendanceRecord.findMany({

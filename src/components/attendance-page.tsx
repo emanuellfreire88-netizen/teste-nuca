@@ -449,7 +449,7 @@ function AttendanceMarkingView() {
                     : "Nenhum aluno encontrado"}
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {/* Folha de assinatura — available to ALL roles. Generates a
                     printable PDF with student names + a blank column to sign
                     by hand. Does not depend on the loaded student list (the

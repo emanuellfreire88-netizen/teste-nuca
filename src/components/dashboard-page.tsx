@@ -511,7 +511,7 @@ export function DashboardPage() {
                     tick={{ fontSize: 11, fill: MUTED }}
                     axisLine={false}
                     tickLine={false}
-                    width={110}
+                    width={80}
                     tickFormatter={(v: string) =>
                       v.length > 16 ? v.slice(0, 14) + "…" : v
                     }
