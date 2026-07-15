@@ -40,7 +40,11 @@
     "node_modules",
     "examples",
     "mini-services",
+    "scripts",
     "skills",
-    "tool-results"
+    "tool-results",
+    "upload",
+    "download",
+    "agent-ctx"
   ]
 }
