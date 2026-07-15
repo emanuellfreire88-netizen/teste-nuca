@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
+import type { Student, School, Event } from '@prisma/client';
 
 async function main() {
   console.log('🌱 Iniciando seed completo do banco de dados...');
@@ -189,7 +190,7 @@ async function main() {
     { name: 'Giovanna Dias Oliveira', cpf: '223.334.445-67', rg: '22.334.445-6', dob: '2016-05-16', blood: 'A+', class: '3º Ano B', grade: '3º Ano', phone: '(11) 77654-3210', address: 'Rua Copaíba, 56', guardian: 'Mauricio Oliveira', guardianPhone: '(11) 77654-3210', guardianEmail: 'mauricio.o@email.com', emergency: '(11) 92345-6789', schoolId: schools[4].id },
   ];
 
-  const students = [];
+  const students: Student[] = [];
   for (const s of studentData) {
     const student = await db.student.create({
       data: {

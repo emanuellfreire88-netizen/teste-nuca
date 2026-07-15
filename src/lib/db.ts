@@ -90,7 +90,8 @@ function createPrismaClient(): PrismaClient {
   const connectionString = resolveDatabaseUrl();
 
   // PrismaNeonHTTP accepts the connection string directly (not the sql fn).
-  const adapter = new PrismaNeonHTTP(connectionString);
+  // Second argument is required HTTPQueryOptions (empty = use defaults).
+  const adapter = new PrismaNeonHTTP(connectionString, {});
 
   return new PrismaClient({
     adapter,

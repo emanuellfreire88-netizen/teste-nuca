@@ -335,7 +335,25 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
     };
 
     const seenCpfsInBatch = new Set<string>();
-    const toCreate: Array<Record<string, unknown>> = [];
+    const toCreate: Array<{
+      full_name: string;
+      cpf: string | null;
+      rg: string | null;
+      date_of_birth: Date | null;
+      blood_type: string | null;
+      special_needs: string | null;
+      medications: string | null;
+      class: string | null;
+      grade: string | null;
+      phone: string | null;
+      address: string | null;
+      guardian_name: string | null;
+      guardian_phone: string | null;
+      guardian_email: string | null;
+      emergency_contact: string | null;
+      school_id: string;
+      status: string;
+    }> = [];
 
     for (const p of parsed) {
       const name = p.mapped.full_name || '(sem nome)';

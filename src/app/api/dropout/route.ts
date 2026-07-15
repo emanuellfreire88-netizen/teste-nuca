@@ -123,12 +123,6 @@ async function countFilteredTotal(
 ): Promise<number> {
   const students = await db.student.findMany({
     where: studentWhere,
-    include: {
-      dropout_risk_assessments: {
-        orderBy: { calculated_at: 'desc' },
-        take: 1,
-      },
-    },
     select: {
       id: true,
       dropout_risk_assessments: {
