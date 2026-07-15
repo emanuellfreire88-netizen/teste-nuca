@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generateVerificationCode, sendVerificationEmail } from '@/lib/email';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -37,8 +40,8 @@ export async function POST(req: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: {
-        verification_code: code,
-        verification_code_expires: codeExpires,
+        two_factor_secret: code,
+        locked_until: codeExpires,
       },
     });
 

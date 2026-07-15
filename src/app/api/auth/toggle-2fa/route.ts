@@ -4,6 +4,9 @@ import { verifyToken } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 import { sendVerificationEmail, generateVerificationCode } from '@/lib/email';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   try {
     // Verify authentication
@@ -55,8 +58,8 @@ export async function POST(req: NextRequest) {
         where: { id: user.id },
         data: {
           two_factor_enabled: true,
-          verification_code: testCode,
-          verification_code_expires: new Date(Date.now() + 10 * 60 * 1000),
+          two_factor_secret: testCode,
+          locked_until: new Date(Date.now() + 10 * 60 * 1000),
         },
       });
 
@@ -80,8 +83,8 @@ export async function POST(req: NextRequest) {
       where: { id: user.id },
       data: {
         two_factor_enabled: false,
-        verification_code: null,
-        verification_code_expires: null,
+        two_factor_secret: null,
+        locked_until: null,
       },
     });
 

@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { generateToken } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user has a verification code
-    if (!user.verification_code || !user.verification_code_expires) {
+    if (!user.two_factor_secret || !user.locked_until) {
       return NextResponse.json(
         { error: 'Nenhum código de verificação pendente. Faça login novamente.' },
         { status: 400 }
@@ -41,13 +44,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if code is expired
-    if (new Date(user.verification_code_expires) < new Date()) {
+    if (new Date(user.locked_until) < new Date()) {
       // Clear the expired code
       await db.user.update({
         where: { id: user.id },
         data: {
-          verification_code: null,
-          verification_code_expires: null,
+          two_factor_secret: null,
+          locked_until: null,
         },
       });
       return NextResponse.json(
@@ -57,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if code matches
-    if (user.verification_code !== code) {
+    if (user.two_factor_secret !== code) {
       return NextResponse.json(
         { error: 'Código incorreto. Tente novamente.' },
         { status: 401 }
@@ -68,10 +71,9 @@ export async function POST(req: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: {
-        verification_code: null,
-        verification_code_expires: null,
-        failed_login_attempts: 0,
+        two_factor_secret: null,
         locked_until: null,
+        failed_login_attempts: 0,
         last_login: new Date(),
       },
     });
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
     await logAction(user.id, 'login', `Login com 2FA realizado: ${user.email}`, req);
 
     // Return user info without sensitive fields
-    const { password: _, two_factor_secret: __, verification_code: ___, verification_code_expires: ____, ...userWithoutSensitive } = user;
+    const { password: _, two_factor_secret: __, ...userWithoutSensitive } = user;
 
     return NextResponse.json({
       token,
