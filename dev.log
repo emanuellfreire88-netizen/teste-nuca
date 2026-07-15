@@ -1,43 +1,10 @@
-$ next dev -p 3000 -H 0.0.0.0
 ▲ Next.js 16.1.3 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://0.0.0.0:3000
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 1209ms
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 940ms
+✓ Ready in 841ms
 ○ Compiling / ...
- GET / 200 in 7.0s (compile: 6.8s, render: 277ms)
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 870ms
-○ Compiling / ...
- GET / 200 in 7.0s (compile: 6.7s, render: 285ms)
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 940ms
- GET /api/dropout 401 in 1292ms (compile: 1272ms, render: 21ms)
- GET /api/notifications 401 in 164ms (compile: 159ms, render: 5ms)
- GET /api/sync/pre-sync 401 in 148ms (compile: 143ms, render: 5ms)
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 869ms
+ GET / 200 in 6.1s (compile: 5.8s, render: 271ms)
+ GET / 200 in 148ms (compile: 25ms, render: 123ms)
