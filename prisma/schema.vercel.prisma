@@ -19,6 +19,8 @@ model User {
   must_change_password Boolean @default(true)  // User must change password on first login
   two_factor_enabled Boolean @default(false)
   two_factor_secret  String?
+  verification_code       String?  // 6-digit code for 2FA email verification
+  verification_code_expires DateTime?  // expiry time for the verification code
   failed_login_attempts Int  @default(0)
   locked_until    DateTime?
   last_login      DateTime?
@@ -33,6 +35,10 @@ model User {
   support_messages SupportMessage[]
   assigned_tickets SupportTicket[] @relation("TicketAssignee")
   user_schools    UserSchool[]
+  calendar_events CalendarEvent[]
+  dropout_follow_ups DropoutFollowUp[]
+  notifications  Notification[]
+  sync_records   SyncRecord[]
 
   @@map("users")
 }
@@ -66,9 +72,10 @@ model School {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  students      Student[]
-  events        Event[]
-  user_schools  UserSchool[]
+  students        Student[]
+  events          Event[]
+  user_schools    UserSchool[]
+  calendar_events CalendarEvent[]
 
   @@map("schools")
 }
@@ -100,6 +107,9 @@ model Student {
   attendance_records AttendanceRecord[]
   event_participations EventParticipant[]
   badges          ParticipationBadge[]
+  dropout_risk_assessments DropoutRiskAssessment[]
+  dropout_follow_ups DropoutFollowUp[]
+  related_notifications Notification[]
 
   @@map("students")
 }
@@ -158,7 +168,7 @@ model Session {
 model Event {
   id          String   @id @default(uuid())
   title       String
-  description String?  @db.Text
+  description String?
   date        DateTime
   location    String?
   status      String   @default("upcoming") // upcoming, ongoing, completed, cancelled
@@ -225,4 +235,98 @@ model SupportMessage {
   sender      User      @relation(fields: [sender_id], references: [id])
 
   @@map("support_messages")
+}
+
+model CalendarEvent {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  end_date    DateTime?
+  type        String    @default("event")  // event, reminder, holiday, meeting, announcement
+  color       String?
+  school_id   String?
+  created_by  String
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  school      School?   @relation(fields: [school_id], references: [id])
+  creator     User      @relation(fields: [created_by], references: [id])
+
+  @@map("calendar_events")
+}
+
+// ─── Dropout Detection Models ───
+
+model DropoutRiskAssessment {
+  id                       String   @id @default(uuid())
+  student_id               String
+  risk_level               String   // low, attention, medium, high
+  score                    Float    @default(0) // 0-100 risk score
+  reasons                  String   // JSON array of reasons that triggered the alert
+  attendance_percentage    Float    @default(0)
+  consecutive_absences     Int      @default(0)
+  days_without_participation Int    @default(0)
+  previous_risk_level      String?  // previous assessment level for tracking evolution
+  calculated_at            DateTime @default(now())
+
+  student                  Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@index([risk_level])
+  @@index([student_id, calculated_at])
+  @@map("dropout_risk_assessments")
+}
+
+model DropoutFollowUp {
+  id              String   @id @default(uuid())
+  student_id      String
+  action_type     String   // call, contact_guardian, home_visit, conversation, returned
+  description     String?
+  responsible_id  String
+  notes           String?
+  created_at      DateTime @default(now())
+
+  student         Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  responsible     User     @relation(fields: [responsible_id], references: [id])
+
+  @@index([student_id])
+  @@map("dropout_follow_ups")
+}
+
+// ─── Notification Model ───
+
+model Notification {
+  id                String   @id @default(uuid())
+  user_id           String
+  type              String   // dropout_alert, long_absence, low_attendance, offline_sync, info
+  title             String
+  message           String
+  read              Boolean  @default(false)
+  related_student_id String?
+  created_at        DateTime @default(now())
+
+  user              User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  student           Student? @relation(fields: [related_student_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, read])
+  @@index([user_id, created_at])
+  @@map("notifications")
+}
+
+// ─── Offline Sync Record ───
+
+model SyncRecord {
+  id              String   @id @default(uuid())
+  device_id       String
+  user_id         String
+  last_sync_at    DateTime @default(now())
+  sync_status     String   @default("synced") // synced, pending, syncing, error
+  pending_count   Int      @default(0)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([device_id, user_id])
+  @@map("sync_records")
 }
