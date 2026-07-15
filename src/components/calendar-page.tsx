@@ -418,7 +418,7 @@ export function CalendarPage() {
           )}
 
           {/* New Event Button */}
-          <Button size="sm" onClick={() => openCreateDialog()} className="gap-1">
+          <Button size="sm" onClick={() => openCreateDialog()} className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
             <Plus className="h-4 w-4" />
             Novo Evento
           </Button>
