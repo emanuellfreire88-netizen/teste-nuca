@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FloatingSupportButton } from "@/components/floating-support-button";
+import { OfflineSyncIndicator } from "@/components/offline-sync-indicator";
+import { NotificationBell } from "@/components/notification-bell";
+import { OfflineSyncProvider } from "@/lib/offline-sync-provider";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -52,6 +55,7 @@ import {
   Camera,
   Trash2,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 export type PageKey =
@@ -63,6 +67,7 @@ export type PageKey =
   | "events"
   | "users"
   | "reports"
+  | "dropout"
   | "logs"
   | "support";
 
@@ -81,6 +86,7 @@ const navItems: NavItem[] = [
   { key: "attendance", label: "Frequência", icon: ClipboardCheck },
   { key: "calendar", label: "Calendário", icon: Calendar },
   { key: "events", label: "Eventos", icon: CalendarDays },
+  { key: "dropout", label: "Evasão", icon: AlertTriangle },
   { key: "reports", label: "Relatórios", icon: BarChart3 },
   { key: "logs", label: "Logs", icon: FileText, adminOnly: true },
   { key: "support", label: "Suporte", icon: MessageSquare, adminOnly: true },
@@ -520,6 +526,7 @@ export function AppLayout({
   };
 
   return (
+    <OfflineSyncProvider>
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar */}
       <aside className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 transition-[width] duration-300 ${collapsed ? "lg:w-20" : "lg:w-72"}`}>
@@ -583,6 +590,12 @@ export function AppLayout({
             <span className="sr-only">Alternar tema</span>
           </Button>
 
+          {/* Offline Sync Indicator */}
+          <OfflineSyncIndicator />
+
+          {/* Notification Bell */}
+          <NotificationBell />
+
           {/* User dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -630,5 +643,6 @@ export function AppLayout({
       {/* Self-service Profile Photo dialog (available to ALL roles) */}
       <ProfilePhotoDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
+    </OfflineSyncProvider>
   );
 }

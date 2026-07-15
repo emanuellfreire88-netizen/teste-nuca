@@ -18,6 +18,7 @@ const ReportsPage = dynamic(() => import("@/components/reports-page").then(m => 
 const EventsPage = dynamic(() => import("@/components/events-page").then(m => ({ default: m.EventsPage })), { ssr: false });
 const SupportPage = dynamic(() => import("@/components/support-page").then(m => ({ default: m.SupportPage })), { ssr: false });
 const CalendarPage = dynamic(() => import("@/components/calendar-page").then(m => ({ default: m.CalendarPage })), { ssr: false });
+const DropoutPage = dynamic(() => import("@/components/dropout-page").then(m => ({ default: m.DropoutPage })), { ssr: false });
 const PublicCertificatesPage = dynamic(() => import("@/components/public-certificates-page").then(m => ({ default: m.PublicCertificatesPage })), { ssr: false });
 
 // Hydration-safe check: returns false on server, then true on client
@@ -110,6 +111,8 @@ export default function Home() {
         return <ReportsPage />;
       case "logs":
         return <LogsPage />;
+      case "dropout":
+        return <DropoutPage />;
       case "support":
         return <SupportPage />;
       default:

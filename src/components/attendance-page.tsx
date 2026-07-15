@@ -46,7 +46,9 @@ import {
   ChevronLeft,
   ChevronRight,
   PenLine,
+  WifiOff,
 } from "lucide-react";
+import { useOfflineSyncContext } from "@/lib/offline-sync-provider";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -274,6 +276,8 @@ function AttendanceMarkingView() {
     setAttendanceMap(map);
   };
 
+  const { isOnline, saveAttendanceOffline } = useOfflineSyncContext();
+
   const handleSave = async () => {
     if (!selectedSchoolId) {
       toast.error("Selecione uma escola");
@@ -298,27 +302,43 @@ function AttendanceMarkingView() {
         status: attendanceMap[student.id],
       }));
 
-      await api.post("/attendance", { records });
-      toast.success("Frequência salva com sucesso!");
-
-      // Refresh existing attendance data — use a high limit to avoid pagination truncation
-      const attendanceData = await api.get<AttendanceApiResponse>(
-        `/attendance?school_id=${selectedSchoolId}&date=${dateStr}&limit=200`
-      );
-      const existing: Record<string, "present" | "absent"> = {};
-      const existingIds: Record<string, string> = {};
-      for (const rec of attendanceData.records || []) {
-        existing[rec.student_id] = rec.status;
-        existingIds[rec.student_id] = rec.id;
-      }
-      // Auto-fill students without records as "present" (same logic as initial load)
-      for (const s of students) {
-        if (!existing[s.id]) {
-          existing[s.id] = "present";
+      if (!isOnline) {
+        // ── Offline mode: save locally ──
+        for (const record of records) {
+          await saveAttendanceOffline({
+            student_id: record.student_id,
+            date: record.date,
+            status: record.status,
+          });
         }
+        toast.success("Frequência salva offline! Será sincronizada quando houver conexão.", {
+          icon: <WifiOff className="h-4 w-4 text-yellow-500" />,
+          duration: 5000,
+        });
+      } else {
+        // ── Online mode: save to server ──
+        await api.post("/attendance", { records });
+        toast.success("Frequência salva com sucesso!");
+
+        // Refresh existing attendance data — use a high limit to avoid pagination truncation
+        const attendanceData = await api.get<AttendanceApiResponse>(
+          `/attendance?school_id=${selectedSchoolId}&date=${dateStr}&limit=200`
+        );
+        const existing: Record<string, "present" | "absent"> = {};
+        const existingIds: Record<string, string> = {};
+        for (const rec of attendanceData.records || []) {
+          existing[rec.student_id] = rec.status;
+          existingIds[rec.student_id] = rec.id;
+        }
+        // Auto-fill students without records as "present" (same logic as initial load)
+        for (const s of students) {
+          if (!existing[s.id]) {
+            existing[s.id] = "present";
+          }
+        }
+        setAttendanceMap(existing);
+        setExistingAttendance(existingIds);
       }
-      setAttendanceMap(existing);
-      setExistingAttendance(existingIds);
     } catch (err) {
       const message =
         err instanceof ApiError ? err.message : "Erro ao salvar frequência";
@@ -610,6 +630,11 @@ function AttendanceMarkingView() {
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Salvando...
+                  </>
+                ) : !isOnline ? (
+                  <>
+                    <WifiOff className="mr-2 h-4 w-4 text-yellow-500" />
+                    Salvar Offline
                   </>
                 ) : (
                   <>

@@ -9,6 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   GraduationCap,
@@ -17,6 +19,11 @@ import {
   UserCheck,
   Users,
   CalendarDays,
+  AlertTriangle,
+  ShieldAlert,
+  ShieldCheck,
+  WifiOff,
+  ArrowRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -50,6 +57,15 @@ interface ReportData {
   };
 }
 
+interface DropoutDashboardData {
+  total_at_risk: number;
+  high_risk_count: number;
+  medium_risk_count: number;
+  recovered_count: number;
+  average_attendance: number;
+  risk_distribution_by_month: { period: string; low: number; attention: number; medium: number; high: number }[];
+}
+
 // ===== Restrained palette — single accent color, neutrals for the rest =====
 const ACCENT = "var(--primary)";
 const MUTED = "var(--muted-foreground)";
@@ -58,6 +74,8 @@ const BORDER = "var(--border)";
 const FOREGROUND = "var(--foreground)";
 const SUCCESS = "#16a34a";
 const DANGER = "#dc2626";
+const WARNING = "#f97316";
+const ATTENTION = "#eab308";
 
 const attendancePercentage = (present: number, total: number) =>
   total > 0 ? Math.round((present / total) * 100) : 0;
@@ -89,7 +107,9 @@ function TooltipBox({ active, payload, label }: any) {
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const [data, setData] = useState<ReportData | null>(null);
+  const [dropoutData, setDropoutData] = useState<DropoutDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dropoutLoading, setDropoutLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
@@ -112,6 +132,29 @@ export function DashboardPage() {
       }
     }
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    async function fetchDropoutData() {
+      try {
+        setDropoutLoading(true);
+        const result = await api.get<DropoutDashboardData>("/dropout/dashboard");
+        setDropoutData(result);
+      } catch {
+        // Dropout data is optional - may not exist yet
+        setDropoutData({
+          total_at_risk: 0,
+          high_risk_count: 0,
+          medium_risk_count: 0,
+          recovered_count: 0,
+          average_attendance: 0,
+          risk_distribution_by_month: [],
+        });
+      } finally {
+        setDropoutLoading(false);
+      }
+    }
+    fetchDropoutData();
   }, []);
 
   const firstName = user?.full_name?.split(" ")[0] || "Usuário";
@@ -157,7 +200,7 @@ export function DashboardPage() {
       {
         name: "Mês",
         Presentes: data?.attendance.this_month.present ?? 0,
-        Ausentes: data?.attendance.this_month.absent ?? 0,
+        Ausentes: data?.attendance.this_week.absent ?? 0,
         taxa: attendancePercentage(
           data?.attendance.this_month.present ?? 0,
           data?.attendance.this_month.total ?? 0
@@ -166,6 +209,18 @@ export function DashboardPage() {
     ],
     [data]
   );
+
+  // Risk distribution chart data
+  const riskChartData = useMemo(() => {
+    const months = dropoutData?.risk_distribution_by_month ?? [];
+    return months.map((m) => ({
+      month: m.period,
+      Baixo: m.low,
+      Atenção: m.attention,
+      Médio: m.medium,
+      Alto: m.high,
+    }));
+  }, [dropoutData]);
 
   const activePct = attendancePercentage(
     data?.students.active ?? 0,
@@ -206,7 +261,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* ===== Page header — clean, no gradients ===== */}
+      {/* ===== Page header ===== */}
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           Visão geral
@@ -216,7 +271,7 @@ export function DashboardPage() {
         </p>
       </div>
 
-      {/* ===== Stats row — flat, no gradients ===== */}
+      {/* ===== Stats row ===== */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => {
           const Icon = s.icon;
@@ -246,6 +301,108 @@ export function DashboardPage() {
             </Card>
           );
         })}
+      </div>
+
+      {/* ===== Dropout Risk Summary Row ===== */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-border/70">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-muted-foreground">
+                Em Risco
+              </span>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground/60" />
+            </div>
+            <div className="mt-3 flex items-baseline gap-1">
+              {dropoutLoading ? (
+                <Skeleton className="h-7 w-16" />
+              ) : (
+                <span className="text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+                  {dropoutData?.total_at_risk ?? 0}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground/80">
+              adolescentes identificados
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-muted-foreground">
+                Alto Risco
+              </span>
+              <ShieldAlert className="h-4 w-4 text-red-500/70" />
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              {dropoutLoading ? (
+                <Skeleton className="h-7 w-16" />
+              ) : (
+                <>
+                  <span className="text-2xl font-semibold tracking-tight text-red-600 dark:text-red-400 tabular-nums">
+                    {dropoutData?.high_risk_count ?? 0}
+                  </span>
+                  {(dropoutData?.high_risk_count ?? 0) > 0 && (
+                    <Badge variant="outline" className="text-[10px] border-red-200 text-red-600 dark:border-red-800 dark:text-red-400 bg-red-50 dark:bg-red-950/30">
+                      Urgente
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground/80">
+              necessitam atenção imediata
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-muted-foreground">
+                Médio Risco
+              </span>
+              <AlertTriangle className="h-4 w-4 text-orange-500/70" />
+            </div>
+            <div className="mt-3 flex items-baseline gap-1">
+              {dropoutLoading ? (
+                <Skeleton className="h-7 w-16" />
+              ) : (
+                <span className="text-2xl font-semibold tracking-tight text-orange-600 dark:text-orange-400 tabular-nums">
+                  {dropoutData?.medium_risk_count ?? 0}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground/80">
+              em acompanhamento
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium text-muted-foreground">
+                Recuperados
+              </span>
+              <ShieldCheck className="h-4 w-4 text-green-500/70" />
+            </div>
+            <div className="mt-3 flex items-baseline gap-1">
+              {dropoutLoading ? (
+                <Skeleton className="h-7 w-16" />
+              ) : (
+                <span className="text-2xl font-semibold tracking-tight text-green-600 dark:text-green-400 tabular-nums">
+                  {dropoutData?.recovered_count ?? 0}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground/80">
+              retornaram às atividades
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* ===== Row 1: Donut + Schools bar ===== */}
@@ -479,6 +636,137 @@ export function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ===== Row 3: Risk Evolution + Quick Actions ===== */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        {/* Risk Evolution Chart */}
+        <Card className="lg:col-span-3 border-border/70">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-muted-foreground/70" />
+              Evolução de Risco de Evasão
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dropoutLoading ? (
+              <Skeleton className="h-[220px] w-full" />
+            ) : riskChartData.length === 0 ? (
+              <div className="flex h-[220px] flex-col items-center justify-center text-sm text-muted-foreground gap-3">
+                <AlertTriangle className="h-8 w-8 text-muted-foreground/30" />
+                <p>Nenhuma avaliação de risco calculada ainda</p>
+                <p className="text-xs text-muted-foreground/60">
+                  Acesse &quot;Evasão&quot; no menu para calcular os riscos
+                </p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={riskChartData} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={BORDER} opacity={0.4} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: MUTED }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<TooltipBox />} />
+                  <Area type="monotone" dataKey="Baixo" stackId="1" stroke={SUCCESS} fill={SUCCESS} fillOpacity={0.5} />
+                  <Area type="monotone" dataKey="Atenção" stackId="1" stroke={ATTENTION} fill={ATTENTION} fillOpacity={0.5} />
+                  <Area type="monotone" dataKey="Médio" stackId="1" stroke={WARNING} fill={WARNING} fillOpacity={0.5} />
+                  <Area type="monotone" dataKey="Alto" stackId="1" stroke={DANGER} fill={DANGER} fillOpacity={0.5} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+            {/* Legend */}
+            {riskChartData.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-4">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: SUCCESS }} />
+                  <span className="text-muted-foreground">Baixo</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: ATTENTION }} />
+                  <span className="text-muted-foreground">Atenção</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: WARNING }} />
+                  <span className="text-muted-foreground">Médio</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: DANGER }} />
+                  <span className="text-muted-foreground">Alto</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quick Info Cards */}
+        <Card className="lg:col-span-2 border-border/70">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
+              <WifiOff className="h-4 w-4 text-muted-foreground/70" />
+              Informações Rápidas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Average Attendance */}
+            <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Frequência Média Geral</span>
+                <ClipboardCheck className="h-3.5 w-3.5 text-muted-foreground/50" />
+              </div>
+              <div className="mt-1 flex items-baseline gap-1">
+                {dropoutLoading ? (
+                  <Skeleton className="h-6 w-12" />
+                ) : (
+                  <span className="text-xl font-semibold tabular-nums text-foreground">
+                    {Math.round(dropoutData?.average_attendance ?? 0)}%
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 h-1.5 w-full rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(dropoutData?.average_attendance ?? 0, 100)}%`,
+                    backgroundColor: (dropoutData?.average_attendance ?? 0) >= 70 ? SUCCESS : (dropoutData?.average_attendance ?? 0) >= 50 ? WARNING : DANGER,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* High Risk Alert */}
+            {(dropoutData?.high_risk_count ?? 0) > 0 && (
+              <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 p-3">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-red-500 shrink-0" />
+                  <div>
+                    <p className="text-xs font-medium text-red-700 dark:text-red-400">
+                      Atenção: {dropoutData?.high_risk_count} aluno(s) em alto risco
+                    </p>
+                    <p className="text-[11px] text-red-600/70 dark:text-red-400/60 mt-0.5">
+                      Acesse a página de Evasão para acompanhar
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Quick link to Dropout page */}
+            <Button
+              variant="outline"
+              className="w-full justify-between"
+              onClick={() => {
+                // Navigate to dropout page using the global page navigation
+                const event = new CustomEvent('navigate', { detail: 'dropout' });
+                window.dispatchEvent(event);
+              }}
+            >
+              <span className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Ver Detecção de Evasão
+              </span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

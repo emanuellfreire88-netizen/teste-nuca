@@ -57,6 +57,17 @@ function resolveDatabaseUrl(): string {
     return envVal;
   }
 
+  // Check NEON_DATABASE_URL from env or .env file (fallback when DATABASE_URL is SQLite)
+  const neonEnvVal = process.env.NEON_DATABASE_URL;
+  if (neonEnvVal && neonEnvVal.startsWith('postgresql://')) {
+    return neonEnvVal;
+  }
+
+  const neonFileVal = readEnvFile('NEON_DATABASE_URL');
+  if (neonFileVal && neonFileVal.startsWith('postgresql://')) {
+    return neonFileVal;
+  }
+
   const fileVal = readEnvFile('DATABASE_URL');
   if (fileVal && fileVal.startsWith('postgresql://')) {
     return fileVal;
