@@ -45,6 +45,11 @@ import {
   CalendarDays,
   FileUp,
   AlertTriangle,
+  ClipboardCheck,
+  ArrowRightLeft,
+  Download,
+  FileDown,
+  Printer,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -89,6 +94,29 @@ interface Pagination {
   limit: number;
   total: number;
   totalPages: number;
+}
+
+interface StudentDocument {
+  id: string;
+  document_type: string;
+  status: string;
+  notes: string | null;
+  delivered_at: string | null;
+  verified_by: string | null;
+  created_at: string;
+  verifier: { id: string; full_name: string } | null;
+}
+
+interface StudentTransferRecord {
+  id: string;
+  from_school_id: string;
+  to_school_id: string;
+  reason: string | null;
+  transferred_by: string;
+  transferred_at: string;
+  from_school: { id: string; name: string };
+  to_school: { id: string; name: string };
+  transferred_by_user: { id: string; full_name: string };
 }
 
 interface StudentFormData {
@@ -148,6 +176,21 @@ const gradeOptions = [
 const classOptions = ["A", "B", "C", "D", "E", "F"];
 
 const bloodTypeOptions = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+const documentTypeLabels: Record<string, string> = {
+  birth_certificate: "Certidão de Nascimento",
+  residence_proof: "Comprovante de Residência",
+  vaccination_card: "Cartão de Vacinação",
+  photo_3x4: "Foto 3x4",
+  rg_copy: "Cópia do RG",
+  cpf_copy: "Cópia do CPF",
+  medical_report: "Laudo Médico",
+  enrollment_form: "Ficha de Matrícula",
+  income_proof: "Comprovante de Renda",
+  other: "Outro",
+};
+
+const documentTypeOptions = Object.entries(documentTypeLabels).map(([value, label]) => ({ value, label }));
 
 // ─── Custom Modal ────────────────────────────────────────────────────────────
 
@@ -762,6 +805,8 @@ function StudentProfile({
   onEdit,
   onDelete,
   loadingAttendance,
+  schools,
+  onStudentUpdated,
 }: {
   student: Student;
   attendanceRecords: AttendanceRecord[];
@@ -769,10 +814,199 @@ function StudentProfile({
   onEdit: () => void;
   onDelete: () => void;
   loadingAttendance: boolean;
+  schools: School[];
+  onStudentUpdated: () => void;
 }) {
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const isAdmin = user?.role === "Admin";
   const canEdit = user?.role === "Admin";
+
+  // Document state
+  const [documents, setDocuments] = useState<StudentDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [newDocType, setNewDocType] = useState("");
+  const [updatingDocId, setUpdatingDocId] = useState<string | null>(null);
+
+  // Transfer dialog state
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferToSchool, setTransferToSchool] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [transferLoading, setTransferLoading] = useState(false);
+
+  // Authorization dialog state
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authForm, setAuthForm] = useState({
+    event_title: "",
+    event_date: "",
+    event_location: "",
+    departure_time: "",
+    return_time: "",
+    responsible_name: "",
+    observations: "",
+  });
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // Print loading
+  const [printLoading, setPrintLoading] = useState(false);
+
+  // Fetch documents
+  const fetchDocuments = useCallback(async () => {
+    try {
+      setLoadingDocs(true);
+      const data = await api.get<{ documents: StudentDocument[] }>(
+        `/students/${student.id}/documents`
+      );
+      setDocuments(data.documents || []);
+    } catch {
+      toast.error("Erro ao carregar documentos do aluno");
+    } finally {
+      setLoadingDocs(false);
+    }
+  }, [student.id]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  // Document action handlers
+  const handleMarkDelivered = async (doc: StudentDocument) => {
+    try {
+      setUpdatingDocId(doc.id);
+      await api.put(`/students/${student.id}/documents`, {
+        document_type: doc.document_type,
+        status: "delivered",
+      });
+      toast.success("Documento marcado como entregue");
+      fetchDocuments();
+    } catch {
+      toast.error("Erro ao atualizar documento");
+    } finally {
+      setUpdatingDocId(null);
+    }
+  };
+
+  const handleMarkVerified = async (doc: StudentDocument) => {
+    try {
+      setUpdatingDocId(doc.id);
+      await api.put(`/students/${student.id}/documents`, {
+        document_type: doc.document_type,
+        status: "verified",
+      });
+      toast.success("Documento verificado com sucesso");
+      fetchDocuments();
+    } catch {
+      toast.error("Erro ao verificar documento");
+    } finally {
+      setUpdatingDocId(null);
+    }
+  };
+
+  const handleAddDocument = async () => {
+    if (!newDocType) return;
+    try {
+      await api.post(`/students/${student.id}/documents`, {
+        document_type: newDocType,
+        status: "pending",
+      });
+      toast.success("Documento adicionado");
+      setNewDocType("");
+      fetchDocuments();
+    } catch {
+      toast.error("Erro ao adicionar documento");
+    }
+  };
+
+  // Print profile PDF
+  const handlePrintProfile = async () => {
+    try {
+      setPrintLoading(true);
+      const response = await fetch(`/api/students/${student.id}/profile-pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ficha-${student.full_name.replace(/\s+/g, "-").toLowerCase()}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Erro ao gerar ficha do aluno");
+    } finally {
+      setPrintLoading(false);
+    }
+  };
+
+  // Transfer handler
+  const handleTransfer = async () => {
+    if (!transferToSchool) {
+      toast.error("Selecione a escola de destino");
+      return;
+    }
+    try {
+      setTransferLoading(true);
+      await api.post(`/students/${student.id}/transfer`, {
+        to_school_id: transferToSchool,
+        reason: transferReason || undefined,
+      });
+      toast.success("Aluno transferido com sucesso!");
+      setTransferDialogOpen(false);
+      setTransferToSchool("");
+      setTransferReason("");
+      onStudentUpdated();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error("Erro ao transferir aluno");
+      }
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  // Authorization PDF handler
+  const handleGenerateAuthPdf = async () => {
+    if (!authForm.event_title || !authForm.event_date) {
+      toast.error("Preencha o título e a data do evento");
+      return;
+    }
+    try {
+      setAuthLoading(true);
+      const response = await fetch("/api/students/authorization-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          student_ids: [student.id],
+          event_title: authForm.event_title,
+          event_date: authForm.event_date,
+          event_location: authForm.event_location || undefined,
+          departure_time: authForm.departure_time || undefined,
+          return_time: authForm.return_time || undefined,
+          responsible_name: authForm.responsible_name || undefined,
+          observations: authForm.observations || undefined,
+        }),
+      });
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `autorizacao-${student.full_name.replace(/\s+/g, "-").toLowerCase()}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Autorização gerada com sucesso!");
+    } catch {
+      toast.error("Erro ao gerar autorização");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const totalRecords = attendanceRecords.length;
   const presentCount = attendanceRecords.filter(
@@ -784,6 +1018,35 @@ function StudentProfile({
       ? Math.round((presentCount / totalRecords) * 100)
       : 0;
 
+  // Document summary
+  const deliveredCount = documents.filter(
+    (d) => d.status === "delivered" || d.status === "verified"
+  ).length;
+  const totalDocs = documents.length;
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "verified":
+        return (
+          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+            Verificado
+          </Badge>
+        );
+      case "delivered":
+        return (
+          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+            Entregue
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800">
+            Pendente
+          </Badge>
+        );
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -793,6 +1056,40 @@ function StudentProfile({
           Voltar
         </Button>
         <div className="flex-1" />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handlePrintProfile}
+          disabled={printLoading}
+        >
+          {printLoading ? (
+            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <Printer className="h-4 w-4 mr-1" />
+          )}
+          Imprimir Ficha
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setAuthDialogOpen(true)}
+        >
+          <ClipboardCheck className="h-4 w-4 mr-1" />
+          Autorização
+        </Button>
+        {isAdmin && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setTransferDialogOpen(true)}
+          >
+            <ArrowRightLeft className="h-4 w-4 mr-1" />
+            Transferir
+          </Button>
+        )}
         {canEdit && (
           <Button type="button" variant="outline" size="sm" onClick={onEdit}>
             <Pencil className="h-4 w-4 mr-1" />
@@ -1023,6 +1320,348 @@ function StudentProfile({
           )}
         </CardContent>
       </Card>
+
+      {/* Documentação */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            Documentação
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingDocs ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : documents.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-4">
+              Nenhum documento registrado
+            </p>
+          ) : (
+            <>
+              <div className="rounded-md border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">
+                        Documento
+                      </th>
+                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">
+                        Status
+                      </th>
+                      <th className="text-left py-2 px-3 font-medium text-muted-foreground hidden sm:table-cell">
+                        Observações
+                      </th>
+                      <th className="text-right py-2 px-3 font-medium text-muted-foreground">
+                        Ações
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.map((doc) => (
+                      <tr key={doc.id} className="border-b last:border-0">
+                        <td className="py-2 px-3">
+                          {documentTypeLabels[doc.document_type] || doc.document_type}
+                        </td>
+                        <td className="py-2 px-3">
+                          {statusBadge(doc.status)}
+                        </td>
+                        <td className="py-2 px-3 text-muted-foreground hidden sm:table-cell">
+                          {doc.notes || "—"}
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {doc.status === "pending" && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => handleMarkDelivered(doc)}
+                                disabled={updatingDocId === doc.id}
+                              >
+                                {updatingDocId === doc.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Download className="h-3 w-3 mr-1" />
+                                )}
+                                Entregar
+                              </Button>
+                            )}
+                            {doc.status === "delivered" && isAdmin && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => handleMarkVerified(doc)}
+                                disabled={updatingDocId === doc.id}
+                              >
+                                {updatingDocId === doc.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                )}
+                                Verificar
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">
+                  {deliveredCount} de {totalDocs} documentos entregues
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Add new document */}
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+            <select
+              className={nativeSelectClass}
+              value={newDocType}
+              onChange={(e) => setNewDocType(e.target.value)}
+            >
+              <option value="">Selecione um documento...</option>
+              {documentTypeOptions
+                .filter(
+                  (opt) => !documents.some((d) => d.document_type === opt.value)
+                )
+                .map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddDocument}
+              disabled={!newDocType}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Adicionar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transfer Dialog */}
+      <Modal
+        open={transferDialogOpen}
+        onClose={() => {
+          setTransferDialogOpen(false);
+          setTransferToSchool("");
+          setTransferReason("");
+        }}
+        maxWidth="max-w-md"
+      >
+        <div className="px-6 pt-6 pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ArrowRightLeft className="h-5 w-5" />
+            Transferir Aluno
+          </h2>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Escola Atual</Label>
+              <Input
+                value={student.school?.name || "—"}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Escola de Destino</Label>
+              <select
+                className={nativeSelectClass}
+                value={transferToSchool}
+                onChange={(e) => setTransferToSchool(e.target.value)}
+              >
+                <option value="">Selecione a escola...</option>
+                {schools
+                  .filter((s) => s.id !== student.school_id)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Motivo (opcional)</Label>
+              <Textarea
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                placeholder="Motivo da transferência..."
+                rows={3}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setTransferDialogOpen(false);
+              setTransferToSchool("");
+              setTransferReason("");
+            }}
+            disabled={transferLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleTransfer}
+            disabled={transferLoading || !transferToSchool}
+          >
+            {transferLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Transferindo...
+              </>
+            ) : (
+              "Confirmar Transferência"
+            )}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Authorization PDF Dialog */}
+      <Modal
+        open={authDialogOpen}
+        onClose={() => setAuthDialogOpen(false)}
+        maxWidth="max-w-lg"
+      >
+        <div className="px-6 pt-6 pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5" />
+            Autorização de Saída para Passeio
+          </h2>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Aluno</Label>
+              <Input
+                value={student.full_name}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Título do Evento *</Label>
+              <Input
+                value={authForm.event_title}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, event_title: e.target.value })
+                }
+                placeholder="Ex: Passeio ao museu"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data do Evento *</Label>
+                <Input
+                  type="date"
+                  value={authForm.event_date}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, event_date: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Local</Label>
+                <Input
+                  value={authForm.event_location}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, event_location: e.target.value })
+                  }
+                  placeholder="Local do evento"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Horário de Saída</Label>
+                <Input
+                  type="time"
+                  value={authForm.departure_time}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, departure_time: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário de Retorno</Label>
+                <Input
+                  type="time"
+                  value={authForm.return_time}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, return_time: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Nome do Responsável</Label>
+              <Input
+                value={authForm.responsible_name}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, responsible_name: e.target.value })
+                }
+                placeholder="Nome do responsável pelo passeio"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={authForm.observations}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, observations: e.target.value })
+                }
+                placeholder="Observações adicionais..."
+                rows={3}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setAuthDialogOpen(false)}
+            disabled={authLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleGenerateAuthPdf}
+            disabled={authLoading}
+          >
+            {authLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Gerar PDF
+              </>
+            )}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -2128,8 +2767,8 @@ export function StudentsPage() {
   }, []);
 
   useEffect(() => {
-    if (editDialogOpen) fetchSchools();
-  }, [editDialogOpen, fetchSchools]);
+    if (editDialogOpen || view === "profile") fetchSchools();
+  }, [editDialogOpen, view, fetchSchools]);
 
   const handleDelete = async () => {
     if (!selectedStudentId) return;
@@ -2206,6 +2845,10 @@ export function StudentsPage() {
           onEdit={() => setEditDialogOpen(true)}
           onDelete={() => setDeleteDialogOpen(true)}
           loadingAttendance={loadingAttendance}
+          schools={schools}
+          onStudentUpdated={() => {
+            if (selectedStudentId) fetchStudentDetails(selectedStudentId);
+          }}
         />
 
         {/* Edit Dialog */}

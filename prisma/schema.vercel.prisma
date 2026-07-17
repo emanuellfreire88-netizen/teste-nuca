@@ -39,6 +39,8 @@ model User {
   dropout_follow_ups DropoutFollowUp[]
   notifications  Notification[]
   sync_records   SyncRecord[]
+  verified_documents StudentDocument[]
+  student_transfers StudentTransfer[]
 
   @@map("users")
 }
@@ -76,6 +78,8 @@ model School {
   events          Event[]
   user_schools    UserSchool[]
   calendar_events CalendarEvent[]
+  transfers_from  StudentTransfer[] @relation("TransferFrom")
+  transfers_to    StudentTransfer[] @relation("TransferTo")
 
   @@map("schools")
 }
@@ -110,6 +114,8 @@ model Student {
   dropout_risk_assessments DropoutRiskAssessment[]
   dropout_follow_ups DropoutFollowUp[]
   related_notifications Notification[]
+  documents      StudentDocument[]
+  transfers_from StudentTransfer[]
 
   @@map("students")
 }
@@ -329,4 +335,48 @@ model SyncRecord {
 
   @@unique([device_id, user_id])
   @@map("sync_records")
+}
+
+// ─── Student Document Checklist ───
+
+model StudentDocument {
+  id            String    @id @default(uuid())
+  student_id    String
+  document_type String    // birth_certificate, residence_proof, vaccination_card, photo_3x4, rg_copy, cpf_copy, medical_report, enrollment_form, income_proof, other
+  status        String    @default("pending") // pending, delivered, verified
+  notes         String?
+  delivered_at  DateTime?
+  verified_by   String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  student       Student   @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  verifier      User?     @relation(fields: [verified_by], references: [id])
+
+  @@unique([student_id, document_type])
+  @@index([student_id])
+  @@index([status])
+  @@map("student_documents")
+}
+
+// ─── Student Transfer Between Schools ───
+
+model StudentTransfer {
+  id              String   @id @default(uuid())
+  student_id      String
+  from_school_id  String
+  to_school_id    String
+  reason          String?
+  transferred_by  String
+  transferred_at  DateTime @default(now())
+
+  student         Student  @relation(fields: [student_id], references: [id])
+  from_school     School   @relation("TransferFrom", fields: [from_school_id], references: [id])
+  to_school       School   @relation("TransferTo", fields: [to_school_id], references: [id])
+  transferred_by_user User @relation(fields: [transferred_by], references: [id])
+
+  @@index([student_id])
+  @@index([from_school_id])
+  @@index([to_school_id])
+  @@map("student_transfers")
 }

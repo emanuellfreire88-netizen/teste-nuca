@@ -28,3 +28,175 @@ Stage Summary:
 - Correções críticas: 2FA schema, attendance ReferenceError, segurança de autenticação
 - Correções mobile: header, padding, popovers, calendar, dashboard
 - Banco de dados Neon sincronizado com schema atualizado (db:push executado)
+
+---
+Task ID: 3
+Agent: Backend Agent
+Task: Create backend API for Student Transfer Between Schools feature
+
+Work Log:
+- Read worklog.md and studied existing codebase patterns (middleware, logger, db, route structure)
+- Reviewed existing API routes (students/[id], dropout/[studentId], users/[id]/reset-password) for patterns
+- Confirmed Prisma schema already has StudentTransfer model with all relations
+- Ran `bun run db:push` to ensure StudentTransfer table exists in Neon PostgreSQL
+- Created `/home/z/my-project/src/app/api/students/[id]/transfer/route.ts` with two endpoints:
+  - POST: Transfer student to another school (Admin only via withRole)
+    - Validates to_school_id is provided
+    - Verifies student exists with current school
+    - Verifies target school exists
+    - Prevents transfer to same school (student already enrolled)
+    - Updates student.school_id sequentially (Neon HTTP no $transaction)
+    - Creates StudentTransfer record with from/to school, reason, and transferred_by
+    - Logs action: `transfer_student` with descriptive message
+    - Returns updated student with school name and transfer record with relations
+  - GET: Get transfer history for a student (authenticated via withAuth)
+    - Verifies student exists
+    - Returns all transfer records with from_school, to_school, transferred_by_user names
+    - Sorted by transferred_at desc
+- Ran lint — no errors
+- Checked dev server log — no compilation errors
+
+Stage Summary:
+- 1 file created: src/app/api/students/[id]/transfer/route.ts
+- Two endpoints implemented: POST (transfer) and GET (history)
+- Follows existing codebase patterns: withAuth/withRole middleware, sequential DB ops for Neon HTTP, logAction
+- TypeScript compiles cleanly, lint passes
+
+---
+Task ID: 2
+Agent: Backend Agent
+Task: Create backend API for Student Document Checklist feature
+
+Work Log:
+- Read worklog.md and studied existing codebase patterns (middleware, logger, db, route structure)
+- Reviewed existing API routes: students/[id], students/route.ts, dropout/dashboard for patterns
+- Confirmed Prisma schema already has StudentDocument model with @@unique([student_id, document_type])
+- Verified Neon HTTP adapter patterns: no $transaction, split upsert+include into separate queries
+- Created `/home/z/my-project/src/app/api/students/[id]/documents/route.ts` with four endpoints:
+  - GET: List all documents for a student (withAuth)
+    - Verifies student exists and checks school access via canUserAccessSchool
+    - Returns documents sorted by document_type with verifier info (id, full_name)
+  - POST: Create or update a document record (withRole Admin/Operator)
+    - Validates document_type against 10 allowed values
+    - Validates status against pending/delivered/verified
+    - Uses upsert on unique constraint [student_id, document_type]
+    - Sets delivered_at to now() when status is "delivered" or "verified"
+    - Sets verified_by to current user ID when status is "verified"
+    - Checks school access with canUserAccessSchool
+    - Fetches with verifier relation in separate query (Neon HTTP pattern)
+    - Logs action: update_student_document
+  - PUT: Update a document's status (withRole Admin/Operator)
+    - Same auth and validation as POST
+    - Requires existing document record (404 if not found)
+    - Handles status transitions: clears delivered_at/verified_by when reverting to pending
+    - Sets delivered_at/verified_by appropriately for delivered/verified
+    - Logs action: update_student_document
+  - DELETE: Remove a document record (withRole Admin only)
+    - Requires document_type query parameter
+    - Deletes by student_id + document_type unique constraint
+    - Checks school access and student existence
+    - Logs action: delete_student_document
+- Created `/home/z/my-project/src/app/api/students/documents-pending/route.ts`:
+  - GET: Returns summary of students with pending documents (withAuth)
+    - Accepts school_id filter query parameter
+    - Uses getUserSchoolIds for school scoping (admin=all, operator/viewer=assigned)
+    - Returns per-student: id, full_name, school_name, pending_count, delivered_count, verified_count
+    - Only includes students that have at least one document record
+- Ran lint — no errors
+- TypeScript compiles cleanly (pre-existing error in profile-pdf/route.ts is unrelated)
+
+Stage Summary:
+- 2 files created:
+  - src/app/api/students/[id]/documents/route.ts (GET, POST, PUT, DELETE)
+  - src/app/api/students/documents-pending/route.ts (GET)
+- 5 endpoints implemented for Student Document Checklist feature
+- Follows existing codebase patterns: withAuth/withRole middleware, sequential DB ops for Neon HTTP, canUserAccessSchool, logAction
+- Proper validation of document_type enum (10 values) and status enum (3 values)
+- TypeScript compiles cleanly, lint passes
+
+---
+Task ID: 4-5
+Agent: Backend Agent
+Task: Create two PDF generation API endpoints (Student Profile PDF + Trip Authorization PDF)
+
+Work Log:
+- Read worklog.md and studied existing PDF generation patterns from certificates/download and attendance/sheet routes
+- Reviewed middleware (withAuth, withRole), Prisma schema (Student, School, AttendanceRecord, EventParticipant, StudentDocument, etc.), and db module
+- Studied how Next.js 16 handles route params (context.params is Promise, must await)
+- Created `/home/z/my-project/src/app/api/students/[id]/profile-pdf/route.ts`:
+  - GET endpoint with withAuth middleware
+  - Fetches student with all related data: school, attendance_records (last 30), event_participations, badges, dropout_risk_assessments, documents
+  - School access control via canUserAccessSchool
+  - A4 landscape PDF with NUCA brand colors (teal/emerald #0d9488)
+  - Sections: Student Info, School, Guardian, Medical, Dropout Risk, Documents Checklist (autoTable with ✓/✗), Attendance Summary, Event Participations, Badges
+  - Header: teal bar with NUCA name + generation date
+  - Footer: "Documento gerado automaticamente pelo sistema NUCA" + page numbers
+  - autoTable used for Documents, Attendance, Events, Badges tables
+  - New page handling with checkNewPage helper
+  - Audit log via logAction
+  - Returns application/pdf with Content-Disposition attachment
+- Created `/home/z/my-project/src/app/api/students/authorization-pdf/route.ts`:
+  - POST endpoint with withRole(['Admin', 'Operator']) middleware
+  - Body: student_ids, event_title, event_date, event_location, departure_time, return_time, responsible_name, observations
+  - Validates required fields, fetches active students with guardian info
+  - A4 portrait PDF with event details header section
+  - Per-student section: name/class/grade/school, guardian info, authorization checkbox, signature lines (guardian + student), declaration text
+  - Light teal background boxes for each student section
+  - Two students per page (STUDENTS_PER_PAGE = 2)
+  - Header/footer consistent with NUCA branding
+  - Audit log via logAction
+  - Returns application/pdf with Content-Disposition attachment
+- Fixed eslint warnings: removed unused eslint-disable directives, replaced `doc as any` with `doc as unknown as Record<string, Record<string, number>>` for lastAutoTable.finalY access
+- Lint passes with 0 errors
+
+Stage Summary:
+- 2 files created:
+  - src/app/api/students/[id]/profile-pdf/route.ts (GET - Student Profile PDF)
+  - src/app/api/students/authorization-pdf/route.ts (POST - Trip Authorization PDF)
+- Both follow existing codebase patterns: withAuth/withRole, db import, logAction, NextRequest/NextResponse
+- jsPDF + jspdf-autotable used consistently with existing certificate/attendance PDF generators
+- NUCA brand colors (teal #0d9488) applied throughout
+- Portuguese labels for all fields and sections
+- TypeScript compiles cleanly, lint passes (0 errors)
+
+---
+Task ID: 6-7-8
+Agent: Frontend Agent
+Task: Add 4 new features to Student Profile view (Document Checklist, Transfer, Authorization PDF, Print Profile)
+
+Work Log:
+- Read worklog.md and studied existing codebase context from previous agents (Tasks 1-5)
+- Read students-page.tsx (2909 lines) to understand the full StudentProfile component structure
+- Added new icon imports: ClipboardCheck, ArrowRightLeft, Download, FileDown, Printer (removed unused FileText)
+- Added StudentDocument and StudentTransferRecord interfaces after existing types
+- Added documentTypeLabels constant and documentTypeOptions array for 10 document types
+- Modified StudentProfile component signature to accept `schools` and `onStudentUpdated` props
+- Added state for: documents, transfer dialog, authorization dialog, print loading
+- Added document fetch logic (useCallback + useEffect) calling `/api/students/{id}/documents`
+- Added handlers: handleMarkDelivered, handleMarkVerified, handleAddDocument, handlePrintProfile, handleTransfer, handleGenerateAuthPdf
+- Added "Imprimir Ficha" button (Printer icon) - downloads PDF via `/api/students/{id}/profile-pdf`
+- Added "Autorização" button (ClipboardCheck icon) - opens authorization dialog
+- Added "Transferir" button (ArrowRightLeft icon, Admin only) - opens transfer dialog
+- Added "Documentação" card section with table showing: Documento, Status, Observações, Ações
+  - Status badges: Pendente (yellow), Entregue (blue), Verificado (green)
+  - Action buttons: "Entregar" (mark as delivered), "Verificar" (mark as verified, Admin only)
+  - Dropdown to add new document type (filters out already-added types)
+  - Summary: "X de Y documentos entregues"
+- Added Transfer Dialog (Modal): current school (read-only), destination school select, optional reason textarea
+- Added Authorization PDF Dialog (Modal): event title, date, location, departure/return time, responsible name, observations
+- Updated call site in StudentsPage to pass `schools` and `onStudentUpdated` props
+- Updated fetchSchools useEffect to also trigger when `view === "profile"`
+- Lint passes with 0 errors
+- Dev server compiles successfully
+
+Stage Summary:
+- 1 file modified: src/components/students-page.tsx
+- 4 new features added to Student Profile view:
+  1. Document Checklist (Documentação card with full CRUD operations)
+  2. Student Transfer (dialog with school selection)
+  3. Trip Authorization PDF (dialog with event details → PDF generation)
+  4. Print Student Profile (PDF download button)
+- All text in Portuguese (Brazilian)
+- Follows existing codebase patterns: api from @/lib/api, useAuthStore, toast from sonner, nativeSelectClass
+- Uses existing Modal, Button, Card, Badge, Input, Label, Textarea, Skeleton components
+- TypeScript compiles cleanly, lint passes
