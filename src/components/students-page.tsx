@@ -846,6 +846,60 @@ function StudentProfile({
     observations: "",
   });
   const [authLoading, setAuthLoading] = useState(false);
+  const [authEvents, setAuthEvents] = useState<Array<{
+    id: string;
+    source: string;
+    title: string;
+    date: string;
+    location: string | null;
+    departure_time: string | null;
+    return_time: string | null;
+    responsible_name: string | null;
+    observations: string | null;
+    school_name: string | null;
+    type: string;
+    category?: string;
+    status?: string;
+  }>>([]);
+  const [authSelectedEventId, setAuthSelectedEventId] = useState("");
+  const [authTemplates, setAuthTemplates] = useState<Array<{
+    id: string;
+    name: string;
+    display_name: string;
+  }>>([]);
+  const [authSelectedTemplateId, setAuthSelectedTemplateId] = useState("");
+  const [authEventsLoading, setAuthEventsLoading] = useState(false);
+
+  // Fetch events and templates when dialog opens
+  useEffect(() => {
+    if (authDialogOpen) {
+      // Fetch available events
+      setAuthEventsLoading(true);
+      fetch("/api/students/authorization-events?upcoming=true", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setAuthEvents(data.events || []);
+        })
+        .catch(() => {
+          toast.error("Erro ao carregar eventos");
+        })
+        .finally(() => setAuthEventsLoading(false));
+
+      // Fetch document templates
+      fetch("/api/document-templates?is_active=true", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setAuthTemplates(data.templates || []);
+        })
+        .catch(() => {
+          // Templates are optional, don't show error
+        });
+    }
+  }, [authDialogOpen, token]);
 
   // Print loading
   const [printLoading, setPrintLoading] = useState(false);
@@ -967,6 +1021,30 @@ function StudentProfile({
     }
   };
 
+  // Auth event selection handler
+  const handleAuthEventSelect = (eventId: string) => {
+    setAuthSelectedEventId(eventId);
+    if (!eventId) return;
+
+    const selectedEvent = authEvents.find((e) => e.id === eventId);
+    if (selectedEvent) {
+      // Format date as YYYY-MM-DD for the input
+      const eventDate = new Date(selectedEvent.date);
+      const dateStr = eventDate.toISOString().split("T")[0];
+
+      setAuthForm({
+        ...authForm,
+        event_title: selectedEvent.title,
+        event_date: dateStr,
+        event_location: selectedEvent.location || "",
+        departure_time: selectedEvent.departure_time || "",
+        return_time: selectedEvent.return_time || "",
+        responsible_name: selectedEvent.responsible_name || "",
+        observations: selectedEvent.observations || "",
+      });
+    }
+  };
+
   // Authorization PDF handler
   const handleGenerateAuthPdf = async () => {
     if (!authForm.event_title || !authForm.event_date) {
@@ -975,22 +1053,39 @@ function StudentProfile({
     }
     try {
       setAuthLoading(true);
+
+      const body: Record<string, unknown> = {
+        student_ids: [student.id],
+        event_title: authForm.event_title,
+        event_date: authForm.event_date,
+        event_location: authForm.event_location || undefined,
+        departure_time: authForm.departure_time || undefined,
+        return_time: authForm.return_time || undefined,
+        responsible_name: authForm.responsible_name || undefined,
+        observations: authForm.observations || undefined,
+      };
+
+      // Add template if selected
+      if (authSelectedTemplateId) {
+        body.template_id = authSelectedTemplateId;
+      }
+
+      // Add calendar event reference if selected
+      if (authSelectedEventId) {
+        const selectedEvent = authEvents.find((e) => e.id === authSelectedEventId);
+        if (selectedEvent) {
+          body.calendar_event_id = authSelectedEventId;
+          body.calendar_event_source = selectedEvent.source;
+        }
+      }
+
       const response = await fetch("/api/students/authorization-pdf", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          student_ids: [student.id],
-          event_title: authForm.event_title,
-          event_date: authForm.event_date,
-          event_location: authForm.event_location || undefined,
-          departure_time: authForm.departure_time || undefined,
-          return_time: authForm.return_time || undefined,
-          responsible_name: authForm.responsible_name || undefined,
-          observations: authForm.observations || undefined,
-        }),
+        body: JSON.stringify(body),
       });
       if (!response.ok) throw new Error();
       const blob = await response.blob();
@@ -1540,7 +1635,11 @@ function StudentProfile({
       {/* Authorization PDF Dialog */}
       <Modal
         open={authDialogOpen}
-        onClose={() => setAuthDialogOpen(false)}
+        onClose={() => {
+          setAuthDialogOpen(false);
+          setAuthSelectedEventId("");
+          setAuthSelectedTemplateId("");
+        }}
         maxWidth="max-w-lg"
       >
         <div className="px-6 pt-6 pb-2">
@@ -1549,6 +1648,7 @@ function StudentProfile({
             Autorização de Saída para Passeio
           </h2>
           <div className="mt-4 space-y-4">
+            {/* Student info */}
             <div className="space-y-2">
               <Label>Aluno</Label>
               <Input
@@ -1557,6 +1657,64 @@ function StudentProfile({
                 className="bg-muted"
               />
             </div>
+
+            {/* Event selector */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Selecionar Evento Existente
+              </Label>
+              <select
+                value={authSelectedEventId}
+                onChange={(e) => handleAuthEventSelect(e.target.value)}
+                disabled={authEventsLoading}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">
+                  {authEventsLoading ? "Carregando eventos..." : "— Digitar manualmente —"}
+                </option>
+                {authEvents.map((ev) => (
+                  <option key={`${ev.source}-${ev.id}`} value={ev.id}>
+                    {ev.title} — {new Date(ev.date).toLocaleDateString("pt-BR")}
+                    {ev.location ? ` — ${ev.location}` : ""}
+                    {ev.school_name ? ` (${ev.school_name})` : ""}
+                  </option>
+                ))}
+              </select>
+              {authEvents.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {authEvents.length} evento(s) encontrado(s). Selecione para preencher automaticamente.
+                </p>
+              )}
+            </div>
+
+            {/* Template selector */}
+            {authTemplates.length > 0 && (
+              <div className="space-y-2">
+                <Label>Modelo de Documento</Label>
+                <select
+                  value={authSelectedTemplateId}
+                  onChange={(e) => setAuthSelectedTemplateId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">Modelo padrão</option>
+                  {authTemplates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="border-t pt-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                Dados da Atividade
+              </p>
+            </div>
+
+            {/* Event details form */}
             <div className="space-y-2">
               <Label>Título do Evento *</Label>
               <Input
@@ -1638,7 +1796,11 @@ function StudentProfile({
           <Button
             type="button"
             variant="outline"
-            onClick={() => setAuthDialogOpen(false)}
+            onClick={() => {
+              setAuthDialogOpen(false);
+              setAuthSelectedEventId("");
+              setAuthSelectedTemplateId("");
+            }}
             disabled={authLoading}
           >
             Cancelar

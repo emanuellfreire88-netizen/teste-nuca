@@ -41,6 +41,7 @@ model User {
   sync_records   SyncRecord[]
   verified_documents StudentDocument[]
   student_transfers StudentTransfer[]
+  document_templates DocumentTemplate[]
 
   @@map("users")
 }
@@ -244,17 +245,22 @@ model SupportMessage {
 }
 
 model CalendarEvent {
-  id          String    @id @default(uuid())
-  title       String
-  description String?
-  date        DateTime
-  end_date    DateTime?
-  type        String    @default("event")  // event, reminder, holiday, meeting, announcement
-  color       String?
-  school_id   String?
-  created_by  String
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  title            String
+  description      String?
+  date             DateTime
+  end_date         DateTime?
+  type             String    @default("event")  // event, reminder, holiday, meeting, announcement
+  color            String?
+  location         String?   // destination for trips/activities
+  departure_time   String?   // expected departure time (HH:mm)
+  return_time      String?   // expected return time (HH:mm)
+  responsible_name String?   // person responsible for the trip
+  observations     String?   // additional notes
+  school_id        String?
+  created_by       String
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
   school      School?   @relation(fields: [school_id], references: [id])
   creator     User      @relation(fields: [created_by], references: [id])
@@ -379,4 +385,25 @@ model StudentTransfer {
   @@index([from_school_id])
   @@index([to_school_id])
   @@map("student_transfers")
+}
+
+// ─── Document Template Model ───
+
+model DocumentTemplate {
+  id           String   @id @default(uuid())
+  name         String   @unique  // e.g., "authorization_exit", "enrollment_declaration"
+  display_name String   // user-friendly name, e.g., "Autorização de Saída"
+  description  String?  // optional description of this template
+  header_text  String?  // custom header text (replaces default)
+  body_text    String?  // custom body/intro text before student sections
+  footer_text  String?  // custom footer text
+  declaration  String?  // declaration text for each student section
+  is_active    Boolean  @default(true)
+  created_by   String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  creator      User?    @relation(fields: [created_by], references: [id])
+
+  @@map("document_templates")
 }

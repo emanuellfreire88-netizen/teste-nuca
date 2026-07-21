@@ -61,6 +61,8 @@ import {
   Filter,
   Clock,
   MapPin,
+  User,
+  FileText,
   X,
 } from "lucide-react";
 
@@ -75,6 +77,11 @@ interface CalendarEvent {
   type: "event" | "reminder" | "holiday" | "meeting" | "announcement";
   color?: string;
   school_id?: string;
+  location?: string;
+  departure_time?: string;
+  return_time?: string;
+  responsible_name?: string;
+  observations?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -164,6 +171,11 @@ export function CalendarPage() {
   const [formType, setFormType] = useState<CalendarEvent["type"]>("event");
   const [formSchoolId, setFormSchoolId] = useState<string>("");
   const [formColor, setFormColor] = useState<string>("");
+  const [formLocation, setFormLocation] = useState("");
+  const [formDepartureTime, setFormDepartureTime] = useState("");
+  const [formReturnTime, setFormReturnTime] = useState("");
+  const [formResponsibleName, setFormResponsibleName] = useState("");
+  const [formObservations, setFormObservations] = useState("");
   const [formSaving, setFormSaving] = useState(false);
 
   // Date picker open states
@@ -247,6 +259,11 @@ export function CalendarPage() {
     setFormType("event");
     setFormSchoolId("");
     setFormColor("");
+    setFormLocation("");
+    setFormDepartureTime("");
+    setFormReturnTime("");
+    setFormResponsibleName("");
+    setFormObservations("");
     setEventDialogOpen(true);
   };
 
@@ -260,6 +277,11 @@ export function CalendarPage() {
     setFormType(event.type);
     setFormSchoolId(event.school_id || "");
     setFormColor(event.color || "");
+    setFormLocation(event.location || "");
+    setFormDepartureTime(event.departure_time || "");
+    setFormReturnTime(event.return_time || "");
+    setFormResponsibleName(event.responsible_name || "");
+    setFormObservations(event.observations || "");
     setEventDialogOpen(true);
   };
 
@@ -284,6 +306,11 @@ export function CalendarPage() {
         type: formType,
         school_id: formSchoolId && formSchoolId !== 'none' ? formSchoolId : undefined,
         color: formColor || undefined,
+        location: (formType === "event" || formType === "meeting") ? (formLocation.trim() || undefined) : undefined,
+        departure_time: (formType === "event" || formType === "meeting") ? (formDepartureTime.trim() || undefined) : undefined,
+        return_time: (formType === "event" || formType === "meeting") ? (formReturnTime.trim() || undefined) : undefined,
+        responsible_name: (formType === "event" || formType === "meeting") ? (formResponsibleName.trim() || undefined) : undefined,
+        observations: (formType === "event" || formType === "meeting") ? (formObservations.trim() || undefined) : undefined,
       };
 
       if (editingEvent) {
@@ -803,6 +830,34 @@ export function CalendarPage() {
                               <span>{event.school.name}</span>
                             </div>
                           )}
+                          {event.location && (
+                            <div className="flex items-center gap-1.5">
+                              <MapPin className="h-3 w-3" />
+                              <span>{event.location}</span>
+                            </div>
+                          )}
+                          {(event.departure_time || event.return_time) && (
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="h-3 w-3" />
+                              <span>
+                                {event.departure_time && `Saída: ${event.departure_time}`}
+                                {event.departure_time && event.return_time && " — "}
+                                {event.return_time && `Retorno: ${event.return_time}`}
+                              </span>
+                            </div>
+                          )}
+                          {event.responsible_name && (
+                            <div className="flex items-center gap-1.5">
+                              <User className="h-3 w-3" />
+                              <span>Responsável: {event.responsible_name}</span>
+                            </div>
+                          )}
+                          {event.observations && (
+                            <div className="flex items-start gap-1.5">
+                              <FileText className="h-3 w-3 mt-0.5 shrink-0" />
+                              <span className="whitespace-pre-wrap">{event.observations}</span>
+                            </div>
+                          )}
                           {event.creator && (
                             <div className="flex items-center gap-1.5">
                               <Clock className="h-3 w-3" />
@@ -991,6 +1046,69 @@ export function CalendarPage() {
                 </span>
               </div>
             </div>
+
+            {/* Trip/Activity Fields — only for event & meeting types */}
+            {(formType === "event" || formType === "meeting") && (
+              <>
+                <Separator />
+
+                {/* Location */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="event-location">Local / Destino</Label>
+                  <Input
+                    id="event-location"
+                    placeholder="Destino da atividade ou passeio"
+                    value={formLocation}
+                    onChange={(e) => setFormLocation(e.target.value)}
+                  />
+                </div>
+
+                {/* Departure + Return Time */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="event-departure-time">Horário de Saída</Label>
+                    <Input
+                      id="event-departure-time"
+                      type="time"
+                      value={formDepartureTime}
+                      onChange={(e) => setFormDepartureTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="event-return-time">Horário de Retorno</Label>
+                    <Input
+                      id="event-return-time"
+                      type="time"
+                      value={formReturnTime}
+                      onChange={(e) => setFormReturnTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Responsible */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="event-responsible">Responsável</Label>
+                  <Input
+                    id="event-responsible"
+                    placeholder="Nome do responsável pelo passeio"
+                    value={formResponsibleName}
+                    onChange={(e) => setFormResponsibleName(e.target.value)}
+                  />
+                </div>
+
+                {/* Observations */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="event-observations">Observações</Label>
+                  <Textarea
+                    id="event-observations"
+                    placeholder="Notas adicionais (opcional)"
+                    value={formObservations}
+                    onChange={(e) => setFormObservations(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter className="gap-2">

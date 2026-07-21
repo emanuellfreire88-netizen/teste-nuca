@@ -133,6 +133,11 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       created_at: ce.created_at,
       updated_at: ce.updated_at,
       source: 'calendar',
+      location: ce.location,
+      departure_time: ce.departure_time,
+      return_time: ce.return_time,
+      responsible_name: ce.responsible_name,
+      observations: ce.observations,
     }));
 
     // Map existing Event records as unified calendar entries
@@ -173,7 +178,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
-    const { title, description, date, end_date, type, color, school_id } = body;
+    const { title, description, date, end_date, type, color, school_id, location, departure_time, return_time, responsible_name, observations } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -234,6 +239,11 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         color: color || null,
         school_id: school_id || null,
         created_by: req.user!.userId,
+        location: location || null,
+        departure_time: departure_time || null,
+        return_time: return_time || null,
+        responsible_name: responsible_name || null,
+        observations: observations || null,
       },
     });
 
@@ -267,7 +277,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 export const PUT = withAuth(async (req: AuthenticatedRequest) => {
   try {
     const body = await req.json();
-    const { id, title, description, date, end_date, type, color, school_id } = body;
+    const { id, title, description, date, end_date, type, color, school_id, location, departure_time, return_time, responsible_name, observations } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -332,6 +342,11 @@ export const PUT = withAuth(async (req: AuthenticatedRequest) => {
     if (type !== undefined) updateData.type = type;
     if (color !== undefined) updateData.color = color || null;
     if (school_id !== undefined) updateData.school_id = school_id || null;
+    if (location !== undefined) updateData.location = location || null;
+    if (departure_time !== undefined) updateData.departure_time = departure_time || null;
+    if (return_time !== undefined) updateData.return_time = return_time || null;
+    if (responsible_name !== undefined) updateData.responsible_name = responsible_name || null;
+    if (observations !== undefined) updateData.observations = observations || null;
 
     await db.calendarEvent.update({
       where: { id },

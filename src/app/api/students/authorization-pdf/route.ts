@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { seedDefaultTemplates } from '@/lib/seed-templates';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -24,14 +25,17 @@ const WHITE: [number, number, number] = [255, 255, 255];
  * for one or more students. Requires Admin or Operator role.
  *
  * Body:
- *   student_ids: string[]     — array of student IDs
- *   event_title: string       — name of the trip/event
- *   event_date: string        — date of the trip (YYYY-MM-DD or ISO)
- *   event_location: string    — destination
- *   departure_time?: string   — departure time
- *   return_time?: string      — expected return time
- *   responsible_name?: string — teacher/responsible for the trip
- *   observations?: string     — additional notes
+ *   student_ids: string[]           — array of student IDs
+ *   event_title: string             — name of the trip/event
+ *   event_date: string              — date of the trip (YYYY-MM-DD or ISO)
+ *   event_location: string          — destination
+ *   departure_time?: string         — departure time
+ *   return_time?: string            — expected return time
+ *   responsible_name?: string       — teacher/responsible for the trip
+ *   observations?: string           — additional notes
+ *   template_id?: string            — optional PDF template ID
+ *   calendar_event_id?: string      — optional event ID to auto-fill event fields
+ *   calendar_event_source?: string  — "calendar" or "events" — which model to look up
  */
 export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
   try {
@@ -45,6 +49,9 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       return_time,
       responsible_name,
       observations,
+      template_id,
+      calendar_event_id,
+      calendar_event_source,
     } = body as {
       student_ids: string[];
       event_title: string;
@@ -54,6 +61,9 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       return_time?: string;
       responsible_name?: string;
       observations?: string;
+      template_id?: string;
+      calendar_event_id?: string;
+      calendar_event_source?: string;
     };
 
     // ── Validation ──
@@ -68,6 +78,123 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         { error: 'Título, data e local do evento são obrigatórios' },
         { status: 400 }
       );
+    }
+
+    // ── Resolve event fields from calendar event if provided ──
+    let resolvedEventTitle = event_title;
+    let resolvedEventDate = event_date;
+    let resolvedEventLocation = event_location;
+    let resolvedDepartureTime = departure_time;
+    let resolvedReturnTime = return_time;
+    let resolvedResponsibleName = responsible_name;
+    let resolvedObservations = observations;
+
+    if (calendar_event_id && calendar_event_source) {
+      try {
+        if (calendar_event_source === 'calendar') {
+          const calEvent = await db.calendarEvent.findUnique({
+            where: { id: calendar_event_id },
+            select: {
+              title: true,
+              date: true,
+              location: true,
+              departure_time: true,
+              return_time: true,
+              responsible_name: true,
+              observations: true,
+            },
+          });
+          if (calEvent) {
+            // Only use calendar event data if the body doesn't already have explicit values
+            resolvedEventTitle = event_title || calEvent.title;
+            resolvedEventDate = event_date || (calEvent.date ? calEvent.date.toISOString().slice(0, 10) : event_date);
+            resolvedEventLocation = event_location || calEvent.location || event_location;
+            resolvedDepartureTime = departure_time ?? calEvent.departure_time ?? departure_time;
+            resolvedReturnTime = return_time ?? calEvent.return_time ?? return_time;
+            resolvedResponsibleName = responsible_name ?? calEvent.responsible_name ?? responsible_name;
+            resolvedObservations = observations ?? calEvent.observations ?? observations;
+          }
+        } else if (calendar_event_source === 'events') {
+          const ev = await db.event.findUnique({
+            where: { id: calendar_event_id },
+            select: {
+              title: true,
+              date: true,
+              location: true,
+            },
+          });
+          if (ev) {
+            resolvedEventTitle = event_title || ev.title;
+            resolvedEventDate = event_date || (ev.date ? ev.date.toISOString().slice(0, 10) : event_date);
+            resolvedEventLocation = event_location || ev.location || event_location;
+          }
+        }
+      } catch (lookupErr) {
+        console.error('Calendar event lookup error:', lookupErr);
+        // Continue with whatever event data was provided in the body
+      }
+    }
+
+    // ── Resolve template ──
+    let headerText = 'NUCA - Autorização de Saída para Passeio/Atividade';
+    let subtitleText = 'Núcleo de Cidadania de Adolescentes';
+    let footerText = 'Documento gerado automaticamente pelo sistema NUCA';
+    let declarationText = 'Declaro estar ciente das informações acima e autorizo a participação do(a) aluno(a) na atividade descrita.';
+
+    try {
+      let template: {
+        header_text: string | null;
+        body_text: string | null;
+        footer_text: string | null;
+        declaration: string | null;
+      } | null = null;
+
+      if (template_id) {
+        template = await db.documentTemplate.findUnique({
+          where: { id: template_id },
+          select: {
+            header_text: true,
+            body_text: true,
+            footer_text: true,
+            declaration: true,
+          },
+        });
+      } else {
+        // Try to find the default authorization_exit template
+        template = await db.documentTemplate.findFirst({
+          where: { name: 'authorization_exit' },
+          select: {
+            header_text: true,
+            body_text: true,
+            footer_text: true,
+            declaration: true,
+          },
+        });
+
+        // If no default template exists, seed and try again
+        if (!template) {
+          await seedDefaultTemplates();
+          template = await db.documentTemplate.findFirst({
+            where: { name: 'authorization_exit' },
+            select: {
+              header_text: true,
+              body_text: true,
+              footer_text: true,
+              declaration: true,
+            },
+          });
+        }
+      }
+
+      if (template) {
+        headerText = template.header_text || headerText;
+        subtitleText = template.body_text || subtitleText;
+        footerText = template.footer_text || footerText;
+        declarationText = template.declaration || declarationText;
+      }
+    } catch (templateErr) {
+      console.error('Template lookup error:', templateErr);
+      // Continue with hardcoded defaults
     }
 
     // ── Fetch students ──
@@ -98,7 +225,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     }
 
     // ── Format event date ──
-    const eventDateObj = new Date(event_date + 'T00:00:00');
+    const eventDateObj = new Date(resolvedEventDate + 'T00:00:00');
     const eventDateDisplay = eventDateObj.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'long',
@@ -122,12 +249,12 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
       doc.setTextColor(...WHITE);
-      doc.text('NUCA - Autorização de Saída para Passeio/Atividade', margin, 10);
+      doc.text(headerText, margin, 10);
 
       // Subtitle
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text('Núcleo de Cidadania de Adolescentes', margin, 16);
+      doc.text(subtitleText, margin, 16);
 
       // System identifier on the right
       doc.setFontSize(7);
@@ -145,11 +272,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(...MID_GRAY);
-      doc.text(
-        'Documento gerado automaticamente pelo sistema NUCA',
-        margin,
-        footerY
-      );
+      doc.text(footerText, margin, footerY);
       doc.text(
         `Página ${pageNum} de ${totalPages}`,
         pageWidth - margin,
@@ -243,33 +366,33 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     // ── Event Details Section (only on page 1) ──
     y = drawSectionTitle('Dados da Atividade', y);
 
-    drawField('Título:', event_title, margin, y, 16, 140);
+    drawField('Título:', resolvedEventTitle, margin, y, 16, 140);
     y += 7;
     drawField('Data:', eventDateDisplay, margin, y, 16, 140);
-    drawField('Local:', event_location, margin + 95, y, 14, 80);
+    drawField('Local:', resolvedEventLocation, margin + 95, y, 14, 80);
     y += 7;
 
-    if (departure_time) {
-      drawField('Saída:', departure_time, margin, y, 14, 40);
+    if (resolvedDepartureTime) {
+      drawField('Saída:', resolvedDepartureTime, margin, y, 14, 40);
     }
-    if (return_time) {
-      drawField('Retorno:', return_time || '—', margin + 65, y, 16, 40);
+    if (resolvedReturnTime) {
+      drawField('Retorno:', resolvedReturnTime || '—', margin + 65, y, 16, 40);
     }
     y += 7;
 
-    if (responsible_name) {
-      drawField('Responsável:', responsible_name, margin, y, 26, 140);
+    if (resolvedResponsibleName) {
+      drawField('Responsável:', resolvedResponsibleName, margin, y, 26, 140);
       y += 7;
     }
 
-    if (observations) {
+    if (resolvedObservations) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(...TEAL_DARK);
       doc.text('Observações:', margin, y);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...DARK_TEXT);
-      const obsLines = doc.splitTextToSize(observations, contentWidth - 28) as string[];
+      const obsLines = doc.splitTextToSize(resolvedObservations, contentWidth - 28) as string[];
       let obsY = y + 5;
       for (const line of obsLines.slice(0, 4)) {
         doc.text(line, margin + 28, obsY);
@@ -358,8 +481,6 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(7);
       doc.setTextColor(...MID_GRAY);
-      const declarationText =
-        'Declaro estar ciente das informações acima e autorizo a participação do(a) aluno(a) na atividade descrita.';
       const declLines = doc.splitTextToSize(declarationText, contentWidth - 14) as string[];
       for (const line of declLines) {
         doc.text(line, margin + 7, y);
@@ -381,13 +502,13 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     await logAction(
       req.user!.userId,
       'export_report',
-      `Geração de autorização de passeio (PDF): evento="${event_title}", alunos=${students.length}`,
+      `Geração de autorização de passeio (PDF): evento="${resolvedEventTitle}", alunos=${students.length}`,
       req
     );
 
     // ── Return PDF ──
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-    const eventSlug = event_title
+    const eventSlug = resolvedEventTitle
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')

@@ -200,3 +200,29 @@ Stage Summary:
 - Follows existing codebase patterns: api from @/lib/api, useAuthStore, toast from sonner, nativeSelectClass
 - Uses existing Modal, Button, Card, Badge, Input, Label, Textarea, Skeleton components
 - TypeScript compiles cleanly, lint passes
+
+---
+Task ID: auth-improvement
+Agent: Main Agent
+Task: Improve Authorization Exit (Autorização de Saída) feature - add event selector, template support, and calendar event fields
+
+Work Log:
+- Updated Prisma schema (schema.prisma + schema.vercel.prisma): added 5 new fields to CalendarEvent model (location, departure_time, return_time, responsible_name, observations)
+- Created DocumentTemplate model in Prisma schema for storing customizable document templates
+- Pushed schema changes to SQLite database (temporarily switched to SQLite provider for db:push)
+- Created `/src/lib/seed-templates.ts` - idempotent seed function for default authorization template
+- Created `/src/app/api/document-templates/route.ts` - Full CRUD API for document templates (GET/POST/PUT/DELETE)
+- Updated `/src/app/api/calendar/route.ts` - Added 5 new fields to POST, PUT, and GET handlers
+- Created `/src/app/api/students/authorization-events/route.ts` - GET endpoint that lists events from both CalendarEvent and Event models for the authorization dialog selector
+- Updated `/src/app/api/students/authorization-pdf/route.ts` - Added template_id and calendar_event_id support, uses DocumentTemplate from DB for header/footer/declaration text, auto-fills from calendar events
+- Fixed bug: template lookup used `type` field instead of `name` field (name has unique constraint)
+- Fixed bug: POST document-templates with seed_default:true but no name returned 400 error - now returns 200 with seeded template
+- Updated `/src/components/students-page.tsx` - Added event selector dropdown, template selector dropdown, auto-fill from selected event, new state variables and useEffect for fetching events/templates
+- Updated `/src/components/calendar-page.tsx` - Added 5 new form fields (location, departure_time, return_time, responsible_name, observations) to create/edit event dialogs and event detail view, conditional rendering for event/meeting types
+
+Stage Summary:
+- Authorization dialog now has an event selector that auto-fills form from existing calendar events
+- Template selector allows choosing document templates stored in the system
+- Calendar events can now store trip-specific details (location, departure/return times, responsible person)
+- All API endpoints verified working (document-templates, authorization-events, authorization-pdf)
+- Lint passes with 0 errors, dev server running successfully

@@ -1,10 +1,13 @@
-$ next dev -p 3000 -H 0.0.0.0
 ▲ Next.js 16.1.3 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://0.0.0.0:3000
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 736ms
-○ Compiling / ...
- GET / 200 in 14.2s (compile: 13.9s, render: 268ms)
+✓ Ready in 770ms
+ POST /api/auth/login 200 in 1825ms (compile: 328ms, render: 1497ms)
+ GET /api/document-templates 200 in 658ms (compile: 207ms, render: 451ms)
+ POST /api/document-templates 400 in 226ms (compile: 2ms, render: 224ms)
+ GET /api/document-templates 200 in 225ms (compile: 1981µs, render: 223ms)
+ GET /api/students/authorization-events?upcoming=true 200 in 790ms (compile: 118ms, render: 672ms)
+ POST /api/document-templates 201 in 1106ms (compile: 1996µs, render: 1104ms)
