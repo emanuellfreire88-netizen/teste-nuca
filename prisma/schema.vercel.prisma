@@ -256,6 +256,8 @@ model CalendarEvent {
   departure_time   String?   // expected departure time (HH:mm)
   return_time      String?   // expected return time (HH:mm)
   responsible_name String?   // person responsible for the trip
+  departure_point  String?   // departure location (e.g., "Escola Municipal X")
+  transport        String?   // transport method (e.g., "Onibus", "Van")
   observations     String?   // additional notes
   school_id        String?
   created_by       String
