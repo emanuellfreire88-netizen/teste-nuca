@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -17,7 +18,6 @@ const BLUE_TEXT  = rgb(0 / 255, 85 / 255, 150 / 255);    // #005596
 const LIGHT_GRAY = rgb(108 / 255, 117 / 255, 125 / 255); // #6C757D
 const ORANGE     = rgb(247 / 255, 148 / 255, 29 / 255);  // #F7941D
 const BORDER     = rgb(160 / 255, 170 / 255, 180 / 255); // #A0AAB4
-const SECTION_BG = rgb(232 / 255, 244 / 255, 252 / 255); // #E8F4FC
 const WHITE      = rgb(1, 1, 1);
 
 /**
@@ -199,19 +199,24 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     const templateDoc = await PDFDocument.load(templateBytes);
 
     const pdfDoc = await PDFDocument.create();
-    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+    pdfDoc.registerFontkit(fontkit);
 
-    // ── Helper: Sanitize text for pdf-lib (remove non-latin1 chars) ──
-    const sanitize = (text: string): string => {
-      return text
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^\x00-\xFF]/g, '?');
-    };
+    // ── Embed LiberationSans fonts (full Unicode support for Portuguese) ──
+    const fontsDir = join(process.cwd(), 'public', 'fonts');
+    const fontRegular = await pdfDoc.embedFont(
+      readFileSync(join(fontsDir, 'LiberationSans-Regular.ttf'))
+    );
+    const fontBold = await pdfDoc.embedFont(
+      readFileSync(join(fontsDir, 'LiberationSans-Bold.ttf'))
+    );
+    const fontItalic = await pdfDoc.embedFont(
+      readFileSync(join(fontsDir, 'LiberationSans-Italic.ttf'))
+    );
+    const fontBoldItalic = await pdfDoc.embedFont(
+      readFileSync(join(fontsDir, 'LiberationSans-BoldItalic.ttf'))
+    );
 
-    // ── Helper: Draw text ──
+    // ── Helper: Draw text (no sanitize needed — LiberationSans supports Portuguese) ──
     const drawText = (
       page: any,
       text: string,
@@ -230,17 +235,16 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       const c = options.color || DARK_TEXT;
 
       let drawX = x;
-      const sanitized = sanitize(text);
 
       if (options.align === 'center' && options.maxWidth) {
-        const textWidth = f.widthOfTextAtSize(sanitized, s);
+        const textWidth = f.widthOfTextAtSize(text, s);
         drawX = x + (options.maxWidth - textWidth) / 2;
       } else if (options.align === 'right' && options.maxWidth) {
-        const textWidth = f.widthOfTextAtSize(sanitized, s);
+        const textWidth = f.widthOfTextAtSize(text, s);
         drawX = x + options.maxWidth - textWidth;
       }
 
-      page.drawText(sanitized, { x: drawX, y, size: s, font: f, color: c });
+      page.drawText(text, { x: drawX, y, size: s, font: f, color: c });
     };
 
     // ── Helper: Draw a labeled field with value and underline ──
@@ -261,12 +265,12 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 
       const valueX = x + labelWidth + 4;
       const valueMaxW = fieldWidth - labelWidth - 8;
-      let val = sanitize(value);
+      let val = value;
 
       while (val.length > 0 && fontRegular.widthOfTextAtSize(val, 9) > valueMaxW) {
         val = val.slice(0, -1);
       }
-      if (val !== sanitize(value)) val += '...';
+      if (val !== value) val += '...';
 
       drawText(page, val, valueX, y, {
         font: fontRegular,
@@ -301,7 +305,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       const valueX = x + labelWidth + 4;
 
       if (value) {
-        drawText(page, sanitize(value), valueX, y, {
+        drawText(page, value, valueX, y, {
           font: fontRegular,
           size: 9,
           color: DARK_TEXT,
@@ -368,8 +372,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       const c = options.color || DARK_TEXT;
       const lh = options.lineHeight || 14;
 
-      const sanitized = sanitize(text);
-      const words = sanitized.split(' ');
+      const words = text.split(' ');
       let line = '';
       let currentY = y;
 
@@ -412,7 +415,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       let y = height - 90;
 
       // ── Title ──
-      drawText(page, 'TERMO DE AUTORIZACAO', MARGIN_LEFT, y, {
+      drawText(page, 'TERMO DE AUTORIZAÇÃO', MARGIN_LEFT, y, {
         font: fontBold,
         size: 18,
         color: BLUE_DARK,
@@ -422,7 +425,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 
       y -= 14;
 
-      drawText(page, 'NUCA - Nucleo de Cidadania de Adolescentes', MARGIN_LEFT, y, {
+      drawText(page, 'NUCA - Núcleo de Cidadania de Adolescentes', MARGIN_LEFT, y, {
         font: fontRegular,
         size: 9,
         color: LIGHT_GRAY,
@@ -462,10 +465,10 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       drawField(page, 'Nome da atividade:', resolvedTitle, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 105);
       y -= 22;
 
-      // Descricao (optional)
+      // Descrição (optional)
       if (showDescription) {
         if (resolvedDescription) {
-          drawText(page, 'Descricao:', MARGIN_LEFT + 8, y, {
+          drawText(page, 'Descrição:', MARGIN_LEFT + 8, y, {
             font: fontBold,
             size: 9,
             color: BLUE_TEXT,
@@ -477,7 +480,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
           });
           y -= 6;
         } else {
-          drawField(page, 'Descricao:', '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 65);
+          drawField(page, 'Descrição:', '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 65);
           y -= 22;
         }
       }
@@ -487,34 +490,31 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       drawField(page, 'Destino:', resolvedLocation, MARGIN_LEFT + 8 + halfW, y, halfW, 48);
       y -= 22;
 
-      // Horario saida + retorno (always shown)
-      drawField(page, 'Horario de saida:', resolvedDepartureTime || '-', MARGIN_LEFT + 8, y, halfW - 5, 95);
-      drawField(page, 'Horario de retorno:', resolvedReturnTime || '-', MARGIN_LEFT + 8 + halfW, y, halfW, 108);
+      // Horário saída + retorno (always shown)
+      drawField(page, 'Horário de saída:', resolvedDepartureTime || '-', MARGIN_LEFT + 8, y, halfW - 5, 95);
+      drawField(page, 'Horário de retorno:', resolvedReturnTime || '-', MARGIN_LEFT + 8 + halfW, y, halfW, 108);
       y -= 22;
 
-      // Ponto de saida + Meio de transporte (optional)
+      // Ponto de saída + Meio de transporte (optional)
       if (showDeparturePoint || showTransport) {
-        const depPointLabel = showDeparturePoint ? (resolvedDeparturePoint || '-') : null;
-        const transportLabel = showTransport ? (resolvedTransport || '-') : null;
-
         if (showDeparturePoint && showTransport) {
-          drawField(page, 'Ponto de saida:', resolvedDeparturePoint || '-', MARGIN_LEFT + 8, y, halfW - 5, 85);
+          drawField(page, 'Ponto de saída:', resolvedDeparturePoint || '-', MARGIN_LEFT + 8, y, halfW - 5, 85);
           drawField(page, 'Meio de transporte:', resolvedTransport || '-', MARGIN_LEFT + 8 + halfW, y, halfW, 108);
         } else if (showDeparturePoint) {
-          drawField(page, 'Ponto de saida:', resolvedDeparturePoint || '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 85);
+          drawField(page, 'Ponto de saída:', resolvedDeparturePoint || '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 85);
         } else if (showTransport) {
           drawField(page, 'Meio de transporte:', resolvedTransport || '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 108);
         }
         y -= 22;
       }
 
-      // Responsavel pela atividade (always shown)
-      drawField(page, 'Responsavel pela atividade:', resolvedResponsibleName || '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 140);
+      // Responsável pela atividade (always shown)
+      drawField(page, 'Responsável pela atividade:', resolvedResponsibleName || '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 140);
       y -= 22;
 
-      // Observacoes (optional)
+      // Observações (optional)
       if (showObservations && resolvedObservations) {
-        drawText(page, 'Observacoes:', MARGIN_LEFT + 8, y, {
+        drawText(page, 'Observações:', MARGIN_LEFT + 8, y, {
           font: fontBold,
           size: 9,
           color: BLUE_TEXT,
@@ -530,9 +530,9 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       y -= 10;
 
       // ════════════════════════════════════════════════════════════════════════
-      // SECTION 3: DADOS DO RESPONSAVEL LEGAL
+      // SECTION 3: DADOS DO RESPONSÁVEL LEGAL
       // ════════════════════════════════════════════════════════════════════════
-      y = drawSection(page, 'DADOS DO RESPONSAVEL LEGAL', MARGIN_LEFT, y, CONTENT_WIDTH, BLUE_DARK);
+      y = drawSection(page, 'DADOS DO RESPONSÁVEL LEGAL', MARGIN_LEFT, y, CONTENT_WIDTH, BLUE_DARK);
 
       drawBlankField(page, 'Nome:', student.guardian_name, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 42);
       y -= 22;
@@ -545,17 +545,17 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       y -= 32;
 
       // ════════════════════════════════════════════════════════════════════════
-      // SECTION 4: TERMO DE AUTORIZACAO
+      // SECTION 4: TERMO DE AUTORIZAÇÃO
       // ════════════════════════════════════════════════════════════════════════
-      y = drawSection(page, 'TERMO DE AUTORIZACAO', MARGIN_LEFT, y, CONTENT_WIDTH, ORANGE);
+      y = drawSection(page, 'TERMO DE AUTORIZAÇÃO', MARGIN_LEFT, y, CONTENT_WIDTH, ORANGE);
 
-      const termText1 = `Eu, identificado(a) acima como responsavel legal pelo(a) adolescente ${student.full_name}, autorizo sua participacao na atividade descrita neste documento, promovida pelo NUCA - Nucleo de Cidadania de Adolescentes.`;
+      const termText1 = `Eu, identificado(a) acima como responsável legal pelo(a) adolescente ${student.full_name}, autorizo sua participação na atividade descrita neste documento, promovida pelo NUCA - Núcleo de Cidadania de Adolescentes.`;
 
-      const termText2 = 'Declaro estar ciente da programacao, do local, dos horarios de saida e retorno, bem como das orientacoes repassadas pela coordenacao do NUCA.';
+      const termText2 = 'Declaro estar ciente da programação, do local, dos horários de saída e retorno, bem como das orientações repassadas pela coordenação do NUCA.';
 
-      const termText3 = 'Autorizo, ainda, que, em caso de necessidade, sejam adotadas as medidas cabiveis para atendimento medico de urgencia ou emergencia, sendo o responsavel legal comunicado o mais breve possivel.';
+      const termText3 = 'Autorizo, ainda, que, em caso de necessidade, sejam adotadas as medidas cabíveis para atendimento médico de urgência ou emergência, sendo o responsável legal comunicado o mais breve possível.';
 
-      const termText4 = 'Declaro que as informacoes prestadas neste documento sao verdadeiras e assumo inteira responsabilidade por esta autorizacao.';
+      const termText4 = 'Declaro que as informações prestadas neste documento são verdadeiras e assumo inteira responsabilidade por esta autorização.';
 
       const termX = MARGIN_LEFT + 8;
       const termMaxW = CONTENT_WIDTH - 16;
@@ -573,8 +573,8 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       // SECTION 5: SIGNATURE AREA
       // ════════════════════════════════════════════════════════════════════════
 
-      // Municipio (pre-filled) + Data (auto-filled with event date)
-      drawBlankField(page, 'Municipio:', resolvedMunicipality || null, MARGIN_LEFT + 8, y, halfW - 10, 60);
+      // Município (pre-filled) + Data (auto-filled with event date)
+      drawBlankField(page, 'Município:', resolvedMunicipality || null, MARGIN_LEFT + 8, y, halfW - 10, 60);
       drawBlankField(page, 'Data:', signatureDateDisplay, MARGIN_LEFT + 8 + halfW, y, halfW, 35);
       y -= 35;
 
@@ -589,7 +589,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         color: DARK_TEXT,
       });
 
-      drawText(page, 'Assinatura do Responsavel Legal', MARGIN_LEFT, y - 22, {
+      drawText(page, 'Assinatura do Responsável Legal', MARGIN_LEFT, y - 22, {
         font: fontRegular,
         size: 8,
         color: LIGHT_GRAY,
@@ -597,14 +597,14 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         align: 'center',
       });
 
-      // ── Page number (bottom-right, small) ──
+      // ── Page number (bottom-center, visible position above template footer) ──
       const idx = students.indexOf(student);
-      drawText(page, `Pagina ${idx + 1} de ${students.length}`, MARGIN_LEFT, 30, {
+      drawText(page, `Página ${idx + 1} de ${students.length}`, MARGIN_LEFT, 50, {
         font: fontRegular,
         size: 7,
-        color: LIGHT_GRAY,
+        color: DARK_TEXT,
         maxWidth: CONTENT_WIDTH,
-        align: 'right',
+        align: 'center',
       });
     }
 
@@ -612,7 +612,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     await logAction(
       req.user!.userId,
       'export_report',
-      `Geracao de Termo de Autorizacao (PDF): evento="${resolvedTitle}", alunos=${students.length}`,
+      `Geração de Termo de Autorização (PDF): evento="${resolvedTitle}", alunos=${students.length}`,
       req
     );
 
@@ -637,7 +637,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
   } catch (error) {
     console.error('Authorization PDF error:', error);
     return NextResponse.json(
-      { error: 'Erro ao gerar termo de autorizacao' },
+      { error: 'Erro ao gerar termo de autorização' },
       { status: 500 }
     );
   }

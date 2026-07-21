@@ -254,3 +254,25 @@ Stage Summary:
 - Wave headers/footers using sine-curve filled polygons
 - All text legible, professional layout with cards and accent bars
 - Lint passes, dev server running, API tested successfully
+---
+Task ID: 1
+Agent: main
+Task: Fix PDF authorization document - accents, page number position, footer removal
+
+Work Log:
+- Replaced StandardFonts.Helvetica with embedded LiberationSans TTF fonts (supports Portuguese accented characters)
+- Added @pdf-lib/fontkit package and registered it with PDFDocument for custom font embedding
+- Copied LiberationSans-Regular.ttf, Bold.ttf, Italic.ttf, BoldItalic.ttf to public/fonts/
+- Removed sanitize() function that was stripping accents (NFD normalization)
+- Fixed all Portuguese text to use proper accents: TERMO DE AUTORIZAÇÃO, Núcleo, Adolescente, Responsável, Horário, Saída, Descrição, Observações, Município, Página, etc.
+- Moved "Página X de Y" position from y=30 (overlapping template footer) to y=50 (center-aligned, DARK_TEXT color)
+- Removed footer text "Documento gerado automaticamente pelo sistema NUCA"
+- Confirmed field selection toggles already exist in frontend (description, departure_point, transport, observations)
+- Confirmed Município auto-fill and Data auto-fill already implemented
+- Fixed db.ts to use PrismaBetterSqlite3 adapter for local SQLite database
+- Lint passes, dev server runs clean, PDF generation returns HTTP 200
+
+Stage Summary:
+- All 6 requested changes implemented: accents fixed, page number repositioned, footer removed, Município/Data auto-fill, field toggles
+- LiberationSans fonts provide full Unicode/Portuguese support without accent stripping
+- PDF generation tested and working (single and multi-student)
