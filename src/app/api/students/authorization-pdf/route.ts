@@ -9,23 +9,26 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-// ── NUCA brand colors ──────────────────────────────────────────────────────
+// ── NUCA brand colors (matching the institutional template exactly) ────────
 const ORANGE: [number, number, number] = [247, 148, 29];       // #F7941D
-const CYAN: [number, number, number] = [41, 171, 226];         // #29ABE2
-const BLUE: [number, number, number] = [0, 114, 206];          // #0072CE
-const BLUE_DARK: [number, number, number] = [0, 94, 184];      // #005EB8
-const ICE_BG: [number, number, number] = [230, 240, 250];      // #E6F0FA
-const DARK_TEXT: [number, number, number] = [40, 50, 70];       // #283246
-const MID_GRAY: [number, number, number] = [120, 130, 145];    // #788291
-const LIGHT_LINE: [number, number, number] = [200, 215, 235];  // #C8D7EB
+const CYAN: [number, number, number] = [0, 188, 228];          // #00BCE4
+const BLUE_ROYAL: [number, number, number] = [0, 114, 188];    // #0072BC
+const BLUE_DARK: [number, number, number] = [0, 85, 150];      // #005596
+const DARK_TEXT: [number, number, number] = [33, 37, 41];       // #212529
+const BLUE_TEXT: [number, number, number] = [0, 85, 150];      // #005596
+const LIGHT_GRAY: [number, number, number] = [108, 117, 125];  // #6C757D
+const BORDER_COLOR: [number, number, number] = [206, 212, 218]; // #CED4DA
+const SECTION_BG: [number, number, number] = [248, 249, 250];  // #F8F9FA
 const WHITE: [number, number, number] = [255, 255, 255];
+const GOLD: [number, number, number] = [196, 164, 40];         // #C4A428
 
 /**
  * POST /api/students/authorization-pdf
  *
  * Generates a trip authorization PDF ("Autorização de Saída para Passeio")
- * for one or more students. Design follows NUCA institutional template
- * with wave decorations and colorful branding.
+ * for one or more students. Layout follows the NUCA institutional template
+ * with organic wave decorations (top-left and bottom-right corners),
+ * NUCA logo top-right, seal badges bottom-left.
  * Requires Admin or Operator role.
  */
 export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
@@ -186,156 +189,188 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 
     // ══════════════════════════════════════════════════════════════════════════
     // BUILD THE PDF — NUCA Institutional Template
+    // Layout: Organic bezier waves top-left & bottom-right, white content area,
+    // NUCA logo top-right, seal badges bottom-left
     // ══════════════════════════════════════════════════════════════════════════
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pw = doc.internal.pageSize.getWidth();   // 210mm
     const ph = doc.internal.pageSize.getHeight();  // 297mm
-    const margin = 18;
+    const margin = 16;
     const contentWidth = pw - margin * 2;
 
-    // ── Helper: Draw top-left wave decoration ──
+    // ── Helper: Draw organic wave header (top-left corner, sweeping diagonally) ──
+    // Uses cubic bezier curves via doc.path() for smooth, organic shapes
     const drawHeaderWaves = () => {
-      // Orange wave (outermost) — from top-left corner sweeping down
-      doc.setFillColor(...ORANGE);
-      doc.triangle(0, 0, pw * 0.55, 0, 0, 52, 'F');
+      // Layer 1: Blue Dark (back, widest sweep)
+      doc.setFillColor(...BLUE_DARK);
+      doc.path([
+        { op: 'm', c: [0, 0] },
+        { op: 'l', c: [pw * 0.70, 0] },
+        { op: 'c', c: [pw * 0.62, 8, pw * 0.55, 22, pw * 0.42, 32] },
+        { op: 'c', c: [pw * 0.30, 42, pw * 0.15, 38, 0, 28] },
+        { op: 'h', c: [] },
+      ]);
+      doc.fill();
 
-      // Cyan wave (middle)
+      // Layer 2: Blue Royal (middle)
+      doc.setFillColor(...BLUE_ROYAL);
+      doc.path([
+        { op: 'm', c: [0, 0] },
+        { op: 'l', c: [pw * 0.58, 0] },
+        { op: 'c', c: [pw * 0.52, 6, pw * 0.46, 17, pw * 0.35, 24] },
+        { op: 'c', c: [pw * 0.24, 31, pw * 0.12, 28, 0, 20] },
+        { op: 'h', c: [] },
+      ]);
+      doc.fill();
+
+      // Layer 3: Cyan (middle-front)
       doc.setFillColor(...CYAN);
-      doc.triangle(0, 0, pw * 0.45, 0, 0, 38, 'F');
+      doc.path([
+        { op: 'm', c: [0, 0] },
+        { op: 'l', c: [pw * 0.48, 0] },
+        { op: 'c', c: [pw * 0.43, 5, pw * 0.38, 13, pw * 0.28, 18] },
+        { op: 'c', c: [pw * 0.18, 23, pw * 0.08, 21, 0, 14] },
+        { op: 'h', c: [] },
+      ]);
+      doc.fill();
 
-      // Blue wave (innermost / closest to content)
-      doc.setFillColor(...BLUE);
-      doc.triangle(0, 0, pw * 0.35, 0, 0, 26, 'F');
-
-      // Draw curved wave edges using small filled rectangles/triangles
-      // Orange wave bottom edge — soft curve
+      // Layer 4: Orange (front, thinnest, on top)
       doc.setFillColor(...ORANGE);
-      const steps = 20;
-      for (let i = 0; i < steps; i++) {
-        const x1 = (i / steps) * pw * 0.6;
-        const x2 = ((i + 1) / steps) * pw * 0.6;
-        const baseY = 52;
-        const curve1 = baseY - Math.sin((i / steps) * Math.PI) * 8;
-        const curve2 = baseY - Math.sin(((i + 1) / steps) * Math.PI) * 8;
-        doc.triangle(x1, curve1, x2, curve2, x2, 52, 'F');
-        doc.triangle(x1, curve1, x2, 52, x1, 52, 'F');
-      }
-
-      // Title text over the blue wave area
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.setTextColor(...WHITE);
-      doc.text(headerText, margin, 16);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(200, 225, 255);
-      doc.text('Para Passeio / Atividade Escolar', margin, 22);
+      doc.path([
+        { op: 'm', c: [0, 0] },
+        { op: 'l', c: [pw * 0.36, 0] },
+        { op: 'c', c: [pw * 0.32, 3, pw * 0.28, 9, pw * 0.20, 12] },
+        { op: 'c', c: [pw * 0.12, 15, pw * 0.05, 14, 0, 9] },
+        { op: 'h', c: [] },
+      ]);
+      doc.fill();
     };
 
-    // ── Helper: Draw bottom-right wave decoration ──
+    // ── Helper: Draw organic wave footer (bottom-right corner, sweeping up) ──
     const drawFooterWaves = (pageNum: number, totalPages: number) => {
-      // Orange wave (outermost) — from bottom-right corner sweeping up
-      doc.setFillColor(...ORANGE);
-      doc.triangle(pw, ph, pw * 0.45, ph, pw, ph - 52, 'F');
+      // Layer 1: Blue Dark (back, widest sweep)
+      doc.setFillColor(...BLUE_DARK);
+      doc.path([
+        { op: 'm', c: [pw, ph] },
+        { op: 'l', c: [pw * 0.30, ph] },
+        { op: 'c', c: [pw * 0.38, ph - 8, pw * 0.45, ph - 22, pw * 0.58, ph - 32] },
+        { op: 'c', c: [pw * 0.70, ph - 42, pw * 0.85, ph - 38, pw, ph - 28] },
+        { op: 'h', c: [] },
+      ]);
+      doc.fill();
 
-      // Cyan wave (middle)
+      // Layer 2: Blue Royal (middle)
+      doc.setFillColor(...BLUE_ROYAL);
+      doc.path([
+        { op: 'm', c: [pw, ph] },
+        { op: 'l', c: [pw * 0.42, ph] },
+        { op: 'c', c: [pw * 0.48, ph - 6, pw * 0.54, ph - 17, pw * 0.65, ph - 24] },
+        { op: 'c', c: [pw * 0.76, ph - 31, pw * 0.88, ph - 28, pw, ph - 20] },
+        { op: 'h', c: [] },
+      ]);
+      doc.fill();
+
+      // Layer 3: Cyan (middle-front)
       doc.setFillColor(...CYAN);
-      doc.triangle(pw, ph, pw * 0.55, ph, pw, ph - 38, 'F');
+      doc.path([
+        { op: 'm', c: [pw, ph] },
+        { op: 'l', c: [pw * 0.52, ph] },
+        { op: 'c', c: [pw * 0.57, ph - 5, pw * 0.62, ph - 13, pw * 0.72, ph - 18] },
+        { op: 'c', c: [pw * 0.82, ph - 23, pw * 0.92, ph - 21, pw, ph - 14] },
+        { op: 'h', c: [] },
+      ]);
+      doc.fill();
 
-      // Blue wave (innermost)
-      doc.setFillColor(...BLUE);
-      doc.triangle(pw, ph, pw * 0.65, ph, pw, ph - 26, 'F');
-
-      // Curved wave edges for orange
+      // Layer 4: Orange (front, thinnest)
       doc.setFillColor(...ORANGE);
-      const steps = 20;
-      for (let i = 0; i < steps; i++) {
-        const x1 = pw - ((i / steps) * pw * 0.6);
-        const x2 = pw - (((i + 1) / steps) * pw * 0.6);
-        const baseY = ph - 52;
-        const curve1 = baseY + Math.sin((i / steps) * Math.PI) * 8;
-        const curve2 = baseY + Math.sin(((i + 1) / steps) * Math.PI) * 8;
-        doc.triangle(x1, curve1, x2, curve2, x2, baseY, 'F');
-        doc.triangle(x1, curve1, x2, baseY, x1, baseY, 'F');
-      }
+      doc.path([
+        { op: 'm', c: [pw, ph] },
+        { op: 'l', c: [pw * 0.64, ph] },
+        { op: 'c', c: [pw * 0.68, ph - 3, pw * 0.72, ph - 9, pw * 0.80, ph - 12] },
+        { op: 'c', c: [pw * 0.88, ph - 15, pw * 0.95, ph - 14, pw, ph - 9] },
+        { op: 'h', c: [] },
+      ]);
+      doc.fill();
 
-      // Footer text
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.5);
-      doc.setTextColor(...WHITE);
+      // Footer text (on the white area, left side)
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(6);
+      doc.setTextColor(...LIGHT_GRAY);
       doc.text(footerText, margin, ph - 10);
+
+      // Page number (center-left, on white area)
       doc.text(
         `Página ${pageNum} de ${totalPages}`,
-        pw - margin,
+        pw * 0.35,
         ph - 10,
-        { align: 'right' }
+        { align: 'center' }
       );
     };
 
     // ── Helper: Draw NUCA logo at top-right ──
     const drawNucalogo = () => {
       const logoX = pw - margin;
-      const logoY = 9;
+      const logoY = 14;
 
-      // "NUCA" in colorful letters — using individual text() calls properly
+      // "NUCA" in colorful letters
       doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
 
-      // Measure total width to right-align
       const charW = doc.getTextWidth('N');
-      const totalW = charW * 4 + 1.5 * 3; // 4 chars + 3 gaps
-
+      const gap = 1.2;
+      const totalW = charW * 4 + gap * 3;
       let cx = logoX - totalW;
 
       // N - Green
-      doc.setTextColor(124, 179, 66);
+      doc.setTextColor(124, 179, 66); // #7CB342
       doc.text('N', cx, logoY);
-      cx += charW + 1.5;
+      cx += charW + gap;
 
-      // U - Yellow/Amber
-      doc.setTextColor(255, 193, 7);
+      // U - Orange
+      doc.setTextColor(247, 148, 29); // #F7941D
       doc.text('U', cx, logoY);
-      cx += charW + 1.5;
+      cx += charW + gap;
 
-      // C - Cyan
-      doc.setTextColor(41, 171, 226);
+      // C - Blue Royal
+      doc.setTextColor(0, 114, 188); // #0072BC
       doc.text('C', cx, logoY);
-      cx += charW + 1.5;
+      cx += charW + gap;
 
-      // A - Blue
-      doc.setTextColor(0, 114, 206);
+      // A - Cyan
+      doc.setTextColor(0, 188, 228); // #00BCE4
       doc.text('A', cx, logoY);
 
-      // Subtitle under logo
+      // Subtitle: institution name
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6);
-      doc.setTextColor(...DARK_TEXT);
-      doc.text(subtitleText, logoX, logoY + 4.5, { align: 'right' });
       doc.setFontSize(5.5);
-      doc.setTextColor(...MID_GRAY);
-      doc.text(cityText, logoX, logoY + 8, { align: 'right' });
+      doc.setTextColor(...BLUE_DARK);
+      doc.text(subtitleText.toUpperCase(), logoX, logoY + 4, { align: 'right' });
+
+      // City line
+      doc.setFontSize(5);
+      doc.setTextColor(...LIGHT_GRAY);
+      doc.text(cityText, logoX, logoY + 7, { align: 'right' });
     };
 
-    // ── Helper: Draw a styled field row ──
+    // ── Helper: Draw a styled field with label and value ──
     const drawField = (
       label: string,
       value: string,
       x: number,
       y: number,
       fieldWidth: number,
-      labelWidth: number = 28
-    ): number => {
+      labelWidth: number = 26
+    ) => {
       // Label
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
-      doc.setTextColor(...BLUE_DARK);
+      doc.setFontSize(9);
+      doc.setTextColor(...BLUE_TEXT);
       doc.text(label, x, y);
 
       // Value
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...DARK_TEXT);
-      doc.setFontSize(8.5);
+      doc.setFontSize(9);
       let truncated = value;
       const valueMaxWidth = fieldWidth - labelWidth - 2;
       if (doc.getTextWidth(truncated) > valueMaxWidth) {
@@ -349,215 +384,244 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       }
       doc.text(truncated, x + labelWidth, y);
 
-      // Subtle underline
-      doc.setDrawColor(...LIGHT_LINE);
-      doc.setLineWidth(0.2);
-      doc.line(x + labelWidth, y + 1.2, x + fieldWidth, y + 1.2);
-
-      return y;
+      // Underline
+      doc.setDrawColor(...BORDER_COLOR);
+      doc.setLineWidth(0.3);
+      doc.line(x + labelWidth, y + 1.5, x + fieldWidth, y + 1.5);
     };
 
-    // ── Helper: Section title with accent bar ──
-    const drawSectionTitle = (title: string, y: number, accentColor: [number, number, number] = BLUE): number => {
-      // Accent bar
-      doc.setFillColor(...accentColor);
-      doc.rect(margin, y, 3, 6, 'F');
+    // ── Helper: Draw section with colored left bar ──
+    const drawSection = (title: string, y: number, color: [number, number, number] = BLUE_ROYAL): number => {
+      // Left accent bar
+      doc.setFillColor(...color);
+      doc.rect(margin, y, 3, 7, 'F');
 
-      // Title text
+      // Title
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
+      doc.setFontSize(11);
       doc.setTextColor(...BLUE_DARK);
-      doc.text(title, margin + 6, y + 5);
+      doc.text(title, margin + 6, y + 5.5);
 
-      // Thin line under section
-      doc.setDrawColor(...LIGHT_LINE);
+      // Separator line
+      doc.setDrawColor(...BORDER_COLOR);
       doc.setLineWidth(0.4);
-      doc.line(margin, y + 8, pw - margin, y + 8);
+      doc.line(margin, y + 9, pw - margin, y + 9);
 
-      return y + 12;
+      return y + 13;
     };
 
-    // ── Helper: Draw student section ──
-    const drawStudentSection = (student: typeof students[0], idx: number, startY: number): number => {
+    // ── Helper: Draw student card ──
+    const drawStudentCard = (student: typeof students[0], idx: number, startY: number): number => {
       let y = startY;
 
-      const cardPadding = 7;
-      const cardX = margin + 2;
-      const cardW = contentWidth - 4;
-      const estimatedCardH = 82;
+      const cardX = margin;
+      const cardW = contentWidth;
+      const cardPad = 7;
+      const cardH = 80;
 
       // Card background
-      doc.setFillColor(...ICE_BG);
-      doc.roundedRect(cardX, y - 3, cardW, estimatedCardH, 3, 3, 'F');
+      doc.setFillColor(...SECTION_BG);
+      doc.roundedRect(cardX, y - 2, cardW, cardH, 2, 2, 'F');
 
       // Left accent bar
-      doc.setFillColor(...BLUE);
-      doc.rect(cardX, y - 3, 2.5, estimatedCardH, 'F');
+      doc.setFillColor(...BLUE_ROYAL);
+      doc.rect(cardX, y - 2, 2.5, cardH, 'F');
 
       // Thin border
-      doc.setDrawColor(...LIGHT_LINE);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(cardX, y - 3, cardW, estimatedCardH, 3, 3, 'S');
+      doc.setDrawColor(...BORDER_COLOR);
+      doc.setLineWidth(0.2);
+      doc.roundedRect(cardX, y - 2, cardW, cardH, 2, 2, 'S');
 
-      // Student number badge
-      doc.setFillColor(...BLUE);
-      doc.roundedRect(cardX + 5, y, 24, 7, 2, 2, 'F');
+      // Student badge
+      doc.setFillColor(...BLUE_ROYAL);
+      doc.roundedRect(cardX + 5, y + 1, 26, 7, 2, 2, 'F');
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
+      doc.setFontSize(8);
       doc.setTextColor(...WHITE);
-      doc.text(`ALUNO ${idx + 1}`, cardX + 17, y + 5, { align: 'center' });
+      doc.text(`ALUNO ${idx + 1}`, cardX + 18, y + 5.8, { align: 'center' });
 
-      y += 11;
+      y += 12;
 
-      // Student info fields
-      const halfW = (cardW - cardPadding * 2) / 2;
+      const halfW = (cardW - cardPad * 2) / 2;
 
-      drawField('Nome:', student.full_name, cardX + cardPadding, y, cardW - cardPadding * 2, 13);
-      y += 8;
+      // Row 1: Nome
+      drawField('Nome:', student.full_name, cardX + cardPad, y, cardW - cardPad * 2, 13);
+      y += 9;
 
-      drawField('Turma:', student.class || '—', cardX + cardPadding, y, halfW - 2, 13);
-      drawField('Série:', student.grade || '—', cardX + cardPadding + halfW, y, halfW, 11);
-      y += 8;
+      // Row 2: Turma / Série
+      drawField('Turma:', student.class || '—', cardX + cardPad, y, halfW - 2, 13);
+      drawField('Série:', student.grade || '—', cardX + cardPad + halfW, y, halfW, 11);
+      y += 9;
 
-      drawField('Escola:', student.school.name, cardX + cardPadding, y, cardW - cardPadding * 2, 13);
-      y += 8;
+      // Row 3: Escola
+      drawField('Escola:', student.school.name, cardX + cardPad, y, cardW - cardPad * 2, 13);
+      y += 9;
 
-      drawField('Responsável:', student.guardian_name || '—', cardX + cardPadding, y, halfW + 18, 22);
-      drawField('Tel.:', student.guardian_phone || '—', cardX + cardPadding + halfW + 20, y, halfW - 20, 9);
-      y += 11;
+      // Row 4: Responsável / Tel.
+      drawField('Responsável:', student.guardian_name || '—', cardX + cardPad, y, halfW + 16, 22);
+      drawField('Tel.:', student.guardian_phone || '—', cardX + cardPad + halfW + 18, y, halfW - 18, 9);
+      y += 10;
 
-      // ── Authorization checkbox + text ──
+      // ── Authorization checkbox ──
       doc.setDrawColor(...BLUE_DARK);
       doc.setLineWidth(0.4);
-      doc.roundedRect(cardX + cardPadding, y - 3.5, 4, 4, 0.5, 0.5, 'S');
+      doc.roundedRect(cardX + cardPad, y - 3.5, 4, 4, 0.5, 0.5, 'S');
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(...DARK_TEXT);
       doc.text(
         'Autorizo meu/minha filho(a) a participar da atividade descrita acima.',
-        cardX + cardPadding + 7,
+        cardX + cardPad + 7,
         y
       );
-      y += 9;
+      y += 8;
 
       // ── Signature lines ──
-      const sigWidth = 62;
-      const sigGap = 18;
-      const sigStartX = cardX + cardPadding;
+      const sigW = 58;
+      const sigGap = 16;
+      const sigX = cardX + cardPad;
 
-      doc.setDrawColor(...MID_GRAY);
+      doc.setDrawColor(...LIGHT_GRAY);
       doc.setLineWidth(0.3);
 
       // Responsible signature
-      doc.line(sigStartX, y + 8, sigStartX + sigWidth, y + 8);
+      doc.line(sigX, y + 8, sigX + sigW, y + 8);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
-      doc.setTextColor(...MID_GRAY);
-      doc.text('Assinatura do Responsável', sigStartX + sigWidth / 2, y + 12, { align: 'center' });
+      doc.setTextColor(...LIGHT_GRAY);
+      doc.text('Assinatura do Responsável', sigX + sigW / 2, y + 12, { align: 'center' });
 
       // Student signature
-      doc.line(sigStartX + sigWidth + sigGap, y + 8, sigStartX + sigWidth * 2 + sigGap, y + 8);
-      doc.text('Assinatura do Aluno(a)', sigStartX + sigWidth * 1.5 + sigGap, y + 12, { align: 'center' });
+      doc.line(sigX + sigW + sigGap, y + 8, sigX + sigW * 2 + sigGap, y + 8);
+      doc.text('Assinatura do Aluno(a)', sigX + sigW * 1.5 + sigGap, y + 12, { align: 'center' });
 
       // ── Declaration ──
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(6.5);
-      doc.setTextColor(...MID_GRAY);
-      const declLines = doc.splitTextToSize(declarationText, cardW - cardPadding * 2) as string[];
+      doc.setTextColor(...LIGHT_GRAY);
+      const declLines = doc.splitTextToSize(declarationText, cardW - cardPad * 2) as string[];
       let declY = y + 15;
       for (const line of declLines) {
-        doc.text(line, cardX + cardPadding, declY);
+        doc.text(line, cardX + cardPad, declY);
         declY += 3.5;
       }
 
-      return startY + estimatedCardH + 5;
+      return startY + cardH + 5;
+    };
+
+    // ── Helper: Draw seal badges at bottom-left ──
+    const drawSealBadges = () => {
+      const badgeY = ph - 28;
+      const badge1X = margin + 11;
+      const badge2X = margin + 33;
+      const radius = 8.5;
+
+      // UNICEF seal (blue circle)
+      doc.setFillColor(...BLUE_ROYAL);
+      doc.circle(badge1X, badgeY, radius, 'F');
+      // Inner circle border
+      doc.setDrawColor(...WHITE);
+      doc.setLineWidth(0.4);
+      doc.circle(badge1X, badgeY, radius - 1.2, 'S');
+      // Text
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(4);
+      doc.setTextColor(...WHITE);
+      doc.text('SELO', badge1X, badgeY - 2, { align: 'center' });
+      doc.text('UNICEF', badge1X, badgeY + 0.5, { align: 'center' });
+      doc.setFontSize(3.5);
+      doc.text('2025-2028', badge1X, badgeY + 3, { align: 'center' });
+
+      // Município Aprovado seal (gold circle)
+      doc.setFillColor(...GOLD);
+      doc.circle(badge2X, badgeY, radius, 'F');
+      doc.setDrawColor(...WHITE);
+      doc.setLineWidth(0.4);
+      doc.circle(badge2X, badgeY, radius - 1.2, 'S');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(3.2);
+      doc.setTextColor(...WHITE);
+      doc.text('MUNICÍPIO', badge2X, badgeY - 2, { align: 'center' });
+      doc.text('APROVADO', badge2X, badgeY + 0.5, { align: 'center' });
+      doc.setFontSize(3.2);
+      doc.text('2015-2016', badge2X, badgeY + 3, { align: 'center' });
     };
 
     // ══════════════════════════════════════════════════════════════════════════
-    // PAGE 1 — Header + Event Details + Student Sections
+    // PAGE 1 — Header Waves + Logo + Title + Event + Student Cards
     // ══════════════════════════════════════════════════════════════════════════
 
-    // Draw header waves
+    // Draw header waves (top-left organic curves)
     drawHeaderWaves();
 
-    // Draw NUCA logo at top-right (over white area)
+    // Draw NUCA logo (top-right)
     drawNucalogo();
 
-    // Separator line under header
-    doc.setDrawColor(...LIGHT_LINE);
+    // Document title (centered, below waves)
+    let y = 28;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(...BLUE_DARK);
+    doc.text(headerText, pw / 2, y, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...LIGHT_GRAY);
+    doc.text('Para Passeio / Atividade Escolar', pw / 2, y + 5.5, { align: 'center' });
+
+    // Separator line
+    doc.setDrawColor(...BORDER_COLOR);
     doc.setLineWidth(0.5);
-    doc.line(margin, 30, pw - margin, 30);
+    doc.line(margin, y + 9, pw - margin, y + 9);
 
-    let y = 36;
+    y += 15;
 
-    // ── Event Details Card ──
-    let eventEstimatedH = 38;
-    if (resolvedDepartureTime || resolvedReturnTime) eventEstimatedH += 8;
-    if (resolvedResponsibleName) eventEstimatedH += 8;
-    if (resolvedObservations) eventEstimatedH += 14;
+    // ── Event Details Section ──
+    y = drawSection('Dados da Atividade', y, ORANGE);
 
-    // Event card background
-    const eventCardX = margin;
-    const eventCardW = contentWidth;
-    doc.setFillColor(255, 248, 240); // very light orange tint
-    doc.roundedRect(eventCardX, y - 4, eventCardW, eventEstimatedH, 3, 3, 'F');
+    const halfContentW = (contentWidth - 10) / 2;
 
-    // Left accent bar (orange for event section)
-    doc.setFillColor(...ORANGE);
-    doc.rect(eventCardX, y - 4, 2.5, eventEstimatedH, 'F');
+    drawField('Título:', resolvedEventTitle, margin + 4, y, contentWidth - 8, 14);
+    y += 9;
 
-    // Thin border
-    doc.setDrawColor(...LIGHT_LINE);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(eventCardX, y - 4, eventCardW, eventEstimatedH, 3, 3, 'S');
-
-    // Section title
-    y = drawSectionTitle('Dados da Atividade', y, ORANGE);
-
-    // Event fields in a grid
-    const halfContentW = (contentWidth - 12) / 2;
-
-    drawField('Título:', resolvedEventTitle, margin + 5, y, contentWidth - 10, 14);
-    y += 8;
-
-    drawField('Data:', eventDateDisplay, margin + 5, y, halfContentW, 13);
-    drawField('Local:', resolvedEventLocation, margin + 5 + halfContentW + 4, y, halfContentW, 13);
-    y += 8;
+    drawField('Data:', eventDateDisplay, margin + 4, y, halfContentW, 13);
+    drawField('Local:', resolvedEventLocation, margin + 4 + halfContentW + 4, y, halfContentW, 13);
+    y += 9;
 
     if (resolvedDepartureTime || resolvedReturnTime) {
-      drawField('Saída:', resolvedDepartureTime || '—', margin + 5, y, halfContentW, 13);
-      drawField('Retorno:', resolvedReturnTime || '—', margin + 5 + halfContentW + 4, y, halfContentW, 13);
-      y += 8;
+      drawField('Saída:', resolvedDepartureTime || '—', margin + 4, y, halfContentW, 13);
+      drawField('Retorno:', resolvedReturnTime || '—', margin + 4 + halfContentW + 4, y, halfContentW, 13);
+      y += 9;
     }
 
     if (resolvedResponsibleName) {
-      drawField('Responsável:', resolvedResponsibleName, margin + 5, y, contentWidth - 10, 22);
-      y += 8;
+      drawField('Responsável:', resolvedResponsibleName, margin + 4, y, contentWidth - 8, 22);
+      y += 9;
     }
 
     if (resolvedObservations) {
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
-      doc.setTextColor(...BLUE_DARK);
-      doc.text('Observações:', margin + 5, y);
+      doc.setFontSize(9);
+      doc.setTextColor(...BLUE_TEXT);
+      doc.text('Observações:', margin + 4, y);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...DARK_TEXT);
-      doc.setFontSize(8.5);
-      const obsLines = doc.splitTextToSize(resolvedObservations, contentWidth - 40) as string[];
+      doc.setFontSize(9);
+      const obsLines = doc.splitTextToSize(resolvedObservations, contentWidth - 38) as string[];
       let obsY = y + 4;
       for (const line of obsLines.slice(0, 3)) {
-        doc.text(line, margin + 34, obsY);
+        doc.text(line, margin + 32, obsY);
         obsY += 5;
       }
       y = obsY + 2;
     }
 
-    // Move past the event card
-    y = 36 + eventEstimatedH + 6;
+    y += 5;
 
-    // ── Student Sections ──
-    const MIN_STUDENT_HEIGHT = 90;
+    // ── Student Cards ──
+    const MIN_STUDENT_HEIGHT = 88;
     const STUDENTS_PER_PAGE = 2;
     let currentStudentOnPage = 0;
 
@@ -569,31 +633,40 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         doc.addPage();
         drawHeaderWaves();
         drawNucalogo();
-        doc.setDrawColor(...LIGHT_LINE);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(...BLUE_DARK);
+        doc.text(headerText, pw / 2, 28, { align: 'center' });
+        doc.setDrawColor(...BORDER_COLOR);
         doc.setLineWidth(0.5);
-        doc.line(margin, 30, pw - margin, 30);
-        y = 36;
+        doc.line(margin, 33, pw - margin, 33);
+        y = 38;
         currentStudentOnPage = 0;
       } else if (currentStudentOnPage >= STUDENTS_PER_PAGE) {
         doc.addPage();
         drawHeaderWaves();
         drawNucalogo();
-        doc.setDrawColor(...LIGHT_LINE);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(...BLUE_DARK);
+        doc.text(headerText, pw / 2, 28, { align: 'center' });
+        doc.setDrawColor(...BORDER_COLOR);
         doc.setLineWidth(0.5);
-        doc.line(margin, 30, pw - margin, 30);
-        y = 36;
+        doc.line(margin, 33, pw - margin, 33);
+        y = 38;
         currentStudentOnPage = 0;
       }
 
-      y = drawStudentSection(student, idx, y);
+      y = drawStudentCard(student, idx, y);
       currentStudentOnPage++;
     }
 
-    // ── Add footer waves to all pages ──
+    // ── Add footer waves and seal badges to all pages ──
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       drawFooterWaves(i, totalPages);
+      drawSealBadges();
     }
 
     // ── Audit log ──
