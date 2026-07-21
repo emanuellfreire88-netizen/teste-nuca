@@ -847,6 +847,13 @@ function StudentProfile({
     departure_point: "",
     transport: "",
     observations: "",
+    municipality: "",
+  });
+  const [authIncludeFields, setAuthIncludeFields] = useState({
+    description: true,
+    departure_point: true,
+    transport: true,
+    observations: true,
   });
   const [authLoading, setAuthLoading] = useState(false);
   const [authEvents, setAuthEvents] = useState<Array<{
@@ -1050,6 +1057,7 @@ function StudentProfile({
         departure_point: selectedEvent.departure_point || "",
         transport: selectedEvent.transport || "",
         observations: selectedEvent.observations || "",
+        municipality: "",
       });
     }
   };
@@ -1075,6 +1083,8 @@ function StudentProfile({
         departure_point: authForm.departure_point || undefined,
         transport: authForm.transport || undefined,
         observations: authForm.observations || undefined,
+        municipality: authForm.municipality || undefined,
+        include_fields: authIncludeFields,
       };
 
       // Add template if selected
@@ -1834,6 +1844,85 @@ function StudentProfile({
                 placeholder="Observações adicionais..."
                 rows={2}
               />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t pt-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                Campos no Documento
+              </p>
+            </div>
+
+            {/* Toggle fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={authIncludeFields.description}
+                  onChange={(e) =>
+                    setAuthIncludeFields({ ...authIncludeFields, description: e.target.checked })
+                  }
+                  className="rounded border-input"
+                />
+                Descrição
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={authIncludeFields.departure_point}
+                  onChange={(e) =>
+                    setAuthIncludeFields({ ...authIncludeFields, departure_point: e.target.checked })
+                  }
+                  className="rounded border-input"
+                />
+                Ponto de Saída
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={authIncludeFields.transport}
+                  onChange={(e) =>
+                    setAuthIncludeFields({ ...authIncludeFields, transport: e.target.checked })
+                  }
+                  className="rounded border-input"
+                />
+                Meio de Transporte
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={authIncludeFields.observations}
+                  onChange={(e) =>
+                    setAuthIncludeFields({ ...authIncludeFields, observations: e.target.checked })
+                  }
+                  className="rounded border-input"
+                />
+                Observações
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Selecione quais informações serão exibidas no documento gerado.
+            </p>
+
+            {/* Divider */}
+            <div className="border-t pt-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                Assinatura
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Município</Label>
+              <Input
+                value={authForm.municipality}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, municipality: e.target.value })
+                }
+                placeholder="Ex: Amélia Rodrigues"
+              />
+              <p className="text-xs text-muted-foreground">
+                Será preenchido no campo "Município" do documento. A data será preenchida automaticamente.
+              </p>
             </div>
           </div>
         </div>
