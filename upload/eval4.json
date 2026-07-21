@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Com base na imagem fornecida, aqui está a descrição detalhada do documento:\n\n1.  **Ondas coloridas no topo:** Sim, há ondas no topo. As cores visíveis são **azul** (escuro e claro) e **laranja** (ou amarelo-alaranjado), formando um design de fundo dinâmico.\n2.  **Ondas coloridas no rodapé:** Sim, o mesmo padrão de ondas **azuis** e **laranjas** se estende até a parte inferior (rodapé) da página.\n3.  **Logo NUCA:** Sim, o logo **NUCA** está visível no canto superior direito. As letras são coloridas: **N** (verde), **U** (amarelo/laranja), **C** (azul claro) e **A** (azul).\n4.  **Legibilidade dos campos:** Sim, os campos estão legíveis. O documento contém:\n    *   **Dados da Atividade:** Título (\"Passeio ao Museu\"), Data (\"15 de agosto de 2025\"), Local (\"Museu de Arte\"), Saída (\"08:00\"), Retorno (\"17:00\") e Responsável (\"Prof. Maria Silva\").\n    *   **Dados do Aluno 01:** Nome (\"Ana Livia Oliveira Santos\"), Mãe/Pai (\"Paula Benício\"), Série, Telefone.\n5.  **Seção do aluno com checkbox e assinaturas:** A seção está presente e estruturada, mas **não está completa** (está em branco para preenchimento). Ela contém:\n    *   O texto de autorização (\"Declaro que sou pai/mãe...\").\n    *   Espaços para as **assinaturas** do Responsável e do Aluno(a).\n    *   No entanto, não há um **checkbox** visível na imagem (apenas linhas para assinatura).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1784638676,
+  "id": "202607212057507adef2987b334399",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202607212057507adef2987b334399",
+  "usage": {
+    "completion_tokens": 427,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 5126,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 5553
+  }
+}

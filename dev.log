@@ -11,3 +11,38 @@
  GET /api/document-templates 200 in 225ms (compile: 1981µs, render: 223ms)
  GET /api/students/authorization-events?upcoming=true 200 in 790ms (compile: 118ms, render: 672ms)
  POST /api/document-templates 201 in 1106ms (compile: 1996µs, render: 1104ms)
+○ Compiling / ...
+ GET / 200 in 5.1s (compile: 4.8s, render: 289ms)
+ GET / 200 in 5.0s (compile: 4.9s, render: 48ms)
+ GET / 200 in 42ms (compile: 6ms, render: 35ms)
+ GET / 200 in 39ms (compile: 7ms, render: 32ms)
+ GET / 200 in 89ms (compile: 19ms, render: 69ms)
+✓ Compiled in 381ms
+✓ Compiled in 306ms
+ POST /api/auth/login 200 in 2.2s (compile: 4ms, render: 2.2s)
+ GET /api/students?limit=1 200 in 1091ms (compile: 155ms, render: 936ms)
+ POST /api/students/authorization-pdf 404 in 2.0s (compile: 1520ms, render: 481ms)
+ POST /api/auth/login 200 in 1431ms (compile: 4ms, render: 1427ms)
+ GET /api/students?limit=3 200 in 921ms (compile: 2ms, render: 918ms)
+ POST /api/auth/login 200 in 1365ms (compile: 4ms, render: 1361ms)
+Authorization PDF error: TypeError: doc.beginPath is not a function
+    at drawWaveHeader (src/app/api/students/authorization-pdf/route.ts:198:11)
+    at <unknown> (src/app/api/students/authorization-pdf/route.ts:469:5)
+    at async (src/lib/middleware.ts:222:22)
+    at async (src/lib/middleware.ts:206:22)
+  196 |       // Orange wave (back)
+  197 |       doc.setFillColor(...ORANGE);
+> 198 |       doc.beginPath();
+      |           ^
+  199 |       doc.moveTo(0, 0);
+  200 |       doc.lineTo(pw, 0);
+  201 |       doc.bezierCurveTo(pw * 0.7, 22, pw * 0.3, 5, 0, 18);
+ POST /api/students/authorization-pdf 500 in 859ms (compile: 1895µs, render: 857ms)
+ POST /api/auth/login 200 in 1430ms (compile: 4ms, render: 1426ms)
+ POST /api/students/authorization-pdf 200 in 1308ms (compile: 150ms, render: 1158ms)
+ POST /api/auth/login 200 in 1397ms (compile: 4ms, render: 1393ms)
+ POST /api/students/authorization-pdf 200 in 1314ms (compile: 195ms, render: 1119ms)
+ POST /api/auth/login 200 in 1461ms (compile: 4ms, render: 1457ms)
+ POST /api/students/authorization-pdf 200 in 1319ms (compile: 153ms, render: 1165ms)
+ POST /api/auth/login 200 in 1420ms (compile: 2ms, render: 1418ms)
+ POST /api/students/authorization-pdf 200 in 1283ms (compile: 149ms, render: 1134ms)

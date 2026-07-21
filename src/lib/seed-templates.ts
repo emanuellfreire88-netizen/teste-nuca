@@ -13,7 +13,7 @@ export async function seedDefaultTemplates() {
       name: 'authorization_exit',
       display_name: 'Autorização de Saída para Passeio',
       description: 'Modelo padrão de autorização de saída para passeios e atividades escolares',
-      header_text: 'NUCA - Autorização de Saída para Passeio/Atividade',
+      header_text: 'AUTORIZAÇÃO DE SAÍDA',
       body_text: 'Núcleo de Cidadania de Adolescentes',
       footer_text: 'Documento gerado automaticamente pelo sistema NUCA',
       declaration: 'Declaro estar ciente das informações acima e autorizo a participação do(a) aluno(a) na atividade descrita.',

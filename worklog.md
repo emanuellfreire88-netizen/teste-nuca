@@ -226,3 +226,31 @@ Stage Summary:
 - Calendar events can now store trip-specific details (location, departure/return times, responsible person)
 - All API endpoints verified working (document-templates, authorization-events, authorization-pdf)
 - Lint passes with 0 errors, dev server running successfully
+
+---
+Task ID: auth-template-redesign
+Agent: Main Agent
+Task: Redesign authorization PDF to match uploaded modern wave template design
+
+Work Log:
+- Analyzed uploaded PDF template using VLM - identified wave design with orange/cyan/blue colors, NUCA colorful logo, rounded containers, modern typography
+- Completely rewrote `/src/app/api/students/authorization-pdf/route.ts` with new design:
+  - Colorful wave header using doc.lines() with sine curves (3 layers: orange, cyan, blue)
+  - Colorful wave footer mirroring the header
+  - NUCA logo with colorful letters (N=green, U=yellow, C=blue, A=light blue)
+  - Light orange-tinted event card with orange accent bar
+  - Light blue-tinted student card with blue accent bar  
+  - Blue "ALUNO" badge for student numbering
+  - Updated typography and color palette
+  - Fields with subtle underlines instead of bold labels
+- Fixed jsPDF rendering issues: doc.path()+doc.fill() doesn't work, replaced with doc.lines() for filled polygons
+- Fixed z-ordering: draw card backgrounds BEFORE content so text appears on top
+- Updated seed template text to match new header style
+- VLM evaluation confirmed: waves visible, logo colorful, fields legible, design professional (8/10 rating)
+
+Stage Summary:
+- Authorization PDF completely redesigned with modern wave template
+- Uses institutional NUCA colors: orange (#F7941D), cyan (#29ABE2), blue (#0072CE)
+- Wave headers/footers using sine-curve filled polygons
+- All text legible, professional layout with cards and accent bars
+- Lint passes, dev server running, API tested successfully

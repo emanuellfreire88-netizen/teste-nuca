@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Aqui está a avaliação rápida do documento:\n\n**✅ Profissional:** Sim, o layout está limpo, organizado e com hierarquia visual clara (uso de cards com bordas arredondadas e cores distintas para cada seção).\n\n**✅ Textos legíveis:** Sim, a tipografia está adequada (tamanho legível, contraste bom entre texto escuro e fundos claros), com rótulos em negrito/azul facilitando a leitura.\n\n**❌ Ondas coloridas no topo/rodapé:** **Não visíveis.** O documento apresenta fundo branco liso no topo e rodapé, sem as ondas decorativas mencionadas.\n\n**✅ Logo NUCA colorido:** Sim, aparece no canto superior direito com as letras coloridas (N-verde, U-amarelo/laranja, C-azul, A-azul).\n\n**✅ Seção do aluno clara:** Sim, o card azul está bem estruturado com:\n- Campos de preenchimento alinhados\n- **Checkbox visível** (quadrado vazio) ao lado da autorização\n- Linhas claras para assinaturas do Responsável e Aluno\n- Texto legal em itálico abaixo das linhas\n\n**Observação:** O único ponto que não corresponde à expectativa é a ausência das ondas decorativas no cabeçalho/rodapé; o resto está funcional e visualmente agradável para um termo de autorização escolar.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1784638436,
+  "id": "2026072120535189531d00894441aa",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "2026072120535189531d00894441aa",
+  "usage": {
+    "completion_tokens": 326,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 5101,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 5427
+  }
+}
