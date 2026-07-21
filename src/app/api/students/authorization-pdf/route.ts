@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
-import { seedDefaultTemplates } from '@/lib/seed-templates';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -11,22 +10,21 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-// ── NUCA brand colors (as rgb() 0-1 values for pdf-lib) ────────────────────
-const BLUE_DARK_RGB = rgb(0 / 255, 85 / 255, 150 / 255);    // #005596
-const DARK_TEXT_RGB = rgb(33 / 255, 37 / 255, 41 / 255);     // #212529
-const BLUE_TEXT_RGB = rgb(0 / 255, 85 / 255, 150 / 255);     // #005596
-const LIGHT_GRAY_RGB = rgb(108 / 255, 117 / 255, 125 / 255); // #6C757D
-const ORANGE_RGB = rgb(247 / 255, 148 / 255, 29 / 255);      // #F7941D
-const BORDER_RGB = rgb(160 / 255, 170 / 255, 180 / 255);     // #A0AAB4
-const SECTION_BG_RGB = rgb(232 / 255, 244 / 255, 252 / 255); // #E8F4FC
-const WHITE_RGB = rgb(1, 1, 1);
+// ── Brand colors ──────────────────────────────────────────────────────────
+const BLUE_DARK  = rgb(0 / 255, 85 / 255, 150 / 255);   // #005596
+const DARK_TEXT  = rgb(33 / 255, 37 / 255, 41 / 255);    // #212529
+const BLUE_TEXT  = rgb(0 / 255, 85 / 255, 150 / 255);    // #005596
+const LIGHT_GRAY = rgb(108 / 255, 117 / 255, 125 / 255); // #6C757D
+const ORANGE     = rgb(247 / 255, 148 / 255, 29 / 255);  // #F7941D
+const BORDER     = rgb(160 / 255, 170 / 255, 180 / 255); // #A0AAB4
+const SECTION_BG = rgb(232 / 255, 244 / 255, 252 / 255); // #E8F4FC
+const WHITE      = rgb(1, 1, 1);
 
 /**
  * POST /api/students/authorization-pdf
  *
- * Generates a trip authorization PDF ("Autorização de Saída para Passeio")
- * for one or more students. Uses the NUCA institutional template PDF
- * as background and overlays the authorization content.
+ * Generates a "TERMO DE AUTORIZAÇÃO" PDF for one or more students,
+ * using the NUCA institutional template PDF as background.
  * Requires Admin or Operator role.
  */
 export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
@@ -40,6 +38,9 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       departure_time,
       return_time,
       responsible_name,
+      activity_description,
+      departure_point,
+      transport,
       observations,
       template_id,
       calendar_event_id,
@@ -52,6 +53,9 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       departure_time?: string;
       return_time?: string;
       responsible_name?: string;
+      activity_description?: string;
+      departure_point?: string;
+      transport?: string;
       observations?: string;
       template_id?: string;
       calendar_event_id?: string;
@@ -67,18 +71,21 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     }
     if (!event_title || !event_date || !event_location) {
       return NextResponse.json(
-        { error: 'Título, data e local do evento são obrigatórios' },
+        { error: 'Titulo, data e local do evento sao obrigatorios' },
         { status: 400 }
       );
     }
 
     // ── Resolve event fields from calendar event if provided ──
-    let resolvedEventTitle = event_title;
-    let resolvedEventDate = event_date;
-    let resolvedEventLocation = event_location;
+    let resolvedTitle = event_title;
+    let resolvedDate = event_date;
+    let resolvedLocation = event_location;
     let resolvedDepartureTime = departure_time;
     let resolvedReturnTime = return_time;
     let resolvedResponsibleName = responsible_name;
+    let resolvedDescription = activity_description;
+    let resolvedDeparturePoint = departure_point;
+    let resolvedTransport = transport;
     let resolvedObservations = observations;
 
     if (calendar_event_id && calendar_event_source) {
@@ -89,27 +96,33 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
             select: {
               title: true, date: true, location: true,
               departure_time: true, return_time: true,
-              responsible_name: true, observations: true,
+              responsible_name: true, description: true,
+              departure_point: true, transport: true,
+              observations: true,
             },
           });
           if (calEvent) {
-            resolvedEventTitle = event_title || calEvent.title;
-            resolvedEventDate = event_date || (calEvent.date ? calEvent.date.toISOString().slice(0, 10) : event_date);
-            resolvedEventLocation = event_location || calEvent.location || event_location;
+            resolvedTitle = event_title || calEvent.title;
+            resolvedDate = event_date || (calEvent.date ? calEvent.date.toISOString().slice(0, 10) : event_date);
+            resolvedLocation = event_location || calEvent.location || event_location;
             resolvedDepartureTime = departure_time ?? calEvent.departure_time ?? departure_time;
             resolvedReturnTime = return_time ?? calEvent.return_time ?? return_time;
             resolvedResponsibleName = responsible_name ?? calEvent.responsible_name ?? responsible_name;
+            resolvedDescription = activity_description ?? calEvent.description ?? activity_description;
+            resolvedDeparturePoint = departure_point ?? calEvent.departure_point ?? departure_point;
+            resolvedTransport = transport ?? calEvent.transport ?? transport;
             resolvedObservations = observations ?? calEvent.observations ?? observations;
           }
         } else if (calendar_event_source === 'events') {
           const ev = await db.event.findUnique({
             where: { id: calendar_event_id },
-            select: { title: true, date: true, location: true },
+            select: { title: true, date: true, location: true, description: true },
           });
           if (ev) {
-            resolvedEventTitle = event_title || ev.title;
-            resolvedEventDate = event_date || (ev.date ? ev.date.toISOString().slice(0, 10) : event_date);
-            resolvedEventLocation = event_location || ev.location || event_location;
+            resolvedTitle = event_title || ev.title;
+            resolvedDate = event_date || (ev.date ? ev.date.toISOString().slice(0, 10) : event_date);
+            resolvedLocation = event_location || ev.location || event_location;
+            resolvedDescription = activity_description ?? ev.description ?? activity_description;
           }
         }
       } catch (lookupErr) {
@@ -117,54 +130,12 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       }
     }
 
-    // ── Resolve template ──
-    let headerText = 'AUTORIZAÇÃO DE SAÍDA';
-    let subtitleText = 'Para Passeio / Atividade Escolar';
-    let footerText = 'Documento gerado automaticamente pelo sistema NUCA';
-    let declarationText = 'Autorizo meu/minha filho(a) a participar da atividade descrita acima.';
-
-    try {
-      let template: {
-        header_text: string | null;
-        body_text: string | null;
-        footer_text: string | null;
-        declaration: string | null;
-      } | null = null;
-
-      if (template_id) {
-        template = await db.documentTemplate.findUnique({
-          where: { id: template_id },
-          select: { header_text: true, body_text: true, footer_text: true, declaration: true },
-        });
-      } else {
-        template = await db.documentTemplate.findFirst({
-          where: { name: 'authorization_exit' },
-          select: { header_text: true, body_text: true, footer_text: true, declaration: true },
-        });
-        if (!template) {
-          await seedDefaultTemplates();
-          template = await db.documentTemplate.findFirst({
-            where: { name: 'authorization_exit' },
-            select: { header_text: true, body_text: true, footer_text: true, declaration: true },
-          });
-        }
-      }
-
-      if (template) {
-        headerText = template.header_text || headerText;
-        subtitleText = template.body_text || subtitleText;
-        footerText = template.footer_text || footerText;
-        declarationText = template.declaration || declarationText;
-      }
-    } catch (templateErr) {
-      console.error('Template lookup error:', templateErr);
-    }
-
     // ── Fetch students ──
     const students = await db.student.findMany({
       where: { id: { in: student_ids }, status: 'active' },
       select: {
         id: true, full_name: true, class: true, grade: true,
+        cpf: true, rg: true,
         guardian_name: true, guardian_phone: true,
         school: { select: { name: true } },
       },
@@ -179,7 +150,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     }
 
     // ── Format event date ──
-    const eventDateObj = new Date(resolvedEventDate + 'T00:00:00');
+    const eventDateObj = new Date(resolvedDate + 'T00:00:00');
     const eventDateDisplay = eventDateObj.toLocaleDateString('pt-BR', {
       day: '2-digit', month: 'long', year: 'numeric',
     });
@@ -188,12 +159,10 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     // BUILD THE PDF — Using NUCA template as base
     // ══════════════════════════════════════════════════════════════════════════
 
-    // Load the template PDF
     const templatePath = join(process.cwd(), 'public', 'templates', 'authorization-template.pdf');
     const templateBytes = readFileSync(templatePath);
     const templateDoc = await PDFDocument.load(templateBytes);
 
-    // Create the output PDF
     const pdfDoc = await PDFDocument.create();
     const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -203,11 +172,11 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     const sanitize = (text: string): string => {
       return text
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // remove diacritics for latin1 compat
-        .replace(/[^\x00-\xFF]/g, '?');   // replace remaining non-latin1
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\x00-\xFF]/g, '?');
     };
 
-    // ── Helper: Draw text with accent preservation ──
+    // ── Helper: Draw text ──
     const drawText = (
       page: any,
       text: string,
@@ -223,7 +192,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     ) => {
       const f = options.font || fontRegular;
       const s = options.size || 10;
-      const c = options.color || DARK_TEXT_RGB;
+      const c = options.color || DARK_TEXT;
 
       let drawX = x;
       const sanitized = sanitize(text);
@@ -236,16 +205,10 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         drawX = x + options.maxWidth - textWidth;
       }
 
-      page.drawText(sanitized, {
-        x: drawX,
-        y,
-        size: s,
-        font: f,
-        color: c,
-      });
+      page.drawText(sanitized, { x: drawX, y, size: s, font: f, color: c });
     };
 
-    // ── Helper: Draw a field with label and value ──
+    // ── Helper: Draw a labeled field with value and underline ──
     const drawField = (
       page: any,
       label: string,
@@ -253,13 +216,13 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       x: number,
       y: number,
       fieldWidth: number,
-      labelWidth: number = 90
+      labelWidth: number = 100
     ) => {
       // Label
       drawText(page, label, x, y, {
         font: fontBold,
         size: 9,
-        color: BLUE_TEXT_RGB,
+        color: BLUE_TEXT,
       });
 
       // Value
@@ -276,7 +239,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       drawText(page, val, valueX, y, {
         font: fontRegular,
         size: 9,
-        color: DARK_TEXT_RGB,
+        color: DARK_TEXT,
       });
 
       // Underline
@@ -284,25 +247,62 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         start: { x: valueX, y: y - 3 },
         end: { x: x + fieldWidth, y: y - 3 },
         thickness: 0.5,
-        color: BORDER_RGB,
+        color: BORDER,
       });
     };
 
-    // ── Helper: Draw a section title with accent bar ──
+    // ── Helper: Draw a blank fill-in field with label and underline ──
+    const drawBlankField = (
+      page: any,
+      label: string,
+      value: string | null | undefined,
+      x: number,
+      y: number,
+      fieldWidth: number,
+      labelWidth: number = 50
+    ) => {
+      // Label
+      drawText(page, label, x, y, {
+        font: fontBold,
+        size: 9,
+        color: BLUE_TEXT,
+      });
+
+      const valueX = x + labelWidth + 4;
+
+      // Pre-fill value if available
+      if (value) {
+        drawText(page, sanitize(value), valueX, y, {
+          font: fontRegular,
+          size: 9,
+          color: DARK_TEXT,
+        });
+      }
+
+      // Underline across full remaining width
+      page.drawLine({
+        start: { x: valueX, y: y - 3 },
+        end: { x: x + fieldWidth, y: y - 3 },
+        thickness: 0.5,
+        color: BORDER,
+      });
+    };
+
+    // ── Helper: Draw a section header ──
     const drawSection = (
       page: any,
       title: string,
       x: number,
       y: number,
       width: number,
-      accentColor: any = ORANGE_RGB
-    ) => {
+      accentColor: any = ORANGE
+    ): number => {
       // Accent bar
       page.drawRectangle({
         x,
         y: y - 4,
         width: 4,
-        height: 12,
+        height: 14,
         color: accentColor,
       });
 
@@ -310,184 +310,97 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       drawText(page, title, x + 10, y, {
         font: fontBold,
         size: 11,
-        color: BLUE_DARK_RGB,
+        color: BLUE_DARK,
       });
 
       // Separator line
       page.drawLine({
-        start: { x, y: y - 7 },
-        end: { x: x + width, y: y - 7 },
+        start: { x, y: y - 8 },
+        end: { x: x + width, y: y - 8 },
         thickness: 0.5,
-        color: BORDER_RGB,
+        color: BORDER,
       });
 
-      return y - 16;
+      return y - 18;
     };
 
-    // ── Helper: Draw student card ──
-    const drawStudentCard = (
+    // ── Helper: Draw multi-line wrapped text ──
+    const drawWrappedText = (
       page: any,
-      student: typeof students[0],
-      idx: number,
+      text: string,
       x: number,
-      startY: number,
-      width: number
+      y: number,
+      maxWidth: number,
+      options: {
+        font?: any;
+        size?: number;
+        color?: any;
+        lineHeight?: number;
+      } = {}
     ): number => {
-      let y = startY;
+      const f = options.font || fontRegular;
+      const s = options.size || 9;
+      const c = options.color || DARK_TEXT;
+      const lh = options.lineHeight || 14;
 
-      const cardPad = 18;
-      const cardH = 200;
-      const cardX = x;
-      const innerW = width - cardPad * 2;
+      const sanitized = sanitize(text);
+      const words = sanitized.split(' ');
+      let line = '';
+      let currentY = y;
 
-      // Card background
-      page.drawRectangle({
-        x: cardX,
-        y: y - cardH,
-        width,
-        height: cardH,
-        color: SECTION_BG_RGB,
-        borderColor: BORDER_RGB,
-        borderWidth: 0.5,
-      });
+      for (const word of words) {
+        const testLine = line ? `${line} ${word}` : word;
+        const testWidth = f.widthOfTextAtSize(testLine, s);
 
-      // Left accent bar
-      page.drawRectangle({
-        x: cardX,
-        y: y - cardH,
-        width: 5,
-        height: cardH,
-        color: BLUE_DARK_RGB,
-      });
+        if (testWidth > maxWidth && line) {
+          page.drawText(line, { x, y: currentY, size: s, font: f, color: c });
+          currentY -= lh;
+          line = word;
+        } else {
+          line = testLine;
+        }
+      }
 
-      // Student badge
-      const badgeW = 75;
-      const badgeH = 16;
-      page.drawRectangle({
-        x: cardX + cardPad,
-        y: y - 22,
-        width: badgeW,
-        height: badgeH,
-        color: BLUE_DARK_RGB,
-        borderRadius: 3,
-      });
-      drawText(page, `ALUNO ${idx + 1}`, cardX + cardPad + 10, y - 14, {
-        font: fontBold,
-        size: 8,
-        color: WHITE_RGB,
-      });
+      if (line) {
+        page.drawText(line, { x, y: currentY, size: s, font: f, color: c });
+        currentY -= lh;
+      }
 
-      y -= 35;
-
-      const halfW = innerW / 2;
-
-      // Nome
-      drawField(page, 'Nome:', student.full_name, cardX + cardPad, y, innerW, 42);
-      y -= 22;
-
-      // Turma / Serie
-      drawField(page, 'Turma:', student.class || '-', cardX + cardPad, y, halfW - 5, 42);
-      drawField(page, 'Serie:', student.grade || '-', cardX + cardPad + halfW, y, halfW, 35);
-      y -= 22;
-
-      // Escola
-      drawField(page, 'Escola:', student.school.name, cardX + cardPad, y, innerW, 42);
-      y -= 22;
-
-      // Responsavel / Tel
-      drawField(page, 'Responsavel:', student.guardian_name || '-', cardX + cardPad, y, halfW + 50, 70);
-      drawField(page, 'Tel.:', student.guardian_phone || '-', cardX + cardPad + halfW + 55, y, halfW - 55, 25);
-      y -= 25;
-
-      // Authorization checkbox
-      page.drawRectangle({
-        x: cardX + cardPad,
-        y: y - 10,
-        width: 10,
-        height: 10,
-        borderColor: BLUE_DARK_RGB,
-        borderWidth: 1,
-      });
-
-      drawText(page, declarationText, cardX + cardPad + 16, y - 2, {
-        font: fontRegular,
-        size: 8,
-        color: DARK_TEXT_RGB,
-        maxWidth: innerW - 20,
-      });
-      y -= 22;
-
-      // Signature lines
-      const sigW = 170;
-      const sigGap = 40;
-
-      // Responsible signature
-      page.drawLine({
-        start: { x: cardX + cardPad, y: y - 20 },
-        end: { x: cardX + cardPad + sigW, y: y - 20 },
-        thickness: 0.5,
-        color: LIGHT_GRAY_RGB,
-      });
-      drawText(page, 'Assinatura do Responsavel', cardX + cardPad, y - 30, {
-        font: fontRegular,
-        size: 7,
-        color: LIGHT_GRAY_RGB,
-        maxWidth: sigW,
-        align: 'center',
-      });
-
-      // Student signature
-      page.drawLine({
-        start: { x: cardX + cardPad + sigW + sigGap, y: y - 20 },
-        end: { x: cardX + cardPad + sigW * 2 + sigGap, y: y - 20 },
-        thickness: 0.5,
-        color: LIGHT_GRAY_RGB,
-      });
-      drawText(page, 'Assinatura do Aluno(a)', cardX + cardPad + sigW + sigGap, y - 30, {
-        font: fontRegular,
-        size: 7,
-        color: LIGHT_GRAY_RGB,
-        maxWidth: sigW,
-        align: 'center',
-      });
-
-      return startY - cardH - 12;
+      return currentY;
     };
 
     // ══════════════════════════════════════════════════════════════════════════
-    // Generate pages
+    // Generate pages — one student per page
     // ══════════════════════════════════════════════════════════════════════════
 
-    const STUDENTS_PER_PAGE = 2;
-    const MARGIN_LEFT = 42;     // ~8% of 595pt
+    const MARGIN_LEFT = 42;
     const MARGIN_RIGHT = 42;
     const CONTENT_WIDTH = 595.5 - MARGIN_LEFT - MARGIN_RIGHT;
 
-    for (let pageIdx = 0; pageIdx < Math.ceil(students.length / STUDENTS_PER_PAGE); pageIdx++) {
+    for (const student of students) {
       // Copy the template page
       const [templatePage] = await pdfDoc.copyPages(templateDoc, [0]);
       pdfDoc.addPage(templatePage);
       const page = pdfDoc.getPage(pdfDoc.getPageCount() - 1);
 
       const { height } = page.getSize();
+      let y = height - 90;
 
-      // ── Title area (Y: 12-15% from top = ~720pt from bottom) ──
-      let y = height - 95;
-
-      drawText(page, headerText, MARGIN_LEFT, y, {
+      // ── Title ──
+      drawText(page, 'TERMO DE AUTORIZACAO', MARGIN_LEFT, y, {
         font: fontBold,
         size: 18,
-        color: BLUE_DARK_RGB,
+        color: BLUE_DARK,
         maxWidth: CONTENT_WIDTH,
         align: 'center',
       });
 
-      y -= 16;
+      y -= 14;
 
-      drawText(page, subtitleText, MARGIN_LEFT, y, {
+      drawText(page, 'NUCA - Nucleo de Cidadania de Adolescentes', MARGIN_LEFT, y, {
         font: fontRegular,
-        size: 10,
-        color: LIGHT_GRAY_RGB,
+        size: 9,
+        color: LIGHT_GRAY,
         maxWidth: CONTENT_WIDTH,
         align: 'center',
       });
@@ -498,75 +411,150 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         start: { x: MARGIN_LEFT, y },
         end: { x: MARGIN_LEFT + CONTENT_WIDTH, y },
         thickness: 0.8,
-        color: BORDER_RGB,
+        color: BORDER,
       });
-
       y -= 18;
 
-      // ── Event Details Section ──
-      y = drawSection(page, 'Dados da Atividade', MARGIN_LEFT, y, CONTENT_WIDTH, ORANGE_RGB);
+      // ════════════════════════════════════════════════════════════════════════
+      // SECTION 1: DADOS DO(A) ADOLESCENTE
+      // ════════════════════════════════════════════════════════════════════════
+      y = drawSection(page, 'DADOS DO(A) ADOLESCENTE', MARGIN_LEFT, y, CONTENT_WIDTH, BLUE_DARK);
 
-      const halfContentW = CONTENT_WIDTH / 2;
-
-      drawField(page, 'Titulo:', resolvedEventTitle, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 42);
+      drawField(page, 'Nome:', student.full_name, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 42);
       y -= 22;
 
-      drawField(page, 'Data:', eventDateDisplay, MARGIN_LEFT + 8, y, halfContentW - 10, 35);
-      drawField(page, 'Local:', resolvedEventLocation, MARGIN_LEFT + 8 + halfContentW, y, halfContentW - 10, 38);
+      drawField(page, 'Escola:', student.school.name, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 42);
+      y -= 28;
+
+      // ════════════════════════════════════════════════════════════════════════
+      // SECTION 2: DADOS DA ATIVIDADE
+      // ════════════════════════════════════════════════════════════════════════
+      y = drawSection(page, 'DADOS DA ATIVIDADE', MARGIN_LEFT, y, CONTENT_WIDTH, ORANGE);
+
+      const halfW = (CONTENT_WIDTH - 16) / 2;
+
+      // Nome da atividade
+      drawField(page, 'Nome da atividade:', resolvedTitle, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 105);
       y -= 22;
 
-      if (resolvedDepartureTime || resolvedReturnTime) {
-        drawField(page, 'Saida:', resolvedDepartureTime || '-', MARGIN_LEFT + 8, y, halfContentW - 10, 35);
-        drawField(page, 'Retorno:', resolvedReturnTime || '-', MARGIN_LEFT + 8 + halfContentW, y, halfContentW - 10, 42);
-        y -= 22;
-      }
-
-      if (resolvedResponsibleName) {
-        drawField(page, 'Responsavel:', resolvedResponsibleName, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 70);
-        y -= 22;
-      }
-
-      if (resolvedObservations) {
-        drawText(page, 'Observacoes:', MARGIN_LEFT + 8, y, {
+      // Descricao
+      if (resolvedDescription) {
+        drawText(page, 'Descricao:', MARGIN_LEFT + 8, y, {
           font: fontBold,
           size: 9,
-          color: BLUE_TEXT_RGB,
+          color: BLUE_TEXT,
         });
-        drawText(page, sanitize(resolvedObservations).slice(0, 80), MARGIN_LEFT + 85, y, {
-          font: fontRegular,
+        y -= 14;
+        y = drawWrappedText(page, resolvedDescription, MARGIN_LEFT + 12, y, CONTENT_WIDTH - 24, {
           size: 9,
-          color: DARK_TEXT_RGB,
+          color: DARK_TEXT,
         });
+        y -= 6;
+      } else {
+        drawField(page, 'Descricao:', '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 65);
         y -= 22;
       }
 
-      y -= 10;
+      // Data + Destino (side by side)
+      drawField(page, 'Data:', eventDateDisplay, MARGIN_LEFT + 8, y, halfW - 5, 35);
+      drawField(page, 'Destino:', resolvedLocation, MARGIN_LEFT + 8 + halfW, y, halfW, 48);
+      y -= 22;
 
-      // ── Student Cards ──
-      const pageStudents = students.slice(
-        pageIdx * STUDENTS_PER_PAGE,
-        (pageIdx + 1) * STUDENTS_PER_PAGE
-      );
+      // Horario saida + retorno (side by side)
+      drawField(page, 'Horario de saida:', resolvedDepartureTime || '-', MARGIN_LEFT + 8, y, halfW - 5, 95);
+      drawField(page, 'Horario de retorno:', resolvedReturnTime || '-', MARGIN_LEFT + 8 + halfW, y, halfW, 108);
+      y -= 22;
 
-      for (let sIdx = 0; sIdx < pageStudents.length; sIdx++) {
-        const student = pageStudents[sIdx];
-        const globalIdx = pageIdx * STUDENTS_PER_PAGE + sIdx;
-        y = drawStudentCard(page, student, globalIdx, MARGIN_LEFT, y, CONTENT_WIDTH);
-      }
+      // Ponto de saida + Meio de transporte (side by side)
+      drawField(page, 'Ponto de saida:', resolvedDeparturePoint || '-', MARGIN_LEFT + 8, y, halfW - 5, 85);
+      drawField(page, 'Meio de transporte:', resolvedTransport || '-', MARGIN_LEFT + 8 + halfW, y, halfW, 108);
+      y -= 22;
 
-      // ── Footer text ──
-      drawText(page, footerText, MARGIN_LEFT, 40, {
-        font: fontItalic,
-        size: 6,
-        color: LIGHT_GRAY_RGB,
+      // Responsavel pela atividade
+      drawField(page, 'Responsavel pela atividade:', resolvedResponsibleName || '-', MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 140);
+      y -= 28;
+
+      // ════════════════════════════════════════════════════════════════════════
+      // SECTION 3: DADOS DO RESPONSÁVEL LEGAL
+      // ════════════════════════════════════════════════════════════════════════
+      y = drawSection(page, 'DADOS DO RESPONSAVEL LEGAL', MARGIN_LEFT, y, CONTENT_WIDTH, BLUE_DARK);
+
+      drawBlankField(page, 'Nome:', student.guardian_name, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 42);
+      y -= 22;
+
+      const thirdW = (CONTENT_WIDTH - 24) / 3;
+
+      drawBlankField(page, 'CPF:', student.cpf, MARGIN_LEFT + 8, y, thirdW, 30);
+      drawBlankField(page, 'RG:', student.rg, MARGIN_LEFT + 8 + thirdW + 4, y, thirdW, 24);
+      drawBlankField(page, 'Telefone:', student.guardian_phone, MARGIN_LEFT + 8 + (thirdW + 4) * 2, y, thirdW, 52);
+      y -= 32;
+
+      // ════════════════════════════════════════════════════════════════════════
+      // SECTION 4: TERMO DE AUTORIZAÇÃO
+      // ════════════════════════════════════════════════════════════════════════
+      y = drawSection(page, 'TERMO DE AUTORIZACAO', MARGIN_LEFT, y, CONTENT_WIDTH, ORANGE);
+
+      const termText1 = `Eu, identificado(a) acima como responsavel legal pelo(a) adolescente ${student.full_name}, autorizo sua participacao na atividade descrita neste documento, promovida pelo NUCA - Nucleo de Cidadania de Adolescentes.`;
+
+      const termText2 = 'Declaro estar ciente da programacao, do local, dos horarios de saida e retorno, bem como das orientacoes repassadas pela coordenacao do NUCA.';
+
+      const termText3 = 'Autorizo, ainda, que, em caso de necessidade, sejam adotadas as medidas cabiveis para atendimento medico de urgencia ou emergencia, sendo o responsavel legal comunicado o mais breve possivel.';
+
+      const termText4 = 'Declaro que as informacoes prestadas neste documento sao verdadeiras e assumo inteira responsabilidade por esta autorizacao.';
+
+      const termX = MARGIN_LEFT + 8;
+      const termMaxW = CONTENT_WIDTH - 16;
+
+      y = drawWrappedText(page, termText1, termX, y, termMaxW, { size: 9, lineHeight: 14 });
+      y -= 6;
+      y = drawWrappedText(page, termText2, termX, y, termMaxW, { size: 9, lineHeight: 14 });
+      y -= 6;
+      y = drawWrappedText(page, termText3, termX, y, termMaxW, { size: 9, lineHeight: 14 });
+      y -= 6;
+      y = drawWrappedText(page, termText4, termX, y, termMaxW, { size: 9, lineHeight: 14 });
+      y -= 20;
+
+      // ════════════════════════════════════════════════════════════════════════
+      // SECTION 5: SIGNATURE AREA
+      // ════════════════════════════════════════════════════════════════════════
+
+      // Município + Data (side by side)
+      drawBlankField(page, 'Municipio:', null, MARGIN_LEFT + 8, y, halfW - 10, 60);
+      drawBlankField(page, 'Data:', null, MARGIN_LEFT + 8 + halfW, y, halfW, 35);
+      y -= 35;
+
+      // Signature line
+      const sigW = 250;
+      const sigCenterX = MARGIN_LEFT + CONTENT_WIDTH / 2;
+
+      page.drawLine({
+        start: { x: sigCenterX - sigW / 2, y: y - 10 },
+        end: { x: sigCenterX + sigW / 2, y: y - 10 },
+        thickness: 0.5,
+        color: DARK_TEXT,
       });
 
-      const pageNum = pageIdx + 1;
-      const totalPages = Math.ceil(students.length / STUDENTS_PER_PAGE);
-      drawText(page, `Pagina ${pageNum} de ${totalPages}`, MARGIN_LEFT, 30, {
+      drawText(page, 'Assinatura do Responsavel Legal', MARGIN_LEFT, y - 22, {
+        font: fontRegular,
+        size: 8,
+        color: LIGHT_GRAY,
+        maxWidth: CONTENT_WIDTH,
+        align: 'center',
+      });
+
+      // ── Footer ──
+      drawText(page, 'Documento gerado automaticamente pelo sistema NUCA - Nucleo de Cidadania de Adolescentes', MARGIN_LEFT, 40, {
+        font: fontItalic,
+        size: 6,
+        color: LIGHT_GRAY,
+      });
+
+      // Page number
+      const idx = students.indexOf(student);
+      drawText(page, `Pagina ${idx + 1} de ${students.length}`, MARGIN_LEFT + CONTENT_WIDTH * 0.6, 30, {
         font: fontRegular,
         size: 6,
-        color: LIGHT_GRAY_RGB,
+        color: LIGHT_GRAY,
         maxWidth: CONTENT_WIDTH * 0.35,
         align: 'center',
       });
@@ -576,32 +564,32 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     await logAction(
       req.user!.userId,
       'export_report',
-      `Geração de autorização de passeio (PDF): evento="${resolvedEventTitle}", alunos=${students.length}`,
+      `Geracao de Termo de Autorizacao (PDF): evento="${resolvedTitle}", alunos=${students.length}`,
       req
     );
 
     // ── Return PDF ──
     const pdfBytes = await pdfDoc.save();
     const pdfBuffer = Buffer.from(pdfBytes);
-    const eventSlug = resolvedEventTitle
+    const eventSlug = resolvedTitle
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 40) || 'passeio';
+      .slice(0, 40) || 'autorizacao';
 
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="autorizacao-passeio_${eventSlug}.pdf"`,
+        'Content-Disposition': `attachment; filename="termo-autorizacao_${eventSlug}.pdf"`,
         'Cache-Control': 'no-store',
       },
     });
   } catch (error) {
     console.error('Authorization PDF error:', error);
     return NextResponse.json(
-      { error: 'Erro ao gerar autorização de passeio' },
+      { error: 'Erro ao gerar termo de autorizacao' },
       { status: 500 }
     );
   }

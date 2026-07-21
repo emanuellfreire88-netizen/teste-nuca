@@ -843,6 +843,9 @@ function StudentProfile({
     departure_time: "",
     return_time: "",
     responsible_name: "",
+    activity_description: "",
+    departure_point: "",
+    transport: "",
     observations: "",
   });
   const [authLoading, setAuthLoading] = useState(false);
@@ -855,6 +858,9 @@ function StudentProfile({
     departure_time: string | null;
     return_time: string | null;
     responsible_name: string | null;
+    departure_point: string | null;
+    transport: string | null;
+    description: string | null;
     observations: string | null;
     school_name: string | null;
     type: string;
@@ -1040,6 +1046,9 @@ function StudentProfile({
         departure_time: selectedEvent.departure_time || "",
         return_time: selectedEvent.return_time || "",
         responsible_name: selectedEvent.responsible_name || "",
+        activity_description: selectedEvent.description || "",
+        departure_point: selectedEvent.departure_point || "",
+        transport: selectedEvent.transport || "",
         observations: selectedEvent.observations || "",
       });
     }
@@ -1062,6 +1071,9 @@ function StudentProfile({
         departure_time: authForm.departure_time || undefined,
         return_time: authForm.return_time || undefined,
         responsible_name: authForm.responsible_name || undefined,
+        activity_description: authForm.activity_description || undefined,
+        departure_point: authForm.departure_point || undefined,
+        transport: authForm.transport || undefined,
         observations: authForm.observations || undefined,
       };
 
@@ -1640,17 +1652,17 @@ function StudentProfile({
           setAuthSelectedEventId("");
           setAuthSelectedTemplateId("");
         }}
-        maxWidth="max-w-lg"
+        maxWidth="max-w-xl"
       >
-        <div className="px-6 pt-6 pb-2">
+        <div className="px-6 pt-6 pb-2 max-h-[75vh] overflow-y-auto">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5" />
-            Autorização de Saída para Passeio
+            Termo de Autorização
           </h2>
           <div className="mt-4 space-y-4">
             {/* Student info */}
             <div className="space-y-2">
-              <Label>Aluno</Label>
+              <Label>Adolescente</Label>
               <Input
                 value={student.full_name}
                 readOnly
@@ -1716,7 +1728,7 @@ function StudentProfile({
 
             {/* Event details form */}
             <div className="space-y-2">
-              <Label>Título do Evento *</Label>
+              <Label>Nome da Atividade *</Label>
               <Input
                 value={authForm.event_title}
                 onChange={(e) =>
@@ -1725,9 +1737,20 @@ function StudentProfile({
                 placeholder="Ex: Passeio ao museu"
               />
             </div>
+            <div className="space-y-2">
+              <Label>Descrição da Atividade</Label>
+              <Textarea
+                value={authForm.activity_description}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, activity_description: e.target.value })
+                }
+                placeholder="Descreva a atividade que será realizada..."
+                rows={2}
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Data do Evento *</Label>
+                <Label>Data *</Label>
                 <Input
                   type="date"
                   value={authForm.event_date}
@@ -1737,13 +1760,13 @@ function StudentProfile({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Local</Label>
+                <Label>Local de Destino *</Label>
                 <Input
                   value={authForm.event_location}
                   onChange={(e) =>
                     setAuthForm({ ...authForm, event_location: e.target.value })
                   }
-                  placeholder="Local do evento"
+                  placeholder="Destino da atividade"
                 />
               </div>
             </div>
@@ -1759,7 +1782,7 @@ function StudentProfile({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Horário de Retorno</Label>
+                <Label>Horário Previsto de Retorno</Label>
                 <Input
                   type="time"
                   value={authForm.return_time}
@@ -1769,14 +1792,36 @@ function StudentProfile({
                 />
               </div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Ponto de Saída</Label>
+                <Input
+                  value={authForm.departure_point}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, departure_point: e.target.value })
+                  }
+                  placeholder="Ex: Escola Municipal X"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Meio de Transporte</Label>
+                <Input
+                  value={authForm.transport}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, transport: e.target.value })
+                  }
+                  placeholder="Ex: Ônibus, Van"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label>Nome do Responsável</Label>
+              <Label>Responsável pela Atividade</Label>
               <Input
                 value={authForm.responsible_name}
                 onChange={(e) =>
                   setAuthForm({ ...authForm, responsible_name: e.target.value })
                 }
-                placeholder="Nome do responsável pelo passeio"
+                placeholder="Nome do responsável pela atividade"
               />
             </div>
             <div className="space-y-2">
@@ -1787,7 +1832,7 @@ function StudentProfile({
                   setAuthForm({ ...authForm, observations: e.target.value })
                 }
                 placeholder="Observações adicionais..."
-                rows={3}
+                rows={2}
               />
             </div>
           </div>
