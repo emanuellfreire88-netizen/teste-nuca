@@ -15,7 +15,7 @@ export async function seedDefaultTemplates() {
       description: 'Modelo padrão de autorização de saída para passeios e atividades escolares',
       header_text: 'AUTORIZAÇÃO DE SAÍDA',
       body_text: 'Núcleo de Cidadania de Adolescentes',
-      footer_text: 'Documento gerado automaticamente pelo sistema NUCA',
+      footer_text: 'Documento gerado automaticamente pelo sistema NUCA — Núcleo de Cidadania de Adolescentes',
       declaration: 'Declaro estar ciente das informações acima e autorizo a participação do(a) aluno(a) na atividade descrita.',
       is_active: true,
     },
