@@ -139,3 +139,4 @@ Authorization PDF error: TypeError: doc.beginPath is not a function
  GET /api/notifications?read=false&page=1&limit=10 200 in 937ms (compile: 3ms, render: 934ms)
  POST /api/auth/login 200 in 1415ms (compile: 2ms, render: 1412ms)
  POST /api/students/authorization-pdf 200 in 1328ms (compile: 176ms, render: 1152ms)
+ GET /api/notifications?read=false&page=1&limit=10 200 in 900ms (compile: 6ms, render: 894ms)
