@@ -5,9 +5,4 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 832ms
-○ Compiling / ...
- GET / 200 in 6.3s (compile: 6.1s, render: 246ms)
- POST /api/auth/login 200 in 7.7s (compile: 5.9s, render: 1840ms)
- GET /api/students?limit=5 200 in 1182ms (compile: 59ms, render: 1124ms)
- POST /api/students/authorization-pdf 200 in 1040ms (compile: 293ms, render: 747ms)
+✓ Ready in 824ms
