@@ -276,3 +276,28 @@ Stage Summary:
 - All 6 requested changes implemented: accents fixed, page number repositioned, footer removed, Município/Data auto-fill, field toggles
 - LiberationSans fonts provide full Unicode/Portuguese support without accent stripping
 - PDF generation tested and working (single and multi-student)
+
+---
+Task ID: data-recovery
+Agent: Main Agent
+Task: Fix missing data in system - data disappeared from SQLite database
+
+Work Log:
+- Investigated why data disappeared: schools, students, events all had 0 rows
+- Found db.ts had adapter code (PrismaBetterSqlite3, PrismaNeonHTTP) that caused Turbopack crashes and Vercel build failures
+- Simplified db.ts to plain PrismaClient (no adapters) - removes dynamic require() that crashes Turbopack
+- Discovered SQLite database was corrupted (SQLITE_CORRUPT error when running sync)
+- Deleted corrupted db/custom.db and recreated with prisma db:push
+- Used sync-neon-to-sqlite.js script to sync data from Neon PostgreSQL to local SQLite
+- Successfully restored all data: 5 users, 4 schools, 71 students, 2 events, 66 attendance records, 66 event participants, 631 action logs
+- Added NEON_URL to .env for easier future syncs
+- Added allowedDevOrigins to next.config.ts for cross-origin requests from sandbox
+- Lint passes with 0 errors
+
+Stage Summary:
+- Root cause: SQLite database was corrupted (SQLITE_CORRUPT)
+- Data restored from Neon PostgreSQL via sync-neon-to-sqlite.js script
+- db.ts simplified to plain PrismaClient (no adapters) - fixes Turbopack crash and Vercel build
+- Schools: Escola Conceição, Escola Estadual, Escola Benício, Escola Pedro Ferreira
+- 71 students restored with all related data
+- NEON_URL added to .env for future sync convenience

@@ -5,15 +5,5 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 770ms
-$ next dev -p 3000 -H 0.0.0.0
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 697ms
+✓ Ready in 698ms
 ○ Compiling / ...
- GET / 200 in 5.0s (compile: 4.8s, render: 233ms)
- GET / 200 in 41ms (compile: 9ms, render: 32ms)
