@@ -1060,7 +1060,7 @@ export function EventsPage() {
             Link de Certificados
           </Button>
           {isAdmin && (
-            <Button onClick={handleOpenCreate} className="shrink-0 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white">
+            <Button onClick={handleOpenCreate} className="shrink-0 bg-[#0787e5] hover:bg-[#0676cc] active:bg-[#0566b3] text-white">
               <Plus className="mr-2 h-4 w-4" />
               Novo Evento
             </Button>
@@ -2922,7 +2922,7 @@ export function EventsPage() {
             type="button"
             onClick={handleSubmitForm}
             disabled={formSubmitting}
-            className="bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white"
+            className="bg-[#0787e5] hover:bg-[#0676cc] active:bg-[#0566b3] text-white"
           >
             {formSubmitting ? (
               <>

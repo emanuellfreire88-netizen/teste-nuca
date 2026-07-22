@@ -395,13 +395,13 @@ function SidebarContent({
         : "Visitante";
 
   return (
-    <div className="flex flex-col h-full bg-[#56CE20]">
+    <div className="flex flex-col h-full bg-[#0787e5]">
       {/* Brand — white background so the colorful logo stands out */}
       <div className={`bg-white border-b border-black/5 flex items-center gap-2 ${collapsed ? "justify-center h-20 px-2" : "h-24 px-3"}`}>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="p-2 rounded-md text-[#09328B] hover:bg-black/5 transition-colors cursor-pointer shrink-0"
+            className="p-2 rounded-md text-white hover:bg-black/5 transition-colors cursor-pointer shrink-0"
             title={collapsed ? "Expandir menu" : "Recolher menu"}
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           >
@@ -430,8 +430,8 @@ function SidebarContent({
                 title={collapsed ? item.label : undefined}
                 className={`relative w-full flex items-center gap-4 ${collapsed ? "justify-center px-2" : "px-6"} py-3 text-base transition-colors cursor-pointer ${
                   isActive
-                    ? "bg-[#3DA815] text-white"
-                    : "text-white hover:bg-[#4AB81A]"
+                    ? "bg-[#0566b3] text-white"
+                    : "text-white hover:bg-[#0676cc]"
                 }`}
               >
                 {isActive && !collapsed && (
@@ -543,7 +543,7 @@ export function AppLayout({
 
       {/* Mobile Sidebar (narrow) */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 p-0 border-0 bg-[#56CE20]">
+        <SheetContent side="left" className="w-72 p-0 border-0 bg-[#0787e5]">
           <SheetHeader className="sr-only">
             <SheetTitle>Menu de navegação</SheetTitle>
           </SheetHeader>

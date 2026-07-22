@@ -192,7 +192,7 @@ export function LoginPage() {
       </header>
 
       {/* ── Main content ─────────────────────────────────── */}
-      <main className="flex-1 flex items-center justify-center px-6 py-10 bg-[#65d72a]">
+      <main className="flex-1 flex items-center justify-center px-6 py-10 bg-[#0787e5]">
         <div className="w-full max-w-[420px]">
           {!mustChangePassword ? (
             <>
@@ -295,7 +295,7 @@ export function LoginPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-10 rounded-lg text-sm font-medium transition-all mt-2 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white shadow-sm"
+                  className="w-full h-10 rounded-lg text-sm font-medium transition-all mt-2 bg-[#0787e5] hover:bg-[#0676cc] active:bg-[#0566b3] text-white shadow-sm"
                   disabled={loading}
                 >
                   {loading ? (
@@ -478,7 +478,7 @@ export function LoginPage() {
                           <span
                             className={`flex h-3.5 w-3.5 items-center justify-center rounded-full transition-colors ${
                               req.ok
-                                ? "bg-white text-[#2480dc]"
+                                ? "bg-white text-[#0787e5]"
                                 : "bg-white/25 text-transparent"
                             }`}
                           >
@@ -501,7 +501,7 @@ export function LoginPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-10 rounded-lg text-sm font-medium transition-all mt-2 bg-[#2480dc] hover:bg-[#1f6db8] active:bg-[#1a5fa3] text-white shadow-sm"
+                  className="w-full h-10 rounded-lg text-sm font-medium transition-all mt-2 bg-[#0787e5] hover:bg-[#0676cc] active:bg-[#0566b3] text-white shadow-sm"
                   disabled={
                     changingPassword ||
                     !newPassword ||
