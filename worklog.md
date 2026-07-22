@@ -301,3 +301,41 @@ Stage Summary:
 - Schools: Escola Conceição, Escola Estadual, Escola Benício, Escola Pedro Ferreira
 - 71 students restored with all related data
 - NEON_URL added to .env for future sync convenience
+
+---
+Task ID: neon-permanent
+Agent: Main Agent
+Task: Switch database permanently to Neon PostgreSQL - user requested database should be Neon and never change
+
+Work Log:
+- Read and analyzed all database configuration files (.env, schema.prisma, schema.vercel.prisma, db.ts, postinstall.js, build-vercel.sh, sync-neon-to-sqlite.js)
+- Changed .env: DATABASE_URL and DIRECT_URL now point to Neon PostgreSQL (removed SQLite URLs)
+- Changed prisma/schema.prisma: provider from "sqlite" to "postgresql", added directUrl for Neon
+- Changed db.ts: simple PrismaClient (no adapter needed - PrismaClient connects to Neon via TCP successfully)
+- Deleted prisma/schema.vercel.prisma (no longer needed - single PostgreSQL schema)
+- Deleted scripts/sync-neon-to-sqlite.js (no longer needed - no SQLite sync)
+- Simplified scripts/postinstall.js (just prisma generate, no schema swapping)
+- Simplified build-vercel.sh (no schema swapping, keeps Neon wake-up and db push logic)
+- Removed SQLite dependencies from package.json (@prisma/adapter-better-sqlite3, better-sqlite3)
+- Removed sync:neon script from package.json
+- Ran prisma generate - Prisma client generated for PostgreSQL successfully
+- Ran prisma db push - Neon database already in sync with schema
+- Created .zscripts/dev.sh - custom boot script that:
+  - Writes Neon .env configuration (overwrites start.sh SQLite default)
+  - Exports DATABASE_URL and DIRECT_URL to override boot process env vars
+  - Runs bun install, prisma generate, bun run dev
+  - Ensures Neon config persists on container restarts
+- Verified Neon connection with test script:
+  - Neon HTTP client: 4 schools, 71 students, 2 events, 5 users found
+  - PrismaClient TCP: Same data counts - connection successful
+- Tested API routes: login API found user in Neon (returned "Invalid credentials"), schools API responded with auth check
+- Page renders correctly with Neon data (HTML shows "Nuca Plataforma - Gestão de Alunos")
+
+Stage Summary:
+- Database permanently switched to Neon PostgreSQL (both local dev and Vercel production)
+- No dual schema setup needed - single schema.prisma for PostgreSQL
+- All SQLite-related files and dependencies removed
+- .zscripts/dev.sh ensures Neon configuration persists across container restarts
+- Neon data verified: 4 schools, 71 students, 2 events, 5 users
+- Both Neon HTTP and TCP connections work successfully
+- API routes tested and working with Neon database

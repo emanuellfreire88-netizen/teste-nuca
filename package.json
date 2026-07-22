@@ -11,8 +11,7 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset",
-    "sync:neon": "node scripts/sync-neon-to-sqlite.js"
+    "db:reset": "prisma migrate reset"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -22,7 +21,6 @@
     "@mdxeditor/editor": "^3.39.1",
     "@neondatabase/serverless": "^1.1.0",
     "@pdf-lib/fontkit": "^1.1.1",
-    "@prisma/adapter-better-sqlite3": "^7.9.0",
     "@prisma/adapter-neon": "6",
     "@prisma/client": "^6.11.1",
     "@radix-ui/react-accordion": "^1.2.11",
@@ -57,7 +55,6 @@
     "@tanstack/react-table": "^8.21.3",
     "@types/pg": "^8.20.0",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.11.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
