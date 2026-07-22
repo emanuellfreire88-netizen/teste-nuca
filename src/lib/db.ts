@@ -1,30 +1,56 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-
-/**
- * Database client using SQLite via the better-sqlite3 adapter.
- *
- * The adapter factory receives the URL config directly so Prisma
- * can locate the SQLite file.  When a Driver Adapter is in use,
- * Prisma does NOT read the DATABASE_URL from the datasource block —
- * the connection is handled entirely by the adapter.
- */
-
-const SQLITE_DB_PATH = '/home/z/my-project/db/custom.db';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+/**
+ * Database client that auto-detects the environment:
+ *
+ * - SQLite (local dev):  DATABASE_URL starts with "file:"
+ * - Neon PostgreSQL (Vercel):  DATABASE_URL starts with "postgresql://" or "postgres://"
+ *
+ * When a Driver Adapter is in use, Prisma does NOT read the DATABASE_URL
+ * from the datasource block — the connection is handled entirely by the adapter.
+ */
 function createPrismaClient(): PrismaClient {
-  const adapter = new PrismaBetterSqlite3({
-    url: `file:${SQLITE_DB_PATH}`,
-  });
+  const dbUrl = process.env.DATABASE_URL || '';
 
+  // ── SQLite (local development) ──
+  if (dbUrl.startsWith('file:')) {
+    // Dynamic require to avoid bundling SQLite adapter on Vercel
+    const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
+    const adapter = new PrismaBetterSqlite3({
+      url: dbUrl,
+    });
+    return new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+    });
+  }
+
+  // ── Neon PostgreSQL (Vercel production) ──
+  if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
+    // Dynamic require to avoid bundling Neon adapter locally
+    const { PrismaNeonHTTP } = require('@prisma/adapter-neon');
+    const { Pool, neonConfig } = require('@neondatabase/serverless');
+
+    // Fetch connection over HTTP (works in Vercel Edge/Serverless)
+    neonConfig.fetchConnectionCache = true;
+
+    const pool = new Pool({ connectionString: dbUrl });
+    const adapter = new PrismaNeonHTTP(pool);
+
+    return new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+    });
+  }
+
+  // ── Fallback: no adapter (plain PrismaClient) ──
   return new PrismaClient({
-    adapter,
-    log:
-      process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
 }
 
