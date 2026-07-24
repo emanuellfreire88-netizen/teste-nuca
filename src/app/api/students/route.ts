@@ -114,6 +114,7 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       emergency_contact,
       school_id,
       status,
+      image_authorization,
       photo,
     } = body;
 
@@ -185,6 +186,7 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
         emergency_contact: emergency_contact ? sanitizeInput(emergency_contact) : null,
         school_id,
         status: status || 'active',
+        image_authorization: image_authorization && ['authorized', 'not_authorized', 'pending'].includes(image_authorization) ? image_authorization : 'pending',
         photo: photo || null,
       },
     });

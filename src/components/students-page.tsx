@@ -2891,7 +2891,7 @@ function StudentsList({
                 ) : students.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center py-8 text-muted-foreground"
                     >
                       Nenhum aluno encontrado
@@ -2946,6 +2946,25 @@ function StudentsList({
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
+                          {/* Image authorization status indicator */}
+                          {student.image_authorization === "authorized" && (
+                            <span
+                              className="inline-block h-3 w-3 rounded-full bg-emerald-500 shrink-0"
+                              title="Autorização de Imagem: Autorizado"
+                            />
+                          )}
+                          {student.image_authorization === "not_authorized" && (
+                            <span
+                              className="inline-block h-3 w-3 rounded-full bg-red-500 shrink-0"
+                              title="Autorização de Imagem: Não autorizado"
+                            />
+                          )}
+                          {student.image_authorization === "pending" && (
+                            <span
+                              className="inline-block h-3 w-3 rounded-full bg-amber-400 shrink-0"
+                              title="Autorização de Imagem: Pendente"
+                            />
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
