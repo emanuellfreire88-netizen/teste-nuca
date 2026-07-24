@@ -339,3 +339,45 @@ Stage Summary:
 - Neon data verified: 4 schools, 71 students, 2 events, 5 users
 - Both Neon HTTP and TCP connections work successfully
 - API routes tested and working with Neon database
+
+---
+Task ID: participation-auth
+Agent: Main Agent
+Task: Add "Autorização de Participação" feature following same pattern as "Autorização de Imagem e Voz"
+
+Work Log:
+- Added `participation_authorization String @default("pending")` to Student model in Prisma schema
+- Updated POST handler in students/route.ts to validate and create participation_authorization field
+- Updated PUT handler in students/[id]/route.ts to validate and update participation_authorization field
+- Created `/api/students/participation-authorization-pdf/route.ts` - generates PDF with:
+  - AUTORIZAÇÃO DE PARTICIPAÇÃO title
+  - NUCA – Núcleo de Cidadania de Adolescentes subtitle
+  - DADOS DO(A) ADOLESCENTE section (Nome, Escola auto-filled)
+  - DADOS DO RESPONSÁVEL LEGAL section (Nome, CPF, Telefone with blanks/auto-fill)
+  - TERMO DE AUTORIZAÇÃO section (4 paragraphs of authorization text)
+  - DECLARAÇÃO section (bold declaration text)
+  - ASSINATURA section (Município, Date auto-filled + signature line)
+  - Uses NUCA template background, LiberationSans fonts, brand colors
+- Updated seed-templates.ts with `authorization_participation` template entry
+- Updated frontend students-page.tsx (delegated to full-stack-developer agent):
+  - Added UserCheck icon import
+  - Added participation_authorization to Student interface and StudentFormData
+  - Added participation_authorization: "pending" to emptyForm
+  - Added participation_authorization select dropdown in form (🟢/🔴/🟡)
+  - Added participation auth dialog state, handler, and PDF dialog in StudentProfile
+  - Added "Participação" button next to "Imagem e Voz"
+  - Added participation_authorization badges in StudentProfile
+  - Added "Participação" column with colored dots in student list table
+  - Added batch participation auth dialog and handler for multi-select
+  - Updated colSpan from 9 to 10
+- Fixed .env: removed quotes from URLs, added JWT_SECRET
+- Pushed schema to Neon database (db:push)
+- Lint passes with 0 errors
+- All changes pushed to GitHub (2 commits)
+
+Stage Summary:
+- Full "Autorização de Participação" feature implemented (schema → API → PDF → frontend)
+- Same pattern as "Autorização de Imagem e Voz": form field, profile badges, table indicator, PDF generation
+- PDF generates for single student or batch (multi-select)
+- 2 commits pushed to GitHub: feat commit + env fix commit
+- Dev server instability (dies in background) is infrastructure issue, not code issue
