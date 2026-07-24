@@ -65,5 +65,39 @@ export async function seedDefaultTemplates() {
     });
   }
 
-  return { authorization_exit: 'ok', authorization_image_voice: 'ok' };
+  // ── Template 3: authorization_participation (Autorização de Participação) ──
+  const existingParticipation = await db.documentTemplate.findUnique({
+    where: { name: 'authorization_participation' },
+  });
+
+  const participationDeclaration = 'Eu, identificado(a) acima como responsável legal pelo(a) adolescente {{nome_adolescente}}, autorizo sua participação nas atividades promovidas pelo NUCA – Núcleo de Cidadania de Adolescentes, reconhecendo a importância das ações voltadas ao desenvolvimento da cidadania, participação social, formação pessoal e fortalecimento dos direitos de crianças e adolescentes. Declaro estar ciente de que as atividades poderão compreender encontros, oficinas, palestras, capacitações, campanhas, eventos, visitas técnicas, ações comunitárias, atividades culturais, esportivas e educativas, realizadas nas dependências do município ou em outros locais previamente informados pela coordenação do NUCA. Comprometo-me a comunicar à coordenação qualquer informação relevante que possa interferir na participação do(a) adolescente, bem como manter meus dados de contato atualizados. Declaro ainda que estou ciente das normas de participação do programa e autorizo o(a) adolescente acima identificado(a) a participar das atividades desenvolvidas pelo NUCA durante o período em que permanecer regularmente inscrito(a) no programa. Declaro que li, compreendi e concordo com os termos desta autorização, assumindo inteira responsabilidade pelas informações prestadas.';
+
+  if (existingParticipation) {
+    await db.documentTemplate.update({
+      where: { id: existingParticipation.id },
+      data: {
+        display_name: 'Autorização de Participação',
+        description: 'Autorização para participação do adolescente nas atividades do NUCA',
+        header_text: 'AUTORIZAÇÃO DE PARTICIPAÇÃO',
+        body_text: 'NUCA – Núcleo de Cidadania de Adolescentes',
+        footer_text: 'Documento gerado automaticamente pelo sistema NUCA — Núcleo de Cidadania de Adolescentes',
+        declaration: participationDeclaration,
+      },
+    });
+  } else {
+    await db.documentTemplate.create({
+      data: {
+        name: 'authorization_participation',
+        display_name: 'Autorização de Participação',
+        description: 'Autorização para participação do adolescente nas atividades do NUCA',
+        header_text: 'AUTORIZAÇÃO DE PARTICIPAÇÃO',
+        body_text: 'NUCA – Núcleo de Cidadania de Adolescentes',
+        footer_text: 'Documento gerado automaticamente pelo sistema NUCA — Núcleo de Cidadania de Adolescentes',
+        declaration: participationDeclaration,
+        is_active: true,
+      },
+    });
+  }
+
+  return { authorization_exit: 'ok', authorization_image_voice: 'ok', authorization_participation: 'ok' };
 }

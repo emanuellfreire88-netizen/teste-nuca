@@ -115,6 +115,7 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       school_id,
       status,
       image_authorization,
+      participation_authorization,
       photo,
     } = body;
 
@@ -187,6 +188,7 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
         school_id,
         status: status || 'active',
         image_authorization: image_authorization && ['authorized', 'not_authorized', 'pending'].includes(image_authorization) ? image_authorization : 'pending',
+        participation_authorization: participation_authorization && ['authorized', 'not_authorized', 'pending'].includes(participation_authorization) ? participation_authorization : 'pending',
         photo: photo || null,
       },
     });

@@ -98,6 +98,11 @@ export async function PUT(
         const validAuthValues = ['authorized', 'not_authorized', 'pending'];
         updateData.image_authorization = validAuthValues.includes(body.image_authorization) ? body.image_authorization : 'pending';
       }
+      // `participation_authorization` is an enum-like string, validate against allowed values
+      if (body.participation_authorization !== undefined) {
+        const validAuthValues = ['authorized', 'not_authorized', 'pending'];
+        updateData.participation_authorization = validAuthValues.includes(body.participation_authorization) ? body.participation_authorization : 'pending';
+      }
       // `photo` is a base64 data URL — validate it starts with data:image/ or is null
       if (body.photo !== undefined) {
         const photo = body.photo ? String(body.photo) : null;
