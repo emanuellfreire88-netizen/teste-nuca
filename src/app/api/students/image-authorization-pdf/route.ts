@@ -511,35 +511,6 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       });
       y -= 30;
 
-      // ════════════════════════════════════════════════════════════════════════
-      // SECTION 5: USO INTERNO DO NUCA
-      // ════════════════════════════════════════════════════════════════════════
-      y = drawSection(page, 'Uso Interno do NUCA', MARGIN_LEFT, y, CONTENT_WIDTH, LIGHT_GRAY);
-
-      drawBlankField(page, 'Recebido por:', null, MARGIN_LEFT + 8, y, CONTENT_WIDTH - 16, 80);
-      y -= 22;
-
-      drawBlankField(page, 'Data:', null, MARGIN_LEFT + 8, y, halfW - 10, 35);
-      y -= 22;
-
-      drawText(page, 'Observações:', MARGIN_LEFT + 8, y, {
-        font: fontBold,
-        size: 9,
-        color: LIGHT_GRAY,
-      });
-      y -= 8;
-
-      // Draw a box for observations
-      page.drawRectangle({
-        x: MARGIN_LEFT + 8,
-        y: y - 40,
-        width: CONTENT_WIDTH - 16,
-        height: 40,
-        borderColor: BORDER,
-        borderWidth: 0.5,
-        color: rgb(1, 1, 1), // white fill
-      });
-
       // ── Page number ──
       const idx = students.indexOf(student);
       drawText(page, `Página ${idx + 1} de ${students.length}`, MARGIN_LEFT, 50, {
