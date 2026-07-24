@@ -47,6 +47,7 @@ import {
   FileUp,
   AlertTriangle,
   ClipboardCheck,
+  UserCheck,
   ArrowRightLeft,
   Download,
   FileDown,
@@ -81,6 +82,7 @@ interface Student {
   school_id: string;
   status: string;
   image_authorization: string;
+  participation_authorization: string;
   photo: string | null;
   created_at: string;
   school: School;
@@ -141,6 +143,7 @@ interface StudentFormData {
   school_id: string;
   status: string;
   image_authorization: string;
+  participation_authorization: string;
   photo: string;
 }
 
@@ -163,6 +166,7 @@ const emptyForm: StudentFormData = {
   school_id: "",
   status: "active",
   image_authorization: "pending",
+  participation_authorization: "pending",
   photo: "",
 };
 
@@ -430,6 +434,7 @@ function StudentFormDialog({
         school_id: student.school_id || "",
         status: student.status || "active",
         image_authorization: student.image_authorization || "pending",
+        participation_authorization: student.participation_authorization || "pending",
         photo: student.photo || "",
       });
     } else {
@@ -726,6 +731,20 @@ function StudentFormDialog({
                   <option value="pending">🟡 Pendente de assinatura</option>
                 </select>
               </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="participation_authorization">Autorização de Participação</Label>
+                <select
+                  id="participation_authorization"
+                  value={form.participation_authorization}
+                  onChange={(e) => updateField("participation_authorization", e.target.value)}
+                  className={nativeSelectClass}
+                >
+                  <option value="authorized">🟢 Autorizado</option>
+                  <option value="not_authorized">🔴 Não autorizado</option>
+                  <option value="pending">🟡 Pendente de assinatura</option>
+                </select>
+              </div>
             </div>
           </TabsContent>
 
@@ -861,6 +880,11 @@ function StudentProfile({
   const [imageAuthDialogOpen, setImageAuthDialogOpen] = useState(false);
   const [imageAuthMunicipality, setImageAuthMunicipality] = useState("");
   const [imageAuthLoading, setImageAuthLoading] = useState(false);
+
+  // Participation authorization dialog state
+  const [participationAuthDialogOpen, setParticipationAuthDialogOpen] = useState(false);
+  const [participationAuthMunicipality, setParticipationAuthMunicipality] = useState("");
+  const [participationAuthLoading, setParticipationAuthLoading] = useState(false);
   const [authForm, setAuthForm] = useState({
     event_title: "",
     event_date: "",
@@ -971,6 +995,38 @@ function StudentProfile({
       toast.error("Erro ao gerar autorização de imagem e voz");
     } finally {
       setImageAuthLoading(false);
+    }
+  };
+
+  // Participation authorization PDF handler
+  const handleGenerateParticipationAuthPdf = async () => {
+    try {
+      setParticipationAuthLoading(true);
+      const body: Record<string, unknown> = {
+        student_ids: [student.id],
+        municipality: participationAuthMunicipality || undefined,
+      };
+      const response = await fetch("/api/students/participation-authorization-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `autorizacao-participacao-${student.full_name.replace(/\s+/g, "-").toLowerCase()}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Autorização de Participação gerada com sucesso!");
+    } catch {
+      toast.error("Erro ao gerar autorização de participação");
+    } finally {
+      setParticipationAuthLoading(false);
     }
   };
 
@@ -1262,6 +1318,15 @@ function StudentProfile({
           <ImageIcon className="h-4 w-4 mr-1" />
           Imagem e Voz
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setParticipationAuthDialogOpen(true)}
+        >
+          <UserCheck className="h-4 w-4 mr-1" />
+          Participação
+        </Button>
         {isAdmin && (
           <Button
             type="button"
@@ -1333,6 +1398,21 @@ function StudentProfile({
                 {student.image_authorization === "pending" && (
                   <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800">
                     Pendente
+                  </Badge>
+                )}
+                {student.participation_authorization === "authorized" && (
+                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                    Participação Autorizada
+                  </Badge>
+                )}
+                {student.participation_authorization === "not_authorized" && (
+                  <Badge className="bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 dark:border-red-800">
+                    Participação Não Autorizada
+                  </Badge>
+                )}
+                {student.participation_authorization === "pending" && (
+                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                    Participação Pendente
                   </Badge>
                 )}
                 {student.grade && (
@@ -2107,6 +2187,74 @@ function StudentProfile({
           </Button>
         </div>
       </Modal>
+
+      {/* Participation Authorization PDF Dialog */}
+      <Modal
+        open={participationAuthDialogOpen}
+        onClose={() => {
+          setParticipationAuthDialogOpen(false);
+          setParticipationAuthMunicipality("");
+        }}
+        maxWidth="max-w-md"
+      >
+        <div className="px-6 pt-6 pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <UserCheck className="h-5 w-5" />
+            Autorização de Participação
+          </h2>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Adolescente</Label>
+              <Input
+                value={student.full_name}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Município (opcional)</Label>
+              <Input
+                value={participationAuthMunicipality}
+                onChange={(e) => setParticipationAuthMunicipality(e.target.value)}
+                placeholder="Ex: Amélia Rodrigues"
+              />
+              <p className="text-xs text-muted-foreground">
+                Será preenchido no campo "Município" do documento. A data será preenchida automaticamente.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setParticipationAuthDialogOpen(false);
+              setParticipationAuthMunicipality("");
+            }}
+            disabled={participationAuthLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleGenerateParticipationAuthPdf}
+            disabled={participationAuthLoading}
+          >
+            {participationAuthLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Gerar PDF
+              </>
+            )}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -2695,6 +2843,9 @@ function StudentsList({
   const [batchAuthLoading, setBatchAuthLoading] = useState(false);
   const [batchImageAuthMunicipality, setBatchImageAuthMunicipality] = useState("");
   const [batchImageAuthLoading, setBatchImageAuthLoading] = useState(false);
+  const [batchParticipationAuthDialogOpen, setBatchParticipationAuthDialogOpen] = useState(false);
+  const [batchParticipationAuthMunicipality, setBatchParticipationAuthMunicipality] = useState("");
+  const [batchParticipationAuthLoading, setBatchParticipationAuthLoading] = useState(false);
 
   const fetchStudents = useCallback(async () => {
     try {
@@ -2871,6 +3022,40 @@ function StudentsList({
     }
   };
 
+  const handleBatchParticipationAuthPdf = async () => {
+    try {
+      setBatchParticipationAuthLoading(true);
+      const token = useAuthStore.getState().token;
+      const body: Record<string, unknown> = {
+        student_ids: Array.from(selectedIds),
+        municipality: batchParticipationAuthMunicipality || undefined,
+      };
+      const response = await fetch("/api/students/participation-authorization-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `autorizacao-participacao-lote.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Autorização de Participação gerada com sucesso!");
+      setBatchParticipationAuthDialogOpen(false);
+      clearSelection();
+    } catch {
+      toast.error("Erro ao gerar autorização de participação");
+    } finally {
+      setBatchParticipationAuthLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -2938,6 +3123,16 @@ function StudentsList({
                 >
                   <ImageIcon className="h-4 w-4 mr-1" />
                   Imagem e Voz
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBatchParticipationAuthDialogOpen(true)}
+                  className="border-[#0787e5]/40 text-[#0787e5]"
+                >
+                  <UserCheck className="h-4 w-4 mr-1" />
+                  Participação
                 </Button>
               </div>
             </div>
@@ -3031,6 +3226,7 @@ function StudentsList({
                   <TableHead>Série/Turma</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-8">Imagem</TableHead>
+                  <TableHead className="w-8">Participação</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -3064,7 +3260,7 @@ function StudentsList({
                 ) : students.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={9}
+                      colSpan={10}
                       className="text-center py-8 text-muted-foreground"
                     >
                       Nenhum aluno encontrado
@@ -3170,6 +3366,28 @@ function StudentsList({
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {student.participation_authorization === "authorized" && (
+                            <span
+                              className="inline-block h-3 w-3 rounded-full bg-emerald-500 shrink-0"
+                              title="Participação: Autorizado"
+                            />
+                          )}
+                          {student.participation_authorization === "not_authorized" && (
+                            <span
+                              className="inline-block h-3 w-3 rounded-full bg-red-500 shrink-0"
+                              title="Participação: Não autorizado"
+                            />
+                          )}
+                          {student.participation_authorization === "pending" && (
+                            <span
+                              className="inline-block h-3 w-3 rounded-full bg-amber-400 shrink-0"
+                              title="Participação: Pendente"
+                            />
                           )}
                         </div>
                       </TableCell>
@@ -3482,6 +3700,69 @@ function StudentsList({
             disabled={batchImageAuthLoading}
           >
             {batchImageAuthLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Gerar PDF
+              </>
+            )}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Batch Participation Authorization PDF Dialog */}
+      <Modal
+        open={batchParticipationAuthDialogOpen}
+        onClose={() => {
+          setBatchParticipationAuthDialogOpen(false);
+          setBatchParticipationAuthMunicipality("");
+        }}
+        maxWidth="max-w-md"
+      >
+        <div className="px-6 pt-6 pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <UserCheck className="h-5 w-5" />
+            Autorização de Participação — Lote
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {selectedIds.size} aluno(s) selecionado(s)
+          </p>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Município (opcional)</Label>
+              <Input
+                value={batchParticipationAuthMunicipality}
+                onChange={(e) => setBatchParticipationAuthMunicipality(e.target.value)}
+                placeholder="Ex: Amélia Rodrigues"
+              />
+              <p className="text-xs text-muted-foreground">
+                Será preenchido no campo "Município" do documento. A data será preenchida automaticamente.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setBatchParticipationAuthDialogOpen(false);
+              setBatchParticipationAuthMunicipality("");
+            }}
+            disabled={batchParticipationAuthLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleBatchParticipationAuthPdf}
+            disabled={batchParticipationAuthLoading}
+          >
+            {batchParticipationAuthLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Gerando...
