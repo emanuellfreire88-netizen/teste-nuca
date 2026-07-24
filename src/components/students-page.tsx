@@ -24,6 +24,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus,
   Search,
@@ -2666,6 +2667,35 @@ function StudentsList({
   const [eventsStudent, setEventsStudent] = useState<Student | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Batch PDF dialog state
+  const [batchAuthDialogOpen, setBatchAuthDialogOpen] = useState(false);
+  const [batchImageAuthDialogOpen, setBatchImageAuthDialogOpen] = useState(false);
+  const [batchAuthForm, setBatchAuthForm] = useState({
+    event_title: "",
+    event_date: "",
+    event_location: "",
+    departure_time: "",
+    return_time: "",
+    responsible_name: "",
+    activity_description: "",
+    departure_point: "",
+    transport: "",
+    observations: "",
+    municipality: "",
+  });
+  const [batchAuthIncludeFields, setBatchAuthIncludeFields] = useState({
+    description: true,
+    departure_point: true,
+    transport: true,
+    observations: true,
+  });
+  const [batchAuthLoading, setBatchAuthLoading] = useState(false);
+  const [batchImageAuthMunicipality, setBatchImageAuthMunicipality] = useState("");
+  const [batchImageAuthLoading, setBatchImageAuthLoading] = useState(false);
+
   const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
@@ -2750,6 +2780,97 @@ function StudentsList({
     onNavigate("profile", student.id);
   };
 
+  // Multi-select helpers
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === students.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(students.map((s) => s.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // Batch PDF handlers
+  const handleBatchAuthPdf = async () => {
+    try {
+      setBatchAuthLoading(true);
+      const token = useAuthStore.getState().token;
+      const body: Record<string, unknown> = {
+        student_ids: Array.from(selectedIds),
+        ...batchAuthForm,
+        include_fields: batchAuthIncludeFields,
+      };
+      const response = await fetch("/api/students/authorization-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `termo-autorizacao-lote.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Termo de Autorização gerado com sucesso!");
+      setBatchAuthDialogOpen(false);
+      clearSelection();
+    } catch {
+      toast.error("Erro ao gerar termo de autorização");
+    } finally {
+      setBatchAuthLoading(false);
+    }
+  };
+
+  const handleBatchImageAuthPdf = async () => {
+    try {
+      setBatchImageAuthLoading(true);
+      const token = useAuthStore.getState().token;
+      const body: Record<string, unknown> = {
+        student_ids: Array.from(selectedIds),
+        municipality: batchImageAuthMunicipality || undefined,
+      };
+      const response = await fetch("/api/students/image-authorization-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `autorizacao-imagem-voz-lote.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Autorização de Imagem e Voz gerada com sucesso!");
+      setBatchImageAuthDialogOpen(false);
+      clearSelection();
+    } catch {
+      toast.error("Erro ao gerar autorização de imagem e voz");
+    } finally {
+      setBatchImageAuthLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -2777,6 +2898,52 @@ function StudentsList({
           </div>
         )}
       </div>
+
+      {/* Selection action bar */}
+      {selectedIds.size > 0 && (
+        <Card className="border-[#0787e5]/30 bg-[#0787e5]/5">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-[#0787e5] text-white">
+                  {selectedIds.size} selecionado(s)
+                </Badge>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSelection}
+                  className="text-muted-foreground"
+                >
+                  Limpar seleção
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBatchAuthDialogOpen(true)}
+                  className="border-[#0787e5]/40 text-[#0787e5]"
+                >
+                  <ClipboardCheck className="h-4 w-4 mr-1" />
+                  Autorização
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBatchImageAuthDialogOpen(true)}
+                  className="border-[#0787e5]/40 text-[#0787e5]"
+                >
+                  <ImageIcon className="h-4 w-4 mr-1" />
+                  Imagem e Voz
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <Card>
@@ -2851,6 +3018,12 @@ function StudentsList({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={selectedIds.size === students.length && students.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead className="w-12">Foto</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>CPF</TableHead>
@@ -2891,7 +3064,7 @@ function StudentsList({
                 ) : students.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={9}
                       className="text-center py-8 text-muted-foreground"
                     >
                       Nenhum aluno encontrado
@@ -2901,9 +3074,19 @@ function StudentsList({
                   students.map((student) => (
                     <TableRow
                       key={student.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={`cursor-pointer hover:bg-muted/50 ${selectedIds.has(student.id) ? "bg-[#0787e5]/5" : ""}`}
                       onClick={() => handleRowClick(student)}
                     >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(student.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) toggleSelect(student.id);
+                            else toggleSelect(student.id);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Avatar className="h-9 w-9">
                           <AvatarImage
@@ -3151,6 +3334,167 @@ function StudentsList({
         schools={schools}
         onImported={fetchStudents}
       />
+
+      {/* Batch Authorization PDF Dialog */}
+      <Modal
+        open={batchAuthDialogOpen}
+        onClose={() => setBatchAuthDialogOpen(false)}
+        maxWidth="max-w-xl"
+      >
+        <div className="px-6 pt-6 pb-2 max-h-[75vh] overflow-y-auto">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5" />
+            Termo de Autorização — Lote
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {selectedIds.size} aluno(s) selecionado(s)
+          </p>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Nome da Atividade *</Label>
+              <Input
+                value={batchAuthForm.event_title}
+                onChange={(e) => setBatchAuthForm({ ...batchAuthForm, event_title: e.target.value })}
+                placeholder="Ex: Passeio ao museu"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data *</Label>
+                <Input
+                  type="date"
+                  value={batchAuthForm.event_date}
+                  onChange={(e) => setBatchAuthForm({ ...batchAuthForm, event_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Local de Destino *</Label>
+                <Input
+                  value={batchAuthForm.event_location}
+                  onChange={(e) => setBatchAuthForm({ ...batchAuthForm, event_location: e.target.value })}
+                  placeholder="Destino da atividade"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Horário de Saída</Label>
+                <Input
+                  type="time"
+                  value={batchAuthForm.departure_time}
+                  onChange={(e) => setBatchAuthForm({ ...batchAuthForm, departure_time: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário Previsto de Retorno</Label>
+                <Input
+                  type="time"
+                  value={batchAuthForm.return_time}
+                  onChange={(e) => setBatchAuthForm({ ...batchAuthForm, return_time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Município</Label>
+              <Input
+                value={batchAuthForm.municipality}
+                onChange={(e) => setBatchAuthForm({ ...batchAuthForm, municipality: e.target.value })}
+                placeholder="Ex: Amélia Rodrigues"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setBatchAuthDialogOpen(false)}
+            disabled={batchAuthLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleBatchAuthPdf}
+            disabled={batchAuthLoading || !batchAuthForm.event_title || !batchAuthForm.event_date || !batchAuthForm.event_location}
+          >
+            {batchAuthLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Gerar PDF
+              </>
+            )}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Batch Image Authorization PDF Dialog */}
+      <Modal
+        open={batchImageAuthDialogOpen}
+        onClose={() => {
+          setBatchImageAuthDialogOpen(false);
+          setBatchImageAuthMunicipality("");
+        }}
+        maxWidth="max-w-md"
+      >
+        <div className="px-6 pt-6 pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            Autorização para Uso de Imagem e Voz — Lote
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {selectedIds.size} aluno(s) selecionado(s)
+          </p>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Município (opcional)</Label>
+              <Input
+                value={batchImageAuthMunicipality}
+                onChange={(e) => setBatchImageAuthMunicipality(e.target.value)}
+                placeholder="Ex: Amélia Rodrigues"
+              />
+              <p className="text-xs text-muted-foreground">
+                Será preenchido no campo "Município" do documento. A data será preenchida automaticamente.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setBatchImageAuthDialogOpen(false);
+              setBatchImageAuthMunicipality("");
+            }}
+            disabled={batchImageAuthLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleBatchImageAuthPdf}
+            disabled={batchImageAuthLoading}
+          >
+            {batchImageAuthLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Gerar PDF
+              </>
+            )}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
