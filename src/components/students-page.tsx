@@ -50,6 +50,7 @@ import {
   Download,
   FileDown,
   Printer,
+  Image as ImageIcon,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -78,6 +79,7 @@ interface Student {
   emergency_contact: string | null;
   school_id: string;
   status: string;
+  image_authorization: string;
   photo: string | null;
   created_at: string;
   school: School;
@@ -137,6 +139,7 @@ interface StudentFormData {
   emergency_contact: string;
   school_id: string;
   status: string;
+  image_authorization: string;
   photo: string;
 }
 
@@ -158,6 +161,7 @@ const emptyForm: StudentFormData = {
   emergency_contact: "",
   school_id: "",
   status: "active",
+  image_authorization: "pending",
   photo: "",
 };
 
@@ -424,6 +428,7 @@ function StudentFormDialog({
         emergency_contact: student.emergency_contact || "",
         school_id: student.school_id || "",
         status: student.status || "active",
+        image_authorization: student.image_authorization || "pending",
         photo: student.photo || "",
       });
     } else {
@@ -706,6 +711,20 @@ function StudentFormDialog({
                   <option value="inactive">Inativo</option>
                 </select>
               </div>
+
+              <div className="sm:col-span-2">
+                <Label htmlFor="image_authorization">Autorização de Uso de Imagem</Label>
+                <select
+                  id="image_authorization"
+                  value={form.image_authorization}
+                  onChange={(e) => updateField("image_authorization", e.target.value)}
+                  className={nativeSelectClass}
+                >
+                  <option value="authorized">🟢 Autorizado</option>
+                  <option value="not_authorized">🔴 Não autorizado</option>
+                  <option value="pending">🟡 Pendente de assinatura</option>
+                </select>
+              </div>
             </div>
           </TabsContent>
 
@@ -836,6 +855,11 @@ function StudentProfile({
 
   // Authorization dialog state
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+
+  // Image authorization dialog state
+  const [imageAuthDialogOpen, setImageAuthDialogOpen] = useState(false);
+  const [imageAuthMunicipality, setImageAuthMunicipality] = useState("");
+  const [imageAuthLoading, setImageAuthLoading] = useState(false);
   const [authForm, setAuthForm] = useState({
     event_title: "",
     event_date: "",
@@ -916,6 +940,38 @@ function StudentProfile({
 
   // Print loading
   const [printLoading, setPrintLoading] = useState(false);
+
+  // Image authorization PDF handler
+  const handleGenerateImageAuthPdf = async () => {
+    try {
+      setImageAuthLoading(true);
+      const body: Record<string, unknown> = {
+        student_ids: [student.id],
+        municipality: imageAuthMunicipality || undefined,
+      };
+      const response = await fetch("/api/students/image-authorization-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `autorizacao-imagem-voz-${student.full_name.replace(/\s+/g, "-").toLowerCase()}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Autorização de Imagem e Voz gerada com sucesso!");
+    } catch {
+      toast.error("Erro ao gerar autorização de imagem e voz");
+    } finally {
+      setImageAuthLoading(false);
+    }
+  };
 
   // Fetch documents
   const fetchDocuments = useCallback(async () => {
@@ -1196,6 +1252,15 @@ function StudentProfile({
           <ClipboardCheck className="h-4 w-4 mr-1" />
           Autorização
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setImageAuthDialogOpen(true)}
+        >
+          <ImageIcon className="h-4 w-4 mr-1" />
+          Imagem e Voz
+        </Button>
         {isAdmin && (
           <Button
             type="button"
@@ -1254,6 +1319,21 @@ function StudentProfile({
                 >
                   {student.status === "active" ? "Ativo" : "Inativo"}
                 </Badge>
+                {student.image_authorization === "authorized" && (
+                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                    Autorizado
+                  </Badge>
+                )}
+                {student.image_authorization === "not_authorized" && (
+                  <Badge className="bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 dark:border-red-800">
+                    Não autorizado
+                  </Badge>
+                )}
+                {student.image_authorization === "pending" && (
+                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                    Pendente
+                  </Badge>
+                )}
                 {student.grade && (
                   <Badge variant="outline">{student.grade}</Badge>
                 )}
@@ -1945,6 +2025,74 @@ function StudentProfile({
             disabled={authLoading}
           >
             {authLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Gerar PDF
+              </>
+            )}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Image Authorization PDF Dialog */}
+      <Modal
+        open={imageAuthDialogOpen}
+        onClose={() => {
+          setImageAuthDialogOpen(false);
+          setImageAuthMunicipality("");
+        }}
+        maxWidth="max-w-md"
+      >
+        <div className="px-6 pt-6 pb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            Autorização para Uso de Imagem e Voz
+          </h2>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Adolescente</Label>
+              <Input
+                value={student.full_name}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Município (opcional)</Label>
+              <Input
+                value={imageAuthMunicipality}
+                onChange={(e) => setImageAuthMunicipality(e.target.value)}
+                placeholder="Ex: Amélia Rodrigues"
+              />
+              <p className="text-xs text-muted-foreground">
+                Será preenchido no campo "Município" do documento. A data será preenchida automaticamente.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setImageAuthDialogOpen(false);
+              setImageAuthMunicipality("");
+            }}
+            disabled={imageAuthLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleGenerateImageAuthPdf}
+            disabled={imageAuthLoading}
+          >
+            {imageAuthLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Gerando...
@@ -2709,6 +2857,7 @@ function StudentsList({
                   <TableHead>Escola</TableHead>
                   <TableHead>Série/Turma</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-8">Imagem</TableHead>
                   <TableHead className="w-24">Ações</TableHead>
                 </TableRow>
               </TableHeader>

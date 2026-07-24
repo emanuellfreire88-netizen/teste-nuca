@@ -104,6 +104,7 @@ model Student {
   emergency_contact String?
   school_id       String
   status          String   @default("active") // active, inactive
+  image_authorization String @default("pending") // authorized, not_authorized, pending
   photo           String?
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
