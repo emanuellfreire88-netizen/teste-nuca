@@ -381,3 +381,77 @@ Stage Summary:
 - PDF generates for single student or batch (multi-select)
 - 2 commits pushed to GitHub: feat commit + env fix commit
 - Dev server instability (dies in background) is infrastructure issue, not code issue
+
+---
+Task ID: 4
+Agent: Backend Agent
+Task: Create ALL API routes for the Document Management (Gestão Documental) module
+
+Work Log:
+- Read worklog.md and studied existing codebase patterns (middleware, logger, db, route structure)
+- Reviewed Prisma schema: confirmed DocManagementDocument, DocManagementHistory, DocManagementAttachment, DocManagementTemplate, DocManagementConfig models already defined
+- Ran `bun run db:push` — Neon database already in sync with schema
+- Created 11 API route files under `/home/z/my-project/src/app/api/documents/`:
+
+1. `/api/documents/route.ts` — Main CRUD
+   - GET: List documents with pagination, filtering (document_type, status, year, recipient, subject, protocol, date range), full-text search across multiple fields. Includes creator and template info.
+   - POST: Create document with auto-generated sequential number (per type+year) and auto-generated protocol number (per year). Portuguese type labels for number_formatted. Template variable replacement support. Creates history entry for "created" action.
+
+2. `/api/documents/[id]/route.ts` — Single document operations
+   - GET: Get document by ID with creator, template, history (with user info), attachments (metadata only).
+   - PUT: Update document fields. Tracks changes for history entry with description of what changed. Records old/new status if status changed.
+   - DELETE: Only allow delete if status is "draft" or "cancelled". Creates history entry before deletion.
+
+3. `/api/documents/[id]/status/route.ts` — Status transitions
+   - PUT: Change document status with validation of allowed transitions (draft→generated→printed→signed→sent→received→archived, any→cancelled). Creates history entry with old/new status values and Portuguese labels.
+
+4. `/api/documents/[id]/duplicate/route.ts` — Duplicate document
+   - POST: Create copy of document with new number, protocol, current date. Set status to "draft". Creates history entries for both original ("duplicated") and new ("created from duplicate").
+
+5. `/api/documents/[id]/attachments/route.ts` — Attachment management
+   - GET: List attachment metadata (no base64 data in listing). Includes uploader info.
+   - POST: Upload attachment via FormData. Convert file to base64, store in DocManagementAttachment. Create history entry.
+   - DELETE: Delete attachment by ID. Only allowed if document status allows editing (draft/generated).
+
+6. `/api/documents/[id]/pdf/route.ts` — PDF generation
+   - GET: Generate PDF using pdf-lib + @pdf-lib/fontkit with embedded LiberationSans fonts (supports Portuguese accents).
+   - A4 format with configurable header (prefeitura name, NUCA name from DocManagementConfig).
+   - Document title (number_formatted), protocol, date in Portuguese, recipient section, subject.
+   - Body text converted from HTML to plain text with word wrapping and pagination.
+   - 3 signature blocks with lines.
+   - Page numbers and municipio/NUCA footer.
+   - Returns PDF as binary response with Content-Disposition header.
+
+7. `/api/documents/[id]/history/route.ts` — History listing
+   - GET: Get all history entries for document with user full_name, sorted by created_at desc.
+
+8. `/api/documents/templates/route.ts` — Template management
+   - GET: List templates with optional filters (document_type, is_active).
+   - POST: Create template with uniqueness check on name field.
+   - PUT: Update template identified by id in body.
+   - DELETE: Delete template. If is_default, set is_active=false instead. If documents are using the template, soft-delete (is_active=false).
+
+9. `/api/documents/config/route.ts` — Configuration management
+   - GET: Get all config entries. If none exist, create 8 defaults (prefeitura_name, nuca_name, municipio, estado, header_html, footer_html, brasao_url, logo_url). Add missing keys if some defaults are absent.
+   - PUT: Update config entries. Accept array of {config_key, config_value} pairs. Uses upsert. Admin only.
+
+10. `/api/documents/dashboard/route.ts` — Dashboard stats
+    - GET: Return total documents count, documents by type, documents by status, documents by month (current year), documents by year, recent documents (last 10), pending documents (not archived/cancelled).
+
+11. `/api/documents/protocols/route.ts` — Protocol search
+    - GET: Search by protocol number. Exact match first, then partial match. Returns document with creator and template info.
+
+- All routes use withAuth/withRole middleware from @/lib/middleware (Admin/Operator can do everything, Viewer can only read)
+- All routes use Next.js 16 App Router pattern with `context.params` as Promise (await context.params)
+- All routes use logAction from @/lib/logger for audit logging
+- All routes use ciContains from @/lib/search for case-insensitive search on PostgreSQL
+- Lint passes with 0 errors
+- Dev server compiles successfully
+
+Stage Summary:
+- 11 API route files created under src/app/api/documents/
+- 20+ endpoints implemented for Document Management module
+- Complete CRUD, status transitions, duplication, attachments, PDF generation, templates, config, dashboard, protocol search
+- Follows existing codebase patterns: withAuth/withRole, db import, logAction, ciContains
+- PDF generation uses pdf-lib with embedded LiberationSans fonts for Portuguese accent support
+- TypeScript compiles cleanly, lint passes (0 errors)

@@ -42,6 +42,11 @@ model User {
   verified_documents StudentDocument[]
   student_transfers StudentTransfer[]
   document_templates DocumentTemplate[]
+  doc_management_documents DocManagementDocument[] @relation("DocCreator")
+  doc_management_history   DocManagementHistory[]   @relation("DocHistoryUser")
+  doc_management_attachments DocManagementAttachment[] @relation("DocAttachmentUploader")
+  doc_management_templates  DocManagementTemplate[]  @relation("DocTemplateCreator")
+  doc_management_config_updates DocManagementConfig[] @relation("DocConfigUpdater")
 
   @@map("users")
 }
@@ -410,4 +415,130 @@ model DocumentTemplate {
   creator      User?    @relation(fields: [created_by], references: [id])
 
   @@map("document_templates")
+}
+
+// ─── Document Management (Gestão Documental) Models ───
+
+model DocManagementDocument {
+  id                  String   @id @default(uuid())
+  document_type       String   // oficio, memorando, declaracao, convite, comunicado, solicitacao_transporte, solicitacao_espaco, solicitacao_alimentacao, encaminhamento, relatorio, certificado, outros
+  number              Int      // sequential number per type/year (001, 002, etc.)
+  number_formatted    String?  // e.g., "Ofício nº 001/2026"
+  year                Int      // year for the sequence
+  protocol            String   @unique  // e.g., "2026-000001"
+  date                DateTime @default(now()) // document date
+  recipient           String?  // destinatário name
+  recipient_title     String?  // cargo do destinatário
+  institution         String?  // instituição
+  subject             String?  // assunto
+  body_text           String?  // main document text (HTML from rich editor)
+  internal_notes      String?  // observações internas
+  status              String   @default("draft") // draft, generated, printed, signed, sent, received, archived, cancelled
+
+  // Signatures (max 3, stored inline)
+  signature1_name     String?
+  signature1_title    String?
+  signature2_name     String?
+  signature2_title    String?
+  signature3_name     String?
+  signature3_title    String?
+
+  // Template reference
+  template_id         String?
+
+  created_by          String
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  creator             User     @relation("DocCreator", fields: [created_by], references: [id])
+  history             DocManagementHistory[]
+  attachments         DocManagementAttachment[]
+  template            DocManagementTemplate? @relation("DocTemplateRef", fields: [template_id], references: [id])
+
+  @@unique([document_type, number, year]) // prevent duplicate numbers per type+year
+  @@index([document_type])
+  @@index([year])
+  @@index([status])
+  @@index([protocol])
+  @@index([recipient])
+  @@index([subject])
+  @@index([created_by])
+  @@index([date])
+  @@map("doc_management_documents")
+}
+
+model DocManagementHistory {
+  id              String   @id @default(uuid())
+  document_id     String
+  user_id         String
+  action          String   // created, edited, status_changed, pdf_generated, printed, archived, cancelled, duplicated, attachment_added, template_applied
+  description     String?  // description of changes
+  old_value       String?  // previous value (for status changes etc.)
+  new_value       String?  // new value
+  created_at      DateTime @default(now())
+
+  document        DocManagementDocument @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  user            User     @relation("DocHistoryUser", fields: [user_id], references: [id])
+
+  @@index([document_id])
+  @@index([document_id, created_at])
+  @@map("doc_management_history")
+}
+
+model DocManagementAttachment {
+  id              String   @id @default(uuid())
+  document_id     String
+  file_name       String   // original file name
+  file_type       String   // MIME type
+  file_size       Int      @default(0) // file size in bytes
+  file_data       String   // base64-encoded file content
+  uploaded_by     String
+  uploaded_at     DateTime @default(now())
+
+  document        DocManagementDocument @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  uploader        User     @relation("DocAttachmentUploader", fields: [uploaded_by], references: [id])
+
+  @@index([document_id])
+  @@map("doc_management_attachments")
+}
+
+model DocManagementTemplate {
+  id              String   @id @default(uuid())
+  name            String   @unique  // template identifier
+  display_name    String   // user-friendly name
+  document_type   String   // oficio, memorando, etc. — null = generic
+  description     String?
+  header_text     String?  // HTML header with variables
+  body_text       String?  // HTML body template with {{numero_documento}}, {{protocolo}}, {{data}}, {{ano}}, {{destinatario}}, {{cargo_destinatario}}, {{instituicao}}, {{municipio}}
+  footer_text     String?  // HTML footer with variables
+  signature1_name String?  // default signature 1 name
+  signature1_title String? // default signature 1 title
+  signature2_name String?
+  signature2_title String?
+  signature3_name String?
+  signature3_title String?
+  is_default      Boolean  @default(false)
+  is_active       Boolean  @default(true)
+  created_by      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  creator         User?    @relation("DocTemplateCreator", fields: [created_by], references: [id])
+  documents       DocManagementDocument[] @relation("DocTemplateRef")
+
+  @@index([document_type])
+  @@map("doc_management_templates")
+}
+
+model DocManagementConfig {
+  id              String   @id @default(uuid())
+  config_key      String   @unique  // e.g., "prefeitura_name", "nuca_name", "brasao_url", "logo_url", "municipio", "estado", "header_html", "footer_html"
+  config_value    String?  // value (text, URL, base64, etc.)
+  description     String?  // human-readable description of the config
+  updated_by      String?
+  updated_at      DateTime @updatedAt
+
+  updater         User?    @relation("DocConfigUpdater", fields: [updated_by], references: [id])
+
+  @@map("doc_management_config")
 }
