@@ -56,6 +56,7 @@ import {
   Trash2,
   Loader2,
   AlertTriangle,
+  FolderOpen,
 } from "lucide-react";
 
 export type PageKey =
@@ -68,6 +69,7 @@ export type PageKey =
   | "users"
   | "reports"
   | "dropout"
+  | "document-management"
   | "logs"
   | "support";
 
@@ -87,6 +89,7 @@ const navItems: NavItem[] = [
   { key: "calendar", label: "Calendário", icon: Calendar },
   { key: "events", label: "Eventos", icon: CalendarDays },
   { key: "dropout", label: "Evasão", icon: AlertTriangle },
+  { key: "document-management", label: "Gestão Documental", icon: FolderOpen },
   { key: "reports", label: "Relatórios", icon: BarChart3 },
   { key: "logs", label: "Logs", icon: FileText, adminOnly: true },
   { key: "support", label: "Suporte", icon: MessageSquare, adminOnly: true },
