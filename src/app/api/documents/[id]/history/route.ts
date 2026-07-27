@@ -5,8 +5,9 @@ import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
 export const dynamic = 'force-dynamic';
 
 // ─── GET: Get all history entries for a document ───
-export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
 
     const document = await db.docManagementDocument.findUnique({

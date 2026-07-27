@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import type { DocManagementConfig } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,7 +108,7 @@ export const PUT = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       );
     }
 
-    const updatedConfigs = [];
+    const updatedConfigs: DocManagementConfig[] = [];
 
     for (const entry of entries) {
       if (!entry.config_key) continue;

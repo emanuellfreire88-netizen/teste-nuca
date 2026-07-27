@@ -6,8 +6,9 @@ import { logAction } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
 // ─── GET: List attachments (metadata only, no base64 data) ───
-export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
 
     const document = await db.docManagementDocument.findUnique({
@@ -61,8 +62,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context: { params:
 });
 
 // ─── POST: Upload attachment ───
-export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
     const userId = req.user!.userId;
 
@@ -137,8 +139,9 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
 });
 
 // ─── DELETE: Delete a specific attachment by ID ───
-export const DELETE = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const DELETE = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
     const userId = req.user!.userId;
 

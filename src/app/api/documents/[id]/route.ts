@@ -6,8 +6,9 @@ import { logAction } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
 // ─── GET: Get single document by ID ───
-export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
 
     const document = await db.docManagementDocument.findUnique({
@@ -60,8 +61,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context: { params:
 });
 
 // ─── PUT: Update document fields ───
-export const PUT = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const PUT = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
     const body = await req.json();
     const userId = req.user!.userId;
@@ -186,8 +188,9 @@ export const PUT = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
 });
 
 // ─── DELETE: Only allow delete if status is "draft" or "cancelled" ───
-export const DELETE = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const DELETE = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
     const userId = req.user!.userId;
 

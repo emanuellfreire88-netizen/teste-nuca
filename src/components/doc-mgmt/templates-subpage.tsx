@@ -45,16 +45,17 @@ export function TemplatesSubpage() {
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateFormData, setTemplateFormData] = useState(emptyTemplateForm);
 
+  const fetchTemplates = async () => {
+    setLoading(true);
+    try {
+      const data = await api.get<{ templates: Template[] }>("/documents/templates");
+      setTemplates(data.templates);
+    } catch { toast.error("Erro ao carregar modelos"); }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await api.get<{ templates: Template[] }>("/documents/templates");
-        if (!cancelled) setTemplates(data.templates);
-      } catch { if (!cancelled) toast.error("Erro ao carregar modelos"); }
-      if (!cancelled) setLoading(false);
-    })();
-    return () => { cancelled = true; };
+    fetchTemplates();
   }, []);
 
   const resetTemplateForm = () => {
@@ -125,7 +126,7 @@ export function TemplatesSubpage() {
         <Button onClick={() => { resetTemplateForm(); setTemplateFormOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Novo Modelo</Button>
         <div className="bg-muted/50 border rounded-md p-3 max-w-md">
           <p className="text-xs font-semibold mb-1">Variáveis disponíveis:</p>
-          <p className="text-xs text-muted-foreground">{{numero_documento}}, {{protocolo}}, {{data}}, {{ano}}, {{destinatario}}, {{cargo_destinatario}}, {{instituicao}}, {{municipio}}</p>
+          <p className="text-xs text-muted-foreground">{"{{numero_documento}}, {{protocolo}}, {{data}}, {{ano}}, {{destinatário}}, {{cargo_destinatário}}, {{instituição}}, {{município}}"}</p>
         </div>
       </div>
 
@@ -186,7 +187,7 @@ export function TemplatesSubpage() {
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{templateFormMode === "edit" ? "Editar Modelo" : "Novo Modelo"}</DialogTitle>
-            <DialogDescription>Defina o conteúdo e as variáveis do modelo. Use {{numero_documento}}, {{protocolo}}, etc.</DialogDescription>
+            <DialogDescription>{"Defina o conteúdo e as variáveis do modelo. Use {{numero_documento}}, {{protocolo}}, etc."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

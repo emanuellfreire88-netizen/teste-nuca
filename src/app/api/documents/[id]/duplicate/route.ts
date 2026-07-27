@@ -22,8 +22,9 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
 };
 
 // ─── POST: Duplicate a document ───
-export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
     const userId = req.user!.userId;
 

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
-import { PDFDocument, PDFFont, PDFPage, rgb } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFPage, rgb, Color } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fs from 'fs';
 import path from 'path';
@@ -106,7 +106,7 @@ async function drawWrappedText(
   lineHeight: number,
   page: PDFPage,
   bottomMargin: number,
-  color: { red: number; green: number; blue: number } = rgb(0, 0, 0)
+  color: Color = rgb(0, 0, 0)
 ): Promise<{ y: number; page: PDFPage }> {
   let y = startY;
   let currentPage = page;
@@ -236,8 +236,9 @@ function drawSignatureBlock(
 }
 
 // ─── GET: Generate PDF for document ───
-export const GET = withAuth(async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
     const userId = req.user!.userId;
 
@@ -525,7 +526,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context: { params:
     // ─── Return PDF as binary response ───
     const fileName = `${document.number_formatted || document.protocol}.pdf`;
 
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

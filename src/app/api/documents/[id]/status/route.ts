@@ -18,8 +18,9 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 };
 
 // ─── PUT: Change document status ───
-export const PUT = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context: { params: Promise<Record<string, string>> }) => {
+export const PUT = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
+    if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
     const body = await req.json();
     const userId = req.user!.userId;
