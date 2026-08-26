@@ -74,6 +74,13 @@ import {
   QrCode,
   Link2,
   Copy,
+  ClipboardCheck,
+  Check,
+  X,
+  FlipHorizontal2,
+  ChevronLeft,
+  ChevronRight,
+  PartyPopper,
 } from "lucide-react";
 
 // ── Custom Modal ────────────────────────────────────────────────────────────
@@ -438,6 +445,7 @@ export function EventsPage() {
   const [addStudentsLoading, setAddStudentsLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentSchoolFilter, setStudentSchoolFilter] = useState("all");
+  const [bulkAttendanceLoading, setBulkAttendanceLoading] = useState(false);
 
   // Dashboard state (Tab 2)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
@@ -891,6 +899,36 @@ export function EventsPage() {
     }
   };
 
+  // Bulk attendance actions: mark all present, all absent, or invert.
+  // Calls the PATCH /events/:id/participants/bulk endpoint and refreshes.
+  const handleBulkAttendance = async (
+    action: "present_all" | "absent_all" | "invert"
+  ) => {
+    if (!selectedEventId) return;
+    try {
+      setBulkAttendanceLoading(true);
+      const result = await api.patch<{ updated: number; action: string }>(
+        `/events/${selectedEventId}/participants/bulk`,
+        { action }
+      );
+      const messages: Record<string, string> = {
+        present_all: `${result.updated} aluno(s) marcado(s) como presente(s)`,
+        absent_all: `${result.updated} aluno(s) marcado(s) como ausente(s)`,
+        invert: `Presença invertida para ${result.updated} aluno(s)`,
+      };
+      toast.success(messages[action] || "Presenças atualizadas");
+      fetchEventDetail(selectedEventId);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error("Erro ao atualizar presenças em lote");
+      }
+    } finally {
+      setBulkAttendanceLoading(false);
+    }
+  };
+
   const toggleStudentSelection = (studentId: string) => {
     setSelectedStudentIds((prev) =>
       prev.includes(studentId)
@@ -1023,6 +1061,8 @@ export function EventsPage() {
           onAddStudents={isAdmin ? handleOpenAddStudents : undefined}
           onRemoveStudent={isAdmin ? handleRemoveStudent : undefined}
           onToggleAttended={isAdmin ? handleToggleAttended : undefined}
+          onBulkAttendance={isAdmin ? handleBulkAttendance : undefined}
+          bulkAttendanceLoading={bulkAttendanceLoading}
           onUpdateNotes={isAdmin ? handleUpdateNotes : undefined}
           onDownloadCertificate={handleDownloadCertificate}
           certLoading={certLoading}
@@ -3189,6 +3229,8 @@ function EventDetailView({
   onAddStudents,
   onRemoveStudent,
   onToggleAttended,
+  onBulkAttendance,
+  bulkAttendanceLoading,
   onUpdateNotes,
   onDownloadCertificate,
   certLoading,
@@ -3202,6 +3244,10 @@ function EventDetailView({
   onAddStudents?: () => void;
   onRemoveStudent?: (studentId: string) => void;
   onToggleAttended?: (studentId: string, attended: boolean) => void;
+  onBulkAttendance?: (
+    action: "present_all" | "absent_all" | "invert"
+  ) => void;
+  bulkAttendanceLoading: boolean;
   onUpdateNotes?: (studentId: string, notes: string) => void;
   onDownloadCertificate: (
     eventId: string,
@@ -3218,6 +3264,8 @@ function EventDetailView({
     "all" | "present" | "absent"
   >("all");
   const [localGroupBySchool, setLocalGroupBySchool] = useState(false);
+  const [attendanceMode, setAttendanceMode] = useState(false);
+  const [attendanceIdx, setAttendanceIdx] = useState(0);
 
   if (loading || !event) {
     return (
@@ -3262,6 +3310,58 @@ function EventDetailView({
       : participantFilter === "absent"
         ? absentParticipants
         : participants;
+
+  // Clamp attendance index so it never points past the end of the list.
+  const safeAttendanceIdx = Math.min(attendanceIdx, Math.max(0, filteredParticipants.length - 1));
+
+  // Keyboard shortcuts inside Modo Chamada:
+  //   P / Enter / →  -> mark present and advance
+  //   F / Backspace  -> mark absent and advance
+  //   ←               -> go back to previous student
+  //   Esc             -> exit Modo Chamada
+  useEffect(() => {
+    if (!attendanceMode) return;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setAttendanceMode(false);
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setAttendanceIdx((i) => Math.max(0, i - 1));
+      } else if (
+        e.key === "p" ||
+        e.key === "P" ||
+        e.key === "Enter" ||
+        e.key === "ArrowRight"
+      ) {
+        e.preventDefault();
+        const p = filteredParticipants[safeAttendanceIdx];
+        if (p && !p.attended) onToggleAttended?.(p.student_id, true);
+        setAttendanceIdx((i) =>
+          Math.min(filteredParticipants.length - 1, i + 1)
+        );
+      } else if (e.key === "f" || e.key === "F" || e.key === "Backspace") {
+        e.preventDefault();
+        const p = filteredParticipants[safeAttendanceIdx];
+        if (p && p.attended) onToggleAttended?.(p.student_id, false);
+        setAttendanceIdx((i) =>
+          Math.min(filteredParticipants.length - 1, i + 1)
+        );
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attendanceMode, safeAttendanceIdx, filteredParticipants, onToggleAttended]);
 
   // Group filtered participants by school (used when the "Por escola" toggle
   // is on). Students without a school go under "Sem escola".
@@ -3426,6 +3526,179 @@ function EventDetailView({
         </CardContent>
       </Card>
 
+      {/* Modo Chamada overlay — fullscreen, optimized for fast sequential check-in */}
+      {attendanceMode && filteredParticipants.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
+          {/* Top bar */}
+          <div className="flex items-center justify-between gap-4 px-6 py-4 border-b">
+            <div className="flex items-center gap-3 min-w-0">
+              <ClipboardCheck className="h-6 w-6 text-emerald-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate">
+                  Modo Chamada — {event.title}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Aluno {safeAttendanceIdx + 1} de {filteredParticipants.length}
+                  {" • "}
+                  <span className="text-emerald-600">
+                    {presentParticipants.length} presentes
+                  </span>
+                  {" • "}
+                  <span className="text-red-600">
+                    {absentParticipants.length} ausentes
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setAttendanceIdx((i) => Math.max(0, i - 1))
+                }
+                disabled={safeAttendanceIdx === 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setAttendanceIdx((i) =>
+                    Math.min(filteredParticipants.length - 1, i + 1)
+                  )
+                }
+                disabled={
+                  safeAttendanceIdx >= filteredParticipants.length - 1
+                }
+              >
+                Próximo
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setAttendanceMode(false)}
+              >
+                Concluir (Esc)
+              </Button>
+            </div>
+          </div>
+
+          {/* Progress strip */}
+          <div className="px-6 py-2 border-b bg-muted/30">
+            <Progress
+              value={
+                ((safeAttendanceIdx + 1) / filteredParticipants.length) * 100
+              }
+              className="h-1.5"
+            />
+          </div>
+
+          {/* Student card */}
+          <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
+            {(() => {
+              const p = filteredParticipants[safeAttendanceIdx];
+              if (!p) return null;
+              const initials = getInitials(p.student.full_name);
+              return (
+                <div className="w-full max-w-2xl text-center space-y-6">
+                  <Avatar className="h-28 w-28 mx-auto border-4 border-background shadow-lg">
+                    <AvatarImage src={p.student.photo || undefined} />
+                    <AvatarFallback className="text-3xl font-bold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h2 className="text-3xl font-bold tracking-tight">
+                      {p.student.full_name}
+                    </h2>
+                    <p className="text-muted-foreground mt-1">
+                      {p.student.school?.name || "Sem escola"}
+                      {p.student.grade ? ` • ${p.student.grade}` : ""}
+                      {p.student.class ? ` • Turma ${p.student.class}` : ""}
+                    </p>
+                  </div>
+                  <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
+                    {p.attended ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <span className="font-medium text-emerald-700">
+                          Presente
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 text-red-600" />
+                        <span className="font-medium text-red-700">
+                          Ausente
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Huge action buttons */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto pt-2">
+                    <Button
+                      size="lg"
+                      variant={
+                        p.attended ? "default" : "outline"
+                      }
+                      className={
+                        p.attended
+                          ? "h-20 text-lg bg-emerald-600 hover:bg-emerald-700"
+                          : "h-20 text-lg border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                      }
+                      onClick={() => {
+                        if (!p.attended)
+                          onToggleAttended?.(p.student_id, true);
+                        setAttendanceIdx((i) =>
+                          Math.min(filteredParticipants.length - 1, i + 1)
+                        );
+                      }}
+                    >
+                      <Check className="mr-2 h-6 w-6" />
+                      Presente
+                      <span className="ml-2 text-xs opacity-70">(P)</span>
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant={
+                        !p.attended ? "default" : "outline"
+                      }
+                      className={
+                        !p.attended
+                          ? "h-20 text-lg bg-red-600 hover:bg-red-700"
+                          : "h-20 text-lg border-red-300 text-red-700 hover:bg-red-50"
+                      }
+                      onClick={() => {
+                        if (p.attended)
+                          onToggleAttended?.(p.student_id, false);
+                        setAttendanceIdx((i) =>
+                          Math.min(filteredParticipants.length - 1, i + 1)
+                        );
+                      }}
+                    >
+                      <X className="mr-2 h-6 w-6" />
+                      Ausente
+                      <span className="ml-2 text-xs opacity-70">(F)</span>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-2">
+                    Atalhos: <kbd className="px-1.5 py-0.5 rounded border bg-muted font-mono">P</kbd> presente •{" "}
+                    <kbd className="px-1.5 py-0.5 rounded border bg-muted font-mono">F</kbd> ausente •{" "}
+                    <kbd className="px-1.5 py-0.5 rounded border bg-muted font-mono">←</kbd> anterior •{" "}
+                    <kbd className="px-1.5 py-0.5 rounded border bg-muted font-mono">Esc</kbd> sair
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Participants */}
       <Card>
         <CardHeader>
@@ -3438,70 +3711,161 @@ function EventDetailView({
                   {participants.length}
                 </Badge>
               </CardTitle>
-              {onAddStudents && (
-                <Button size="sm" onClick={onAddStudents}>
-                  <UserPlus className="mr-1 h-4 w-4" />
-                  Adicionar Alunos
-                </Button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {onBulkAttendance && participants.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant={attendanceMode ? "default" : "outline"}
+                    onClick={() => {
+                      setAttendanceMode((v) => !v);
+                      setAttendanceIdx(0);
+                    }}
+                    className={attendanceMode ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                    title="Tela otimizada para marcar presença rapidamente (atalhos: P = presente, F = falta)"
+                  >
+                    <ClipboardCheck className="mr-1 h-4 w-4" />
+                    {attendanceMode ? "Sair do Modo Chamada" : "Modo Chamada"}
+                  </Button>
+                )}
+                {onAddStudents && (
+                  <Button size="sm" onClick={onAddStudents}>
+                    <UserPlus className="mr-1 h-4 w-4" />
+                    Adicionar Alunos
+                  </Button>
+                )}
+              </div>
             </div>
             {participants.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="bg-emerald-50 text-emerald-700 border-emerald-200"
-                >
-                  <CheckCircle2 className="mr-1 h-3 w-3" />
-                  {presentParticipants.length} presente(s)
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="bg-red-50 text-red-700 border-red-200"
-                >
-                  <XCircle className="mr-1 h-3 w-3" />
-                  {absentParticipants.length} faltou/faltaram
-                </Badge>
-                <div className="ml-auto flex items-center gap-1 rounded-lg border p-0.5">
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                  >
+                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                    {presentParticipants.length} presente(s)
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className="bg-red-50 text-red-700 border-red-200"
+                  >
+                    <XCircle className="mr-1 h-3 w-3" />
+                    {absentParticipants.length} faltou/faltaram
+                  </Badge>
+                  <div className="ml-auto flex items-center gap-1 rounded-lg border p-0.5">
+                    <Button
+                      size="sm"
+                      variant={participantFilter === "all" ? "secondary" : "ghost"}
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => setParticipantFilter("all")}
+                    >
+                      Todos
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={
+                        participantFilter === "present" ? "secondary" : "ghost"
+                      }
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => setParticipantFilter("present")}
+                    >
+                      Presentes
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={
+                        participantFilter === "absent" ? "secondary" : "ghost"
+                      }
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => setParticipantFilter("absent")}
+                    >
+                      Faltaram
+                    </Button>
+                  </div>
                   <Button
                     size="sm"
-                    variant={participantFilter === "all" ? "secondary" : "ghost"}
-                    className="h-7 px-2.5 text-xs"
-                    onClick={() => setParticipantFilter("all")}
+                    variant={localGroupBySchool ? "secondary" : "outline"}
+                    className="h-7 text-xs"
+                    onClick={() => setLocalGroupBySchool((v) => !v)}
+                    title="Agrupar participantes por escola"
                   >
-                    Todos
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={
-                      participantFilter === "present" ? "secondary" : "ghost"
-                    }
-                    className="h-7 px-2.5 text-xs"
-                    onClick={() => setParticipantFilter("present")}
-                  >
-                    Presentes
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={
-                      participantFilter === "absent" ? "secondary" : "ghost"
-                    }
-                    className="h-7 px-2.5 text-xs"
-                    onClick={() => setParticipantFilter("absent")}
-                  >
-                    Faltaram
+                    <School className="mr-1 h-3 w-3" />
+                    Por escola
                   </Button>
                 </div>
-                <Button
-                  size="sm"
-                  variant={localGroupBySchool ? "secondary" : "outline"}
-                  className="h-7 text-xs"
-                  onClick={() => setLocalGroupBySchool((v) => !v)}
-                  title="Agrupar participantes por escola"
-                >
-                  <School className="mr-1 h-3 w-3" />
-                  Por escola
-                </Button>
-              </div>
+                {/* Attendance progress + bulk actions */}
+                {onBulkAttendance && (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="flex-1 min-w-[200px]">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">
+                          Frequência
+                        </span>
+                        <span className="font-medium">
+                          {presentParticipants.length}/{participants.length} (
+                          {participants.length > 0
+                            ? Math.round(
+                                (presentParticipants.length /
+                                  participants.length) *
+                                  100
+                              )
+                            : 0}
+                          %)
+                        </span>
+                      </div>
+                      <Progress
+                        value={
+                          participants.length > 0
+                            ? (presentParticipants.length /
+                                participants.length) *
+                              100
+                            : 0
+                        }
+                        className="h-2"
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                        onClick={() => onBulkAttendance("present_all")}
+                        disabled={bulkAttendanceLoading}
+                        title="Marcar todos os participantes como presentes"
+                      >
+                        {bulkAttendanceLoading ? (
+                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                        )}
+                        Marcar todos presentes
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                        onClick={() => onBulkAttendance("absent_all")}
+                        disabled={bulkAttendanceLoading}
+                        title="Marcar todos os participantes como ausentes"
+                      >
+                        <XCircle className="mr-1 h-3.5 w-3.5" />
+                        Marcar todos ausentes
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={() => onBulkAttendance("invert")}
+                        disabled={bulkAttendanceLoading}
+                        title="Inverter presença de todos (presente vira falta e vice-versa)"
+                      >
+                        <FlipHorizontal2 className="mr-1 h-3.5 w-3.5" />
+                        Inverter
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </CardHeader>
@@ -3597,12 +3961,13 @@ function EventDetailView({
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <Badge
-                            variant={participant.attended ? "default" : "secondary"}
+                          <Button
+                            size="sm"
+                            variant={participant.attended ? "default" : "outline"}
                             className={
                               participant.attended
-                                ? "bg-emerald-100 text-emerald-800 cursor-pointer"
-                                : "bg-red-100 text-red-800 cursor-pointer"
+                                ? "h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                                : "h-8 text-xs border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
                             }
                             onClick={() =>
                               onToggleAttended?.(
@@ -3610,9 +3975,24 @@ function EventDetailView({
                                 !participant.attended
                               )
                             }
+                            title={
+                              participant.attended
+                                ? "Clique para marcar como ausente"
+                                : "Clique para marcar como presente"
+                            }
                           >
-                            {participant.attended ? "Presente" : "Ausente"}
-                          </Badge>
+                            {participant.attended ? (
+                              <>
+                                <Check className="mr-1 h-3.5 w-3.5" />
+                                Presente
+                              </>
+                            ) : (
+                              <>
+                                <X className="mr-1 h-3.5 w-3.5" />
+                                Ausente
+                              </>
+                            )}
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -3794,16 +4174,13 @@ function EventDetailView({
                             : ""}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Badge
-                            variant={
-                              participant.attended
-                                ? "default"
-                                : "secondary"
-                            }
+                          <Button
+                            size="sm"
+                            variant={participant.attended ? "default" : "outline"}
                             className={
                               participant.attended
-                                ? "bg-emerald-100 text-emerald-800 cursor-pointer"
-                                : "bg-red-100 text-red-800 cursor-pointer"
+                                ? "h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+                                : "h-8 text-xs border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
                             }
                             onClick={() =>
                               onToggleAttended?.(
@@ -3811,9 +4188,24 @@ function EventDetailView({
                                 !participant.attended
                               )
                             }
+                            title={
+                              participant.attended
+                                ? "Clique para marcar como ausente"
+                                : "Clique para marcar como presente"
+                            }
                           >
-                            {participant.attended ? "Presente" : "Ausente"}
-                          </Badge>
+                            {participant.attended ? (
+                              <>
+                                <Check className="mr-1 h-3.5 w-3.5" />
+                                Presente
+                              </>
+                            ) : (
+                              <>
+                                <X className="mr-1 h-3.5 w-3.5" />
+                                Ausente
+                              </>
+                            )}
+                          </Button>
                         </TableCell>
                         <TableCell>
                           {editingNotes === participant.id ? (

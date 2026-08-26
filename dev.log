@@ -1,36 +1,8 @@
+$ next dev -p 3000 -H 0.0.0.0
 ▲ Next.js 16.1.3 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://0.0.0.0:3000
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 703ms
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 676ms
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 727ms
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 792ms
- GET /api/documents/dashboard 401 in 866ms (compile: 846ms, render: 19ms)
-▲ Next.js 16.1.3 (Turbopack)
-- Local:         http://localhost:3000
-- Network:       http://0.0.0.0:3000
-- Environments: .env
-
-✓ Starting...
-✓ Ready in 722ms
+✓ Ready in 788ms
