@@ -3267,41 +3267,11 @@ function EventDetailView({
   const [attendanceMode, setAttendanceMode] = useState(false);
   const [attendanceIdx, setAttendanceIdx] = useState(0);
 
-  if (loading || !event) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-9 w-9 rounded-md" />
-          <div className="space-y-2">
-            <Skeleton className="h-7 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-4 w-full" />
-              ))}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-40" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-48 w-full rounded-lg" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  const participants = event.participants || [];
+  // Derive participant lists BEFORE the early return so hook count is stable.
+  // (Hooks must be called unconditionally — placing useState/useEffect after
+  //  an early return triggers React error #310 "Rendered more hooks than
+  //  during the previous render".)
+  const participants = event?.participants || [];
   const presentParticipants = participants.filter((p) => p.attended);
   const absentParticipants = participants.filter((p) => !p.attended);
   const filteredParticipants =
@@ -3312,7 +3282,10 @@ function EventDetailView({
         : participants;
 
   // Clamp attendance index so it never points past the end of the list.
-  const safeAttendanceIdx = Math.min(attendanceIdx, Math.max(0, filteredParticipants.length - 1));
+  const safeAttendanceIdx = Math.min(
+    attendanceIdx,
+    Math.max(0, filteredParticipants.length - 1)
+  );
 
   // Keyboard shortcuts inside Modo Chamada:
   //   P / Enter / →  -> mark present and advance
@@ -3362,6 +3335,40 @@ function EventDetailView({
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attendanceMode, safeAttendanceIdx, filteredParticipants, onToggleAttended]);
+
+  if (loading || !event) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-4 w-full" />
+              ))}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-48 w-full rounded-lg" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   // Group filtered participants by school (used when the "Por escola" toggle
   // is on). Students without a school go under "Sem escola".
