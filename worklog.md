@@ -200,3 +200,22 @@ Stage Summary:
 - Login API + Events list API verified working (HTTP 200)
 - Dev server OOM in 4GB sandbox prevents full in-browser verification of the 4300-line events-page.tsx chunk (pre-existing limitation documented in Task ID 8); code correctness confirmed via TypeScript compilation
 - Files modified: src/components/events-page.tsx, src/lib/api.ts, src/app/api/events/[id]/participants/bulk/route.ts (new)
+
+---
+Task ID: 10
+Agent: Main Coordinator
+Task: Fix React error #310 when clicking an existing event + audit entire codebase
+
+Work Log:
+- User reported React error #310 "Rendered more hooks than during the previous render" when clicking an existing event
+- Root cause: the useEffect I added in Task ID 9 (keyboard shortcuts for Modo Chamada) was placed AFTER the early return `if (loading || !event)` in EventDetailView. When loading=true, the component early-returns and skips the useEffect; when loading becomes false, it calls the hook → hook count differs between renders → React #310
+- Fix: moved ALL hooks (7x useState + 1x useEffect) and all derived values (participants, filteredParticipants, safeAttendanceIdx) BEFORE the early return, using optional chaining `event?.participants` so they work even when event is null
+- Launched Explore subagent (Task ID 10-a) to audit the ENTIRE codebase for the same hooks-after-early-return pattern
+- Audit result: codebase is CLEAN — the events-page.tsx instance was the only one. Verified all components: events-page, students-page, schools-page, users-page, app-layout, floating-support-button, all doc-mgmt/* files, app/page.tsx, error.tsx, global-error.tsx
+- TypeScript: zero errors in events-page.tsx (verified with bunx tsc --noEmit)
+- Committed and pushed fix to GitHub (commit 69fc2f9)
+
+Stage Summary:
+- React error #310 FIXED — all hooks now called unconditionally before any early return
+- Full codebase audit complete — no other instances of this bug exist
+- Fix pushed to GitHub origin/main, Vercel auto-deploy triggered
