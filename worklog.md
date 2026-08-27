@@ -388,3 +388,35 @@ Stage Summary:
 - PDF includes all template images (waves, logo, watermark, seals)
 - All 6 new document fields (treatment, vocative, closing, city, sender_name, sender_title) still work
 - Committed (d7c2a89) and pushed to GitHub
+
+---
+Task ID: 17
+Agent: Main Coordinator
+Task: Cadastrar MODELO NOVO como template no sistema (sem alterar codigo de PDF)
+
+Work Log:
+- User feedback: "nao e mais facil so colocar esse modelo la e apenas ajeitar os textos? Sem ser necessario alterar o codigo"
+- User is right: the system already has a Templates feature (DocManagementTemplate model + Templates subpage)
+- Created scripts/seed-memorando-template.ts: seeds 2 templates into the Neon database
+  1. "Memorando Padrao NUCA" (document_type=memorando, is_default=true)
+     - Body text with [OBJETO], [QUANTIDADE], [DATA] markers for easy editing
+     - Default signature: JEFERSON SILVA SOUZA / Mobilizador do Nuca
+  2. "Solicitacao de Alimentacao NUCA" (document_type=solicitacao_alimentacao)
+     - Body text for food/snack requests
+- Ran the seed script: both templates created successfully in Neon
+- Added 10 new template variables to the replacement system in route.ts:
+  {{tratamento}}, {{vocativo}}, {{fechamento}}, {{cidade}},
+  {{remetente_nome}}, {{remetente_cargo}}, {{assunto}}, {{uf}},
+  {{prefeitura}}, {{nuca}} (total now 18 variables)
+- Updated templates-subpage.tsx to show all 18 available variables
+- Tested end-to-end:
+  1. Listed templates via API: both templates visible
+  2. Created document with template_id: HTTP 201, body_text auto-filled from template
+  3. Generated PDF: HTTP 200, 1MB, all fields correct
+
+Stage Summary:
+- MODELO NOVO is now a template in the system — no more PDF code changes needed
+- User can create memorandos by selecting the template (body + signatures auto-filled)
+- Layout (waves, logo, watermark, seals) still handled by pdf-lib code (works on Vercel)
+- 18 template variables now available for dynamic text replacement
+- Committed (bbe99d1) and pushed to GitHub
