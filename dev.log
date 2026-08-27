@@ -5,9 +5,4 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 939ms
-○ Compiling / ...
- GET / 200 in 7.7s (compile: 7.5s, render: 236ms)
-⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
- POST /api/auth/login 200 in 3.4s (compile: 426ms, render: 2.9s)
- GET /api/documents/2b1b6b77-9806-4a6d-b2ea-d6871c9757d9/pdf 200 in 5.9s (compile: 1211ms, render: 4.7s)
+✓ Ready in 839ms
