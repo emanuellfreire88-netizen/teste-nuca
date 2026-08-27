@@ -2,16 +2,11 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { generateDocumentHTML, DocumentTemplateData } from '@/lib/doc-html-template';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-const execFileAsync = promisify(execFile);
+export const maxDuration = 60; // Maximum execution time for PDF generation
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   oficio: 'Ofício',
@@ -45,7 +40,7 @@ function formatDatePortuguese(date: Date): string {
 function htmlToParagraphs(html: string): string[] {
   if (!html) return [];
   let text = html;
-  // Convert bold tags to ** markers (for the Python script to parse)
+  // Convert bold tags to ** markers
   text = text.replace(/<strong[^>]*>/gi, '**').replace(/<\/strong>/gi, '**');
   text = text.replace(/<b[^>]*>/gi, '**').replace(/<\/b>/gi, '**');
   // Paragraph breaks
@@ -72,7 +67,83 @@ function htmlToParagraphs(html: string): string[] {
   return paragraphs;
 }
 
-// ─── GET: Generate PDF for document using MODELO NOVO template ───
+// ─── Lazy-load Puppeteer and Chromium (avoids bundling issues) ───
+async function generatePDFFromHTML(html: string): Promise<Buffer> {
+  // Dynamic imports to keep the module light
+  const puppeteer = (await import('puppeteer-core')).default;
+  const chromiumModule = await import('@sparticuz/chromium');
+  const chromium = chromiumModule.default;
+
+  // Configure Chromium executable path
+  // In production (Vercel), @sparticuz/chromium provides the binary
+  // In development, fall back to system Chrome/Chromium
+  let executablePath: string | undefined;
+
+  if (process.env.VERCEL) {
+    // Running on Vercel — use @sparticuz/chromium
+    executablePath = await chromium.executablePath();
+  } else {
+    // Local development — try to find a system browser first
+    const fs = await import('fs');
+    const possiblePaths = [
+      '/usr/bin/chromium',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/snap/bin/chromium',
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        executablePath = p;
+        break;
+      }
+    }
+    if (!executablePath) {
+      // Fall back to @sparticuz/chromium (will inflate its bundled binary)
+      try {
+        executablePath = await chromium.executablePath();
+      } catch (e) {
+        throw new Error(
+          'Nenhum navegador Chromium encontrado. Instale com: sudo apt install chromium'
+        );
+      }
+    }
+  }
+
+  const browser = await puppeteer.launch({
+    args: [
+      ...chromium.args,
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+    ],
+    executablePath,
+    headless: true,
+  });
+
+  try {
+    const page = await browser.newPage();
+
+    // Set A4 page size
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+
+    // Generate PDF with A4 size and no margins (margins handled in CSS)
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      preferCSSPageSize: true,
+    });
+
+    return Buffer.from(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
+}
+
+// ─── GET: Generate PDF for document ───
 export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
     if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
@@ -101,102 +172,63 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params
     const defaultCity = document.city || configMap.municipio || 'Limoeiro de Anadia';
     const uf = configMap.uf || 'AL';
 
-    // Prepare data for the Python script
+    // Prepare template data
     const docLabel = DOCUMENT_TYPE_LABELS[document.document_type] || 'Documento';
     const dateStr = formatDatePortuguese(new Date(document.date));
     const bodyParagraphs = htmlToParagraphs(document.body_text || '');
 
-    const scriptData = {
-      template_path: path.join(process.cwd(), 'templates', 'doc-templates', 'memorando-template.docx'),
-      document_type_label: docLabel,
+    const templateData: DocumentTemplateData = {
+      documentTypeLabel: docLabel,
       number: document.number,
       year: document.year,
       city: defaultCity,
       uf,
-      date_str: dateStr,
+      dateStr,
       treatment: document.recipient_treatment || '',
       recipient: document.recipient || '',
-      recipient_title: document.recipient_title || '',
+      recipientTitle: document.recipient_title || '',
       institution: document.institution || '',
       subject: document.subject || '',
       vocative: document.vocative || '',
-      body_paragraphs: bodyParagraphs,
+      bodyParagraphs,
       closing: document.closing || 'Atenciosamente,',
-      sender_name: document.sender_name || document.signature1_name || '',
-      sender_title: document.sender_title || document.signature1_title || '',
+      senderName: document.sender_name || document.signature1_name || '',
+      senderTitle: document.sender_title || document.signature1_title || '',
     };
 
-    // Create temp files for the Python script communication
-    const tmpDir = os.tmpdir();
-    const jsonInputPath = path.join(tmpDir, `doc-input-${id}-${Date.now()}.json`);
-    const pdfOutputPath = path.join(tmpDir, `doc-output-${id}-${Date.now()}.pdf`);
+    // Generate HTML
+    const html = generateDocumentHTML(templateData);
 
-    // Write JSON input
-    fs.writeFileSync(jsonInputPath, JSON.stringify(scriptData));
+    // Generate PDF via Puppeteer + Chromium
+    const pdfBuffer = await generatePDFFromHTML(html);
 
-    try {
-      // Call the Python script
-      const scriptPath = path.join(process.cwd(), 'scripts', 'generate-doc-pdf.py');
-      const { stderr } = await execFileAsync('python3', [scriptPath, jsonInputPath, pdfOutputPath], {
-        timeout: 60000,
-        maxBuffer: 10 * 1024 * 1024, // 10MB buffer for output
-      });
+    // Create history entry
+    await db.docManagementHistory.create({
+      data: {
+        document_id: id,
+        user_id: userId,
+        action: 'pdf_generated',
+        description: 'PDF gerado para o documento (Puppeteer + Chromium)',
+      },
+    });
 
-      if (stderr) {
-        console.log('Python script output:', stderr);
-      }
+    await logAction(userId, 'generate_pdf_doc_management', `PDF gerado para documento ${document.number_formatted}`);
 
-      // Check if PDF was generated
-      if (!fs.existsSync(pdfOutputPath)) {
-        throw new Error('PDF file was not created');
-      }
+    const fileName = `${document.number_formatted || document.protocol}.pdf`;
 
-      // Read the PDF
-      const pdfBytes = fs.readFileSync(pdfOutputPath);
-
-      // Clean up temp files
-      try {
-        fs.unlinkSync(jsonInputPath);
-        fs.unlinkSync(pdfOutputPath);
-      } catch {
-        // Ignore cleanup errors
-      }
-
-      // Create history entry
-      await db.docManagementHistory.create({
-        data: {
-          document_id: id,
-          user_id: userId,
-          action: 'pdf_generated',
-          description: 'PDF gerado para o documento (template MODELO NOVO)',
-        },
-      });
-
-      await logAction(userId, 'generate_pdf_doc_management', `PDF gerado para documento ${document.number_formatted}`);
-
-      const fileName = `${document.number_formatted || document.protocol}.pdf`;
-
-      return new NextResponse(Buffer.from(pdfBytes), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${fileName}"`,
-          'Content-Length': String(pdfBytes.length),
-        },
-      });
-    } finally {
-      // Ensure temp files are cleaned up even on error
-      try {
-        if (fs.existsSync(jsonInputPath)) fs.unlinkSync(jsonInputPath);
-        if (fs.existsSync(pdfOutputPath)) fs.unlinkSync(pdfOutputPath);
-      } catch {
-        // Ignore
-      }
-    }
+    return new NextResponse(pdfBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': String(pdfBuffer.length),
+      },
+    });
   } catch (error) {
     console.error('Error generating PDF:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro ao gerar PDF';
     return NextResponse.json(
-      { error: 'Erro ao gerar PDF' },
+      { error: 'Erro ao gerar PDF', detail: errorMessage },
       { status: 500 }
     );
   }
