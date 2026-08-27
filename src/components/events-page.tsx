@@ -533,20 +533,23 @@ export function EventsPage() {
     }
   }, []);
 
-  const fetchEventDetail = useCallback(async (id: string) => {
-    try {
-      setDetailLoading(true);
-      const data = await api.get<{ event: EventDetailData }>(`/events/${id}`);
-      setEventDetail(data.event);
-    } catch (err) {
-      if (err instanceof ApiError && err.status !== 401) {
-        toast.error("Erro ao carregar detalhes do evento");
+  const fetchEventDetail = useCallback(
+    async (id: string, silent = false) => {
+      try {
+        if (!silent) setDetailLoading(true);
+        const data = await api.get<{ event: EventDetailData }>(`/events/${id}`);
+        setEventDetail(data.event);
+      } catch (err) {
+        if (err instanceof ApiError && err.status !== 401) {
+          toast.error("Erro ao carregar detalhes do evento");
+        }
+        setView("list");
+      } finally {
+        if (!silent) setDetailLoading(false);
       }
-      setView("list");
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -767,7 +770,9 @@ export function EventsPage() {
       setFormData(emptyForm);
 
       if (view === "detail" && selectedEventId) {
-        fetchEventDetail(selectedEventId);
+        // Silent refetch: avoid flashing the skeleton (which would reset
+        // scroll position) since we already have the event loaded.
+        fetchEventDetail(selectedEventId, true);
       }
       fetchEvents();
     } catch (err) {
@@ -838,7 +843,8 @@ export function EventsPage() {
       );
       setAddStudentsOpen(false);
       setSelectedStudentIds([]);
-      fetchEventDetail(selectedEventId);
+      // Silent refetch to preserve scroll position.
+      fetchEventDetail(selectedEventId, true);
     } catch (err) {
       if (err instanceof ApiError) {
         toast.error(err.message);
@@ -852,12 +858,24 @@ export function EventsPage() {
 
   const handleRemoveStudent = async (studentId: string) => {
     if (!selectedEventId) return;
+    // Optimistic update: remove the student from the list immediately.
+    setEventDetail((prev) =>
+      prev
+        ? {
+            ...prev,
+            participants: prev.participants.filter(
+              (p) => p.student_id !== studentId
+            ),
+          }
+        : prev
+    );
     try {
       await api.delete(`/events/${selectedEventId}/participants`, {
         student_id: studentId,
       });
       toast.success("Aluno removido do evento");
-      fetchEventDetail(selectedEventId);
+      // Silent refetch to preserve scroll position.
+      fetchEventDetail(selectedEventId, true);
     } catch (err) {
       if (err instanceof ApiError) {
         toast.error(err.message);
@@ -872,13 +890,40 @@ export function EventsPage() {
     attended: boolean
   ) => {
     if (!selectedEventId) return;
+    // Optimistic update: reflect the change in the UI immediately so the
+    // user sees instant feedback and the scroll position is preserved.
+    setEventDetail((prev) =>
+      prev
+        ? {
+            ...prev,
+            participants: prev.participants.map((p) =>
+              p.student_id === studentId ? { ...p, attended } : p
+            ),
+          }
+        : prev
+    );
     try {
       await api.put(`/events/${selectedEventId}/participants`, {
         student_id: studentId,
         attended,
       });
-      fetchEventDetail(selectedEventId);
+      // Silent refetch to sync with server without showing the skeleton
+      // (which would unmount the list and reset scroll position).
+      fetchEventDetail(selectedEventId, true);
     } catch (err) {
+      // Revert on error
+      setEventDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              participants: prev.participants.map((p) =>
+                p.student_id === studentId
+                  ? { ...p, attended: !attended }
+                  : p
+              ),
+            }
+          : prev
+      );
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -889,6 +934,17 @@ export function EventsPage() {
 
   const handleUpdateNotes = async (studentId: string, notes: string) => {
     if (!selectedEventId) return;
+    // Optimistic update: reflect the note change immediately.
+    setEventDetail((prev) =>
+      prev
+        ? {
+            ...prev,
+            participants: prev.participants.map((p) =>
+              p.student_id === studentId ? { ...p, notes } : p
+            ),
+          }
+        : prev
+    );
     try {
       await api.put(`/events/${selectedEventId}/participants`, {
         student_id: studentId,
@@ -905,6 +961,20 @@ export function EventsPage() {
     action: "present_all" | "absent_all" | "invert"
   ) => {
     if (!selectedEventId) return;
+    // Optimistic update: reflect the bulk change in the UI immediately.
+    setEventDetail((prev) =>
+      prev
+        ? {
+            ...prev,
+            participants: prev.participants.map((p) => {
+              if (action === "present_all") return { ...p, attended: true };
+              if (action === "absent_all") return { ...p, attended: false };
+              if (action === "invert") return { ...p, attended: !p.attended };
+              return p;
+            }),
+          }
+        : prev
+    );
     try {
       setBulkAttendanceLoading(true);
       const result = await api.patch<{ updated: number; action: string }>(
@@ -917,8 +987,11 @@ export function EventsPage() {
         invert: `Presença invertida para ${result.updated} aluno(s)`,
       };
       toast.success(messages[action] || "Presenças atualizadas");
-      fetchEventDetail(selectedEventId);
+      // Silent refetch to sync with server while preserving scroll.
+      fetchEventDetail(selectedEventId, true);
     } catch (err) {
+      // Revert by doing a full (non-silent) refetch on error
+      fetchEventDetail(selectedEventId, true);
       if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -3336,7 +3409,10 @@ function EventDetailView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attendanceMode, safeAttendanceIdx, filteredParticipants, onToggleAttended]);
 
-  if (loading || !event) {
+  // Only show the skeleton when there is NO event data yet (initial load).
+  // During a refetch (loading=true but event exists), keep showing the
+  // existing content so the scroll position is preserved.
+  if (!event) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -3399,7 +3475,15 @@ function EventDetailView({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Subtle refreshing indicator — shown during background refetches
+          (loading=true but event already exists). Does NOT unmount the
+          content, so scroll position is preserved. */}
+      {loading && (
+        <div className="absolute top-0 left-0 right-0 z-10 h-0.5 overflow-hidden rounded-full">
+          <div className="h-full bg-primary/60 animate-pulse" />
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
