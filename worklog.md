@@ -219,3 +219,26 @@ Stage Summary:
 - React error #310 FIXED — all hooks now called unconditionally before any early return
 - Full codebase audit complete — no other instances of this bug exist
 - Fix pushed to GitHub origin/main, Vercel auto-deploy triggered
+
+---
+Task ID: 11
+Agent: Main Coordinator
+Task: Fix scroll-to-top bug when clicking Presente/Ausente in events
+
+Work Log:
+- User reported: when clicking to mark present/absent, the page scrolls back to the top
+- Root cause: handleToggleAttended called fetchEventDetail which set detailLoading=true, causing EventDetailView to render the Skeleton loading screen. The participant list unmounted, browser lost scroll position, and when data returned the page re-rendered from the top
+- Fix 1: Added optimistic update in handleToggleAttended — updates eventDetail.participants locally BEFORE the API call, so the UI reflects the change instantly with zero refetch flicker
+- Fix 2: Added `silent` parameter to fetchEventDetail(id, silent=false) — when silent=true, skips setDetailLoading(true/false), preventing the skeleton from showing during background refetches
+- Fix 3: Changed all participant operation handlers to use silent refetch: handleToggleAttended, handleBulkAttendance, handleAddStudents, handleRemoveStudent, handleUpdateNotes
+- Fix 4: Added optimistic updates to handleRemoveStudent (removes student from list immediately) and handleBulkAttendance (updates all participants' attended status immediately)
+- Fix 5: Changed EventDetailView early return from `if (loading || !event)` to `if (!event)` — during a refetch (loading=true but event exists), keeps showing existing content instead of unmounting to skeleton
+- Fix 6: Added subtle loading indicator (thin pulsing bar at top) when loading=true and event exists, giving user feedback without unmounting content
+- Fix 7: Added automatic revert in handleToggleAttended and handleBulkAttendance if the API call fails (restores previous state)
+
+Stage Summary:
+- Scroll-to-top bug FIXED — optimistic updates + silent refetch keep the DOM mounted and scroll position preserved
+- All participant operations now respond instantly (optimistic) with background sync
+- Committed and pushed to GitHub (commit c23b6e9), Vercel auto-deploy triggered
+- Backend verified working earlier: PUT toggle API returns 200, bulk PATCH returns {"updated":8}
+- Sandbox OOM prevents full browser verification of 4395-line file (pre-existing limitation)
