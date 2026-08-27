@@ -242,3 +242,27 @@ Stage Summary:
 - Committed and pushed to GitHub (commit c23b6e9), Vercel auto-deploy triggered
 - Backend verified working earlier: PUT toggle API returns 200, bulk PATCH returns {"updated":8}
 - Sandbox OOM prevents full browser verification of 4395-line file (pre-existing limitation)
+
+---
+Task ID: 12
+Agent: Main Coordinator
+Task: Work on Gestão Documental module - audit and fix quality bugs
+
+Work Log:
+- Launched Explore subagent (Task ID 12-a) to audit the entire doc-mgmt module for bugs (React #310, scroll-to-top, code quality)
+- Audit result: module is structurally CLEAN - no React #310 hooks-after-early-return bugs, no scroll-to-top bugs. Found 2 medium + 6 low severity issues.
+- Fixed MEDIUM #1: attachments/route.ts POST handler had no status guard, allowing uploads to archived/sent documents while DELETE blocked them. Added editableStatuses check matching DELETE handler.
+- Fixed MEDIUM #2: documents/[id]/route.ts DELETE handler created a DocManagementHistory entry before delete, but onDelete: Cascade immediately deleted it. Removed dead code; audit trail preserved via logAction().
+- Fixed LOW #1: Removed unused Input import from view-document-dialog.tsx
+- Fixed LOW #2: Added title/aria-label to delete attachment button in view-document-dialog.tsx
+- Fixed LOW #3: Added title/aria-label to dropdown actions button in list-subpage.tsx
+- Fixed LOW #4: Made onDuplicateDocument optional in list-subpage.tsx, removed dead `() => {}` prop from document-management-page.tsx
+- Fixed LOW #5: Added useEffect in view-document-dialog.tsx to reset localDoc when viewingDoc.id changes (prevents stale state)
+- Fixed LOW #6: Clear viewingDoc to null when view dialog closes in document-management-page.tsx (prevents stale document staying mounted)
+
+Stage Summary:
+- Backend verified: dashboard API returns 200 with full stats (2 documents, by type/status/month/year, recent+pending), list API returns 200 with pagination
+- TypeScript: zero errors in all 5 modified files
+- Navigation: "Gestão Documental" button confirmed in sidebar
+- Browser visual verification blocked by 4GB sandbox OOM (pre-existing limitation, not a code bug)
+- Committed (db8750a) and pushed to GitHub, Vercel auto-deploy triggered
