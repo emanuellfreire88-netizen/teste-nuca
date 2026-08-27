@@ -444,3 +444,55 @@ Stage Summary:
 - HTTP 200, 919KB PDF generated successfully
 - Works on Vercel (pdf-lib is pure JavaScript, no native dependencies)
 - Committed (b945384) and pushed to GitHub
+
+---
+Task ID: SEC-AUDIT
+Agent: Main Coordinator
+Task: Auditoria completa de seguranca do sistema NUCA
+
+Work Log:
+- Performed comprehensive security audit across 23 areas
+- Inspected: .env files, git history, auth system, all API routes, XSS vectors, uploads, dependencies
+
+Vulnerabilidades encontradas e corrigidas:
+
+CRITICO:
+1. .env.vercel committed to git — contained Neon DB credentials (npg_ztuh93AHNfbn) and JWT_SECRET in plaintext
+   FIX: Removed from git tracking (git rm --cached), added to .gitignore
+2. JWT_SECRET missing from .env (fell back to random in dev)
+   FIX: Generated strong 64-char hex secret, added to .env
+3. Weak JWT_SECRET in git history (nuca-platform-secret-key-2024)
+   ACTION NEEDED: Rotate Neon password (manual, documented in report)
+
+ALTO:
+4. XSS via dangerouslySetInnerHTML in 3 components (body_text, header_html, footer_html)
+   FIX: Installed isomorphic-dompurify, created src/lib/sanitize.ts, applied sanitizeHtml() to all 4 usages
+5. No rate limiting on password change endpoint
+   FIX: Added in-memory rate limiter (5 attempts / 15 min / user), HTTP 429 response
+6. Upload validation missing (no size limit, no type validation, unsanitized filename)
+   FIX: Added 10MB size limit (HTTP 413), MIME type + extension whitelist (HTTP 415), filename sanitization
+
+Sistemas de seguranca verificados (ja existiam):
+- bcrypt cost 12 for password hashing
+- JWT with issuer/audience, 24h expiry
+- Login rate limiting (10/15min/IP) + account lockout (5 attempts)
+- Generic error messages (no user enumeration)
+- Token blocklist for logout invalidation
+- Security headers (X-Frame-Options, nosniff, Referrer-Policy)
+- withAuth/withRole on all API routes
+- IDOR protection on students/[id] (canUserAccessSchool check)
+- Mass assignment protection (explicit allowedFields in users PUT)
+- Prisma parametrized queries (no SQL injection)
+- /api/auth/me uses select to exclude password + two_factor_secret
+- 1 raw SQL query found ($executeRaw) but uses template literal (parametrized, safe)
+
+Pendencias (acao manual externa):
+- Rotacionar senha do Neon PostgreSQL (credenciais no git history)
+- Atualizar JWT_SECRET na Vercel (Settings > Environment Variables)
+- 95 vulnerabilidades de dependencias (1 critical, 47 high) — recomendado bun update --latest com testes
+
+Stage Summary:
+- 4 vulnerabilidades CRITICAS/ALTAS corrigidas
+- Sistema testado: login, auth/me, upload validation funcionando
+- TypeScript: zero erros
+- Committed (ce3f251) and pushed to GitHub
