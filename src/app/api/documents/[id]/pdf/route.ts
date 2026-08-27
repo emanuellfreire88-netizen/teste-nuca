@@ -10,13 +10,13 @@ import path from 'path';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// ─── Constants ───
+// ─── Page constants (A4) ───
 const A4_WIDTH = 595.28;
 const A4_HEIGHT = 841.89;
-const MARGIN_LEFT = 60;
-const MARGIN_RIGHT = 60;
-const MARGIN_TOP = 80;
-const MARGIN_BOTTOM = 60;
+const MARGIN_LEFT = 70;
+const MARGIN_RIGHT = 70;
+const MARGIN_TOP = 130;   // leave space for graphical header
+const MARGIN_BOTTOM = 120; // leave space for graphical footer
 const CONTENT_WIDTH = A4_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
@@ -44,45 +44,47 @@ function loadFonts() {
   };
 }
 
+// ─── Load template images ───
+function loadTemplateImages() {
+  const imgDir = path.join(process.cwd(), 'public', 'images', 'doc-templates');
+  return {
+    waveTop: fs.readFileSync(path.join(imgDir, 'wave-top.png')),
+    waveBottom: fs.readFileSync(path.join(imgDir, 'wave-bottom.png')),
+    logoNuca: fs.readFileSync(path.join(imgDir, 'logo-nuca.png')),
+    watermark: fs.readFileSync(path.join(imgDir, 'watermark-unicef.png')),
+    sealMunicipio: fs.readFileSync(path.join(imgDir, 'sele-unicef-municipio.png')),
+    seal25Years: fs.readFileSync(path.join(imgDir, 'seal-unicef-25years.png')),
+  };
+}
+
 // ─── HTML to plain text converter ───
 function htmlToPlainText(html: string): string {
   if (!html) return '';
-
   let text = html;
-
-  // Handle paragraph breaks
   text = text.replace(/<\/p>/gi, '\n\n');
   text = text.replace(/<p[^>]*>/gi, '');
-
-  // Handle line breaks
   text = text.replace(/<br\s*\/?>/gi, '\n');
-
-  // Handle lists
   text = text.replace(/<\/li>/gi, '\n');
   text = text.replace(/<li[^>]*>/gi, '• ');
   text = text.replace(/<\/ul>/gi, '\n');
   text = text.replace(/<\/ol>/gi, '\n');
   text = text.replace(/<ul[^>]*>/gi, '\n');
   text = text.replace(/<ol[^>]*>/gi, '\n');
-
+  // Preserve bold markers before stripping tags
+  text = text.replace(/<(strong|b)[^>]*>(.*?)<\/\1>/gi, '**$2**');
   // Remove all remaining HTML tags
   text = text.replace(/<[^>]+>/g, '');
-
-  // Clean up whitespace
   text = text.replace(/&nbsp;/g, ' ');
   text = text.replace(/&amp;/g, '&');
   text = text.replace(/&lt;/g, '<');
   text = text.replace(/&gt;/g, '>');
   text = text.replace(/&quot;/g, '"');
-
-  // Trim and normalize line breaks
   text = text.trim();
   text = text.replace(/\n{3,}/g, '\n\n');
-
   return text;
 }
 
-// ─── Format date in Portuguese ───
+// ─── Format date in Portuguese (capitalized month) ───
 function formatDatePortuguese(date: Date): string {
   const months = [
     'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -90,14 +92,16 @@ function formatDatePortuguese(date: Date): string {
   ];
   const day = date.getDate();
   const month = months[date.getMonth()];
+  const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
   const year = date.getFullYear();
-  return `${day} de ${month} de ${year}`;
+  return `${day} de ${monthCap} de ${year}`;
 }
 
-// ─── Draw text with word wrapping and pagination ───
+// ─── Draw text with word wrapping, bold support, and pagination ───
 async function drawWrappedText(
   pdfDoc: PDFDocument,
-  font: PDFFont,
+  fontRegular: PDFFont,
+  fontBold: PDFFont,
   text: string,
   x: number,
   startY: number,
@@ -106,136 +110,195 @@ async function drawWrappedText(
   lineHeight: number,
   page: PDFPage,
   bottomMargin: number,
+  images: ReturnType<typeof loadTemplateImages>,
   color: Color = rgb(0, 0, 0)
 ): Promise<{ y: number; page: PDFPage }> {
   let y = startY;
   let currentPage = page;
 
-  // Split text into paragraphs
   const paragraphs = text.split('\n');
 
   for (const paragraph of paragraphs) {
     if (paragraph.trim() === '') {
       y -= lineHeight * 0.5;
       if (y < bottomMargin) {
-        currentPage = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+        currentPage = await addNewPage(pdfDoc, images);
         y = A4_HEIGHT - MARGIN_TOP;
-        // Draw footer on new page
-        drawPageFooter(pdfDoc, currentPage, font);
       }
       continue;
     }
 
-    // Word wrap the paragraph
-    const words = paragraph.split(' ');
-    let currentLine = '';
+    // Parse **bold** segments within the paragraph
+    const segments = paragraph.split(/(\*\*[^*]+\*\*)/g);
+    const words: { text: string; bold: boolean }[] = [];
+    for (const seg of segments) {
+      if (seg.startsWith('**') && seg.endsWith('**')) {
+        const inner = seg.slice(2, -2);
+        for (const w of inner.split(' ')) {
+          if (w) words.push({ text: w, bold: true });
+        }
+      } else {
+        for (const w of seg.split(' ')) {
+          if (w) words.push({ text: w, bold: false });
+        }
+      }
+    }
+
+    // Word wrap with mixed bold/regular
+    let currentLine: { text: string; bold: boolean }[] = [];
+    let currentLineText = '';
 
     for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+      const testLine = currentLineText ? `${currentLineText} ${word.text}` : word.text;
+      const testFont = word.bold ? fontBold : fontRegular;
+      const testWidth = testFont.widthOfTextAtSize(testLine, fontSize);
 
-      if (testWidth > maxWidth && currentLine) {
+      if (testWidth > maxWidth && currentLine.length > 0) {
         // Draw current line
-        currentPage.drawText(currentLine, { x, y, size: fontSize, font, color });
+        await drawLineWithBold(currentLine, currentPage, x, y, fontSize, fontRegular, fontBold, color);
         y -= lineHeight;
-
-        // Check if we need a new page
         if (y < bottomMargin) {
-          currentPage = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+          currentPage = await addNewPage(pdfDoc, images);
           y = A4_HEIGHT - MARGIN_TOP;
-          drawPageFooter(pdfDoc, currentPage, font);
         }
-
-        currentLine = word;
+        currentLine = [word];
+        currentLineText = word.text;
       } else {
-        currentLine = testLine;
+        currentLine.push(word);
+        currentLineText = testLine;
       }
     }
 
-    // Draw remaining line
-    if (currentLine) {
-      currentPage.drawText(currentLine, { x, y, size: fontSize, font, color });
+    if (currentLine.length > 0) {
+      await drawLineWithBold(currentLine, currentPage, x, y, fontSize, fontRegular, fontBold, color);
       y -= lineHeight;
-
       if (y < bottomMargin) {
-        currentPage = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+        currentPage = await addNewPage(pdfDoc, images);
         y = A4_HEIGHT - MARGIN_TOP;
-        drawPageFooter(pdfDoc, currentPage, font);
       }
     }
 
-    // Paragraph spacing
     y -= lineHeight * 0.3;
   }
 
   return { y, page: currentPage };
 }
 
-// ─── Draw page footer ───
-function drawPageFooter(
-  pdfDoc: PDFDocument,
+// ─── Draw a single line with mixed bold/regular segments ───
+async function drawLineWithBold(
+  line: { text: string; bold: boolean }[],
   page: PDFPage,
-  font: PDFFont
-) {
-  const totalPages = pdfDoc.getPageCount();
-  const currentPageIndex = pdfDoc.getPages().indexOf(page);
-  const pageNum = currentPageIndex + 1;
-
-  // Page number centered at bottom
-  const pageText = `Página ${pageNum} de ${totalPages}`;
-  const textWidth = font.widthOfTextAtSize(pageText, 9);
-  page.drawText(pageText, {
-    x: (A4_WIDTH - textWidth) / 2,
-    y: 30,
-    size: 9,
-    font,
-    color: rgb(0.4, 0.4, 0.4),
-  });
-}
-
-// ─── Draw signature block ───
-function drawSignatureBlock(
-  page: PDFPage,
-  font: PDFFont,
   x: number,
   y: number,
-  name: string,
-  title: string
+  fontSize: number,
+  fontRegular: PDFFont,
+  fontBold: PDFFont,
+  color: Color
 ) {
-  if (!name) return y;
-
-  // Draw line
-  page.drawLine({
-    start: { x, y },
-    end: { x: x + 180, y },
-    thickness: 0.5,
-    color: rgb(0, 0, 0),
-  });
-
-  // Draw name below the line
-  page.drawText(name, {
-    x: x + 10,
-    y: y - 15,
-    size: 10,
-    font,
-    color: rgb(0, 0, 0),
-  });
-
-  // Draw title below name
-  if (title) {
-    page.drawText(title, {
-      x: x + 10,
-      y: y - 28,
-      size: 9,
+  let currentX = x;
+  for (const word of line) {
+    const font = word.bold ? fontBold : fontRegular;
+    const wordText = `${word.text} `;
+    page.drawText(wordText, {
+      x: currentX,
+      y,
+      size: fontSize,
       font,
-      color: rgb(0.3, 0.3, 0.3),
+      color,
     });
+    currentX += font.widthOfTextAtSize(wordText, fontSize);
   }
-
-  return y - 45;
 }
 
-// ─── GET: Generate PDF for document ───
+// ─── Add a new page with header, footer, and watermark ───
+async function addNewPage(
+  pdfDoc: PDFDocument,
+  images: ReturnType<typeof loadTemplateImages>
+): Promise<PDFPage> {
+  const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+  await drawPageDecorations(page, pdfDoc, images);
+  return page;
+}
+
+// ─── Draw graphical header, footer, and watermark on a page ───
+async function drawPageDecorations(
+  page: PDFPage,
+  pdfDoc: PDFDocument,
+  images: ReturnType<typeof loadTemplateImages>
+) {
+  // Embed images
+  const waveTopImg = await pdfDoc.embedPng(images.waveTop);
+  const waveBottomImg = await pdfDoc.embedPng(images.waveBottom);
+  const logoImg = await pdfDoc.embedPng(images.logoNuca);
+  const watermarkImg = await pdfDoc.embedPng(images.watermark);
+  const sealMunicipioImg = await pdfDoc.embedPng(images.sealMunicipio);
+  const seal25YearsImg = await pdfDoc.embedPng(images.seal25Years);
+
+  // ─── Watermark (centered, semi-transparent) ───
+  const wmScale = 0.45;
+  const wmWidth = watermarkImg.width * wmScale;
+  const wmHeight = watermarkImg.height * wmScale;
+  page.drawImage(watermarkImg, {
+    x: (A4_WIDTH - wmWidth) / 2,
+    y: (A4_HEIGHT - wmHeight) / 2,
+    width: wmWidth,
+    height: wmHeight,
+    opacity: 0.12,
+  });
+
+  // ─── Header: wave (top-left) + NUCA logo (top-right) ───
+  const waveTopScale = 0.32;
+  const waveTopWidth = waveTopImg.width * waveTopScale;
+  const waveTopHeight = waveTopImg.height * waveTopScale;
+  page.drawImage(waveTopImg, {
+    x: 0,
+    y: A4_HEIGHT - waveTopHeight,
+    width: waveTopWidth,
+    height: waveTopHeight,
+  });
+
+  const logoScale = 0.22;
+  const logoWidth = logoImg.width * logoScale;
+  const logoHeight = logoImg.height * logoScale;
+  page.drawImage(logoImg, {
+    x: A4_WIDTH - logoWidth - 20,
+    y: A4_HEIGHT - logoHeight - 15,
+    width: logoWidth,
+    height: logoHeight,
+  });
+
+  // ─── Footer: UNICEF seals (left) + wave (bottom-right) ───
+  const sealScale = 0.12;
+  const sealMunWidth = sealMunicipioImg.width * sealScale;
+  const sealMunHeight = sealMunicipioImg.height * sealScale;
+  page.drawImage(sealMunicipioImg, {
+    x: 25,
+    y: 25,
+    width: sealMunWidth,
+    height: sealMunHeight,
+  });
+
+  const seal25Width = seal25YearsImg.width * sealScale;
+  const seal25Height = seal25YearsImg.height * sealScale;
+  page.drawImage(seal25YearsImg, {
+    x: 25 + sealMunWidth + 8,
+    y: 25,
+    width: seal25Width,
+    height: seal25Height,
+  });
+
+  const waveBottomScale = 0.32;
+  const waveBottomWidth = waveBottomImg.width * waveBottomScale;
+  const waveBottomHeight = waveBottomImg.height * waveBottomScale;
+  page.drawImage(waveBottomImg, {
+    x: A4_WIDTH - waveBottomWidth,
+    y: 0,
+    width: waveBottomWidth,
+    height: waveBottomHeight,
+  });
+}
+
+// ─── GET: Generate PDF for document (MODELO NOVO layout) ───
 export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params: Promise<Record<string, string>> }) => {
   try {
     if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
@@ -246,266 +309,217 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params
     const document = await db.docManagementDocument.findUnique({
       where: { id },
       include: {
-        creator: {
-          select: { id: true, full_name: true },
-        },
-        template: {
-          select: { id: true, name: true, display_name: true },
-        },
+        creator: { select: { id: true, full_name: true } },
+        template: { select: { id: true, name: true, display_name: true } },
       },
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: 'Documento não encontrado' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Documento não encontrado' }, { status: 404 });
     }
 
-    // Fetch config
+    // Fetch config for city/municipio defaults
     const configEntries = await db.docManagementConfig.findMany();
     const configMap: Record<string, string> = {};
     for (const entry of configEntries) {
       configMap[entry.config_key] = entry.config_value || '';
     }
-
-    const prefeituraName = configMap.prefeitura_name || 'Prefeitura Municipal';
-    const nucaName = configMap.nuca_name || 'NUCA — Núcleo de Cidadania de Adolescentes';
-    const municipio = configMap.municipio || '';
+    const defaultCity = configMap.municipio || 'Limoeiro de Anadia';
+    const uf = configMap.uf || 'AL';
 
     // ─── Create PDF ───
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
 
-    // Embed fonts
     const fontFiles = loadFonts();
     const fontRegular = await pdfDoc.embedFont(fontFiles.regular);
     const fontBold = await pdfDoc.embedFont(fontFiles.bold);
     const fontItalic = await pdfDoc.embedFont(fontFiles.italic);
 
+    const images = loadTemplateImages();
+
     // First page
     let page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+    await drawPageDecorations(page, pdfDoc, images);
+
     let y = A4_HEIGHT - MARGIN_TOP;
 
-    // ─── Header ───
-    // Prefeitura name
-    const headerText1 = prefeituraName;
-    const headerWidth1 = fontBold.widthOfTextAtSize(headerText1, 14);
-    page.drawText(headerText1, {
-      x: (A4_WIDTH - headerWidth1) / 2,
+    // ─── Line 1: Document number (left) + City/Date (right) ───
+    const docLabel = DOCUMENT_TYPE_LABELS[document.document_type] || 'Documento';
+    const numText = document.number_formatted || `${docLabel} nº ${String(document.number).padStart(3, '0')}/${document.year}`;
+    page.drawText(numText, {
+      x: MARGIN_LEFT,
       y,
-      size: 14,
+      size: 12,
       font: fontBold,
       color: rgb(0, 0, 0),
     });
-    y -= 22;
 
-    // NUCA name
-    const headerText2 = nucaName;
-    const headerWidth2 = fontRegular.widthOfTextAtSize(headerText2, 11);
-    page.drawText(headerText2, {
-      x: (A4_WIDTH - headerWidth2) / 2,
+    const cityName = document.city || defaultCity;
+    const dateFormatted = formatDatePortuguese(new Date(document.date));
+    const dateLocationText = `${cityName}/${uf}, ${dateFormatted}.`;
+    const dateWidth = fontRegular.widthOfTextAtSize(dateLocationText, 11);
+    page.drawText(dateLocationText, {
+      x: A4_WIDTH - MARGIN_RIGHT - dateWidth,
       y,
       size: 11,
       font: fontRegular,
-      color: rgb(0.2, 0.2, 0.2),
-    });
-    y -= 35;
-
-    // Separator line
-    page.drawLine({
-      start: { x: MARGIN_LEFT, y },
-      end: { x: A4_WIDTH - MARGIN_RIGHT, y },
-      thickness: 1,
       color: rgb(0, 0, 0),
-    });
-    y -= 25;
-
-    // ─── Document title ───
-    const docTitle = document.number_formatted || `${DOCUMENT_TYPE_LABELS[document.document_type]} nº ${String(document.number).padStart(3, '0')}/${document.year}`;
-    const titleWidth = fontBold.widthOfTextAtSize(docTitle, 16);
-    page.drawText(docTitle, {
-      x: (A4_WIDTH - titleWidth) / 2,
-      y,
-      size: 16,
-      font: fontBold,
-      color: rgb(0, 0, 0),
-    });
-    y -= 30;
-
-    // ─── Protocol and date ───
-    const protocolText = `Protocolo: ${document.protocol}`;
-    page.drawText(protocolText, {
-      x: MARGIN_LEFT,
-      y,
-      size: 10,
-      font: fontRegular,
-      color: rgb(0.3, 0.3, 0.3),
-    });
-
-    const dateFormatted = formatDatePortuguese(new Date(document.date));
-    const dateText = `Data: ${dateFormatted}`;
-    const dateWidth = fontRegular.widthOfTextAtSize(dateText, 10);
-    page.drawText(dateText, {
-      x: A4_WIDTH - MARGIN_RIGHT - dateWidth,
-      y,
-      size: 10,
-      font: fontRegular,
-      color: rgb(0.3, 0.3, 0.3),
     });
     y -= 30;
 
     // ─── Recipient section ───
-    if (document.recipient) {
-      page.drawText('Destinatário:', {
+    page.drawText('À', {
+      x: MARGIN_LEFT,
+      y,
+      size: 12,
+      font: fontRegular,
+      color: rgb(0, 0, 0),
+    });
+    y -= 20;
+
+    // Treatment (e.g., "Excelentíssima Senhora,")
+    if (document.recipient_treatment) {
+      page.drawText(document.recipient_treatment, {
         x: MARGIN_LEFT,
         y,
-        size: 11,
-        font: fontBold,
-        color: rgb(0, 0, 0),
-      });
-      y -= 16;
-
-      page.drawText(document.recipient, {
-        x: MARGIN_LEFT + 10,
-        y,
-        size: 11,
+        size: 12,
         font: fontRegular,
         color: rgb(0, 0, 0),
       });
-      y -= 16;
-
-      if (document.recipient_title) {
-        page.drawText(document.recipient_title, {
-          x: MARGIN_LEFT + 10,
-          y,
-          size: 10,
-          font: fontItalic,
-          color: rgb(0.3, 0.3, 0.3),
-        });
-        y -= 16;
-      }
-
-      if (document.institution) {
-        page.drawText(document.institution, {
-          x: MARGIN_LEFT + 10,
-          y,
-          size: 10,
-          font: fontItalic,
-          color: rgb(0.3, 0.3, 0.3),
-        });
-        y -= 20;
-      }
+      y -= 18;
     }
 
-    // ─── Subject ───
-    if (document.subject) {
-      page.drawText('Assunto:', {
+    // Recipient name
+    if (document.recipient) {
+      page.drawText(document.recipient, {
         x: MARGIN_LEFT,
         y,
-        size: 11,
+        size: 12,
+        font: fontRegular,
+        color: rgb(0, 0, 0),
+      });
+      y -= 18;
+    }
+
+    // Recipient title
+    if (document.recipient_title) {
+      page.drawText(document.recipient_title, {
+        x: MARGIN_LEFT,
+        y,
+        size: 12,
+        font: fontRegular,
+        color: rgb(0, 0, 0),
+      });
+      y -= 18;
+    }
+
+    // Institution
+    if (document.institution) {
+      page.drawText(document.institution, {
+        x: MARGIN_LEFT,
+        y,
+        size: 12,
+        font: fontRegular,
+        color: rgb(0, 0, 0),
+      });
+      y -= 20;
+    }
+
+    y -= 10;
+
+    // ─── Subject (bold) ───
+    if (document.subject) {
+      page.drawText('Assunto: ', {
+        x: MARGIN_LEFT,
+        y,
+        size: 12,
         font: fontBold,
         color: rgb(0, 0, 0),
       });
-
-      const subjectText = document.subject;
-      const subjectWidth = fontBold.widthOfTextAtSize('Assunto: ', 11);
-      page.drawText(subjectText, {
-        x: MARGIN_LEFT + subjectWidth,
+      const subjectLabelWidth = fontBold.widthOfTextAtSize('Assunto: ', 12);
+      page.drawText(document.subject, {
+        x: MARGIN_LEFT + subjectLabelWidth,
         y,
-        size: 11,
+        size: 12,
+        font: fontBold,
+        color: rgb(0, 0, 0),
+      });
+      y -= 30;
+    }
+
+    // ─── Vocative (e.g., "Prezada Secretária,") ───
+    if (document.vocative) {
+      page.drawText(document.vocative, {
+        x: MARGIN_LEFT,
+        y,
+        size: 12,
         font: fontRegular,
         color: rgb(0, 0, 0),
       });
       y -= 25;
     }
 
-    // Separator line before body
-    page.drawLine({
-      start: { x: MARGIN_LEFT, y },
-      end: { x: A4_WIDTH - MARGIN_RIGHT, y },
-      thickness: 0.5,
-      color: rgb(0.7, 0.7, 0.7),
-    });
-    y -= 20;
-
-    // ─── Body text ───
+    // ─── Body text (justified, with bold support) ───
     const bodyPlainText = htmlToPlainText(document.body_text || '');
-
     if (bodyPlainText) {
       const result = await drawWrappedText(
         pdfDoc,
         fontRegular,
+        fontBold,
         bodyPlainText,
         MARGIN_LEFT,
         y,
         CONTENT_WIDTH,
-        11,
-        16,
+        12,
+        18,
         page,
-        MARGIN_BOTTOM + 60, // Leave space for signatures
+        MARGIN_BOTTOM + 80, // leave space for closing + signature
+        images,
         rgb(0, 0, 0)
       );
       y = result.y;
       page = result.page;
     }
 
-    // ─── Signatures section ───
-    y -= 40;
+    y -= 30;
 
-    // Check if we have enough space for signatures
-    const signatureHeight = 150; // Approximate height needed for 3 signatures
-    if (y - signatureHeight < MARGIN_BOTTOM) {
-      page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
-      y = A4_HEIGHT - MARGIN_TOP;
-      drawPageFooter(pdfDoc, page, fontRegular);
-    }
+    // ─── Closing (e.g., "Atenciosamente,") ───
+    const closingText = document.closing || 'Atenciosamente,';
+    page.drawText(closingText, {
+      x: MARGIN_LEFT,
+      y,
+      size: 12,
+      font: fontRegular,
+      color: rgb(0, 0, 0),
+    });
+    y -= 60; // space for signature
 
-    // Signature columns
-    const sig1X = MARGIN_LEFT;
-    const sig2X = A4_WIDTH / 2 - 90;
-    const sig3X = A4_WIDTH - MARGIN_RIGHT - 180;
+    // ─── Sender name (UPPERCASE, bold) + title ───
+    const senderName = document.sender_name || document.signature1_name || '';
+    const senderTitle = document.sender_title || document.signature1_title || '';
 
-    if (document.signature1_name) {
-      drawSignatureBlock(page, fontRegular, sig1X, y, document.signature1_name, document.signature1_title || '');
-    }
-    if (document.signature2_name) {
-      drawSignatureBlock(page, fontRegular, sig2X, y, document.signature2_name, document.signature2_title || '');
-    }
-    if (document.signature3_name) {
-      drawSignatureBlock(page, fontRegular, sig3X, y, document.signature3_name, document.signature3_title || '');
-    }
-
-    // ─── Update all page footers with correct total page count ───
-    const totalPages = pdfDoc.getPageCount();
-    const pages = pdfDoc.getPages();
-    for (let i = 0; i < pages.length; i++) {
-      const p = pages[i];
-      // Clear the footer area and redraw
-      const pageNumText = `Página ${i + 1} de ${totalPages}`;
-      const pageNumWidth = fontRegular.widthOfTextAtSize(pageNumText, 9);
-
-      // Draw footer text
-      p.drawText(pageNumText, {
-        x: (A4_WIDTH - pageNumWidth) / 2,
-        y: 30,
-        size: 9,
-        font: fontRegular,
-        color: rgb(0.4, 0.4, 0.4),
+    if (senderName) {
+      const senderNameUpper = senderName.toUpperCase();
+      page.drawText(senderNameUpper, {
+        x: MARGIN_LEFT,
+        y,
+        size: 12,
+        font: fontBold,
+        color: rgb(0, 0, 0),
       });
+      y -= 16;
+    }
 
-      // Draw municipio/NUCA footer line
-      if (municipio) {
-        const footerLine = `${nucaName} — ${municipio}`;
-        const footerLineWidth = fontRegular.widthOfTextAtSize(footerLine, 8);
-        p.drawText(footerLine, {
-          x: (A4_WIDTH - footerLineWidth) / 2,
-          y: 18,
-          size: 8,
-          font: fontRegular,
-          color: rgb(0.5, 0.5, 0.5),
-        });
-      }
+    if (senderTitle) {
+      page.drawText(senderTitle, {
+        x: MARGIN_LEFT,
+        y,
+        size: 12,
+        font: fontBold,
+        color: rgb(0, 0, 0),
+      });
+      y -= 16;
     }
 
     // ─── Save PDF ───
@@ -523,7 +537,6 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params
 
     await logAction(userId, 'generate_pdf_doc_management', `PDF gerado para documento ${document.number_formatted}`);
 
-    // ─── Return PDF as binary response ───
     const fileName = `${document.number_formatted || document.protocol}.pdf`;
 
     return new NextResponse(Buffer.from(pdfBytes), {

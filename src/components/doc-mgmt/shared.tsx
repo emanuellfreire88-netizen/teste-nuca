@@ -112,9 +112,15 @@ export interface Document {
   date: string;
   recipient: string | null;
   recipient_title: string | null;
+  recipient_treatment: string | null;
   institution: string | null;
   subject: string | null;
+  vocative: string | null;
   body_text: string | null;
+  closing: string | null;
+  city: string | null;
+  sender_name: string | null;
+  sender_title: string | null;
   internal_notes: string | null;
   status: string;
   signature1_name: string | null;

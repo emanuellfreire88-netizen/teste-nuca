@@ -91,10 +91,16 @@ export function ViewDocumentDialog({
             <div><p className="text-xs text-muted-foreground">Tipo</p><p className="text-sm font-medium">{getTypeLabel(displayDoc.document_type)}</p></div>
             <div><p className="text-xs text-muted-foreground">Data</p><p className="text-sm font-medium">{formatDateLongBR(displayDoc.date)}</p></div>
             <div><p className="text-xs text-muted-foreground">Status</p><StatusBadge status={displayDoc.status} /></div>
+            {displayDoc.recipient_treatment && <div><p className="text-xs text-muted-foreground">Tratamento</p><p className="text-sm font-medium">{displayDoc.recipient_treatment}</p></div>}
             {displayDoc.recipient && <div><p className="text-xs text-muted-foreground">Destinatário</p><p className="text-sm font-medium">{displayDoc.recipient}</p></div>}
             {displayDoc.recipient_title && <div><p className="text-xs text-muted-foreground">Cargo</p><p className="text-sm">{displayDoc.recipient_title}</p></div>}
             {displayDoc.institution && <div><p className="text-xs text-muted-foreground">Instituição</p><p className="text-sm">{displayDoc.institution}</p></div>}
+            {displayDoc.city && <div><p className="text-xs text-muted-foreground">Cidade</p><p className="text-sm">{displayDoc.city}</p></div>}
             {displayDoc.subject && <div className="col-span-2 md:col-span-3"><p className="text-xs text-muted-foreground">Assunto</p><p className="text-sm font-medium">{displayDoc.subject}</p></div>}
+            {displayDoc.vocative && <div className="col-span-2 md:col-span-3"><p className="text-xs text-muted-foreground">Vocativo</p><p className="text-sm">{displayDoc.vocative}</p></div>}
+            {displayDoc.closing && <div><p className="text-xs text-muted-foreground">Fechamento</p><p className="text-sm">{displayDoc.closing}</p></div>}
+            {displayDoc.sender_name && <div><p className="text-xs text-muted-foreground">Remetente</p><p className="text-sm font-medium uppercase">{displayDoc.sender_name}</p></div>}
+            {displayDoc.sender_title && <div><p className="text-xs text-muted-foreground">Cargo Remetente</p><p className="text-sm">{displayDoc.sender_title}</p></div>}
             <div><p className="text-xs text-muted-foreground">Criado por</p><p className="text-sm">{displayDoc.creator?.full_name || "—"}</p></div>
             <div><p className="text-xs text-muted-foreground">Criado em</p><p className="text-sm">{formatDateBR(displayDoc.created_at)}</p></div>
             {displayDoc.template && <div><p className="text-xs text-muted-foreground">Modelo</p><p className="text-sm">{displayDoc.template.display_name}</p></div>}

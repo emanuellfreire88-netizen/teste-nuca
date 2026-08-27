@@ -429,9 +429,15 @@ model DocManagementDocument {
   date                DateTime @default(now()) // document date
   recipient           String?  // destinatário name
   recipient_title     String?  // cargo do destinatário
+  recipient_treatment String?  // pronome de tratamento do destinatário (ex: "Excelentíssima Senhora,")
   institution         String?  // instituição
   subject             String?  // assunto
+  vocative            String?  // vocativo/saudação (ex: "Prezada Secretária,")
   body_text           String?  // main document text (HTML from rich editor)
+  closing             String?  // fechamento (ex: "Atenciosamente,")
+  city                String?  // cidade de emissão (ex: "Limoeiro de Anadia") — override da config global
+  sender_name         String?  // nome do remetente (em maiúsculas no documento)
+  sender_title        String?  // cargo do remetente (ex: "Mobilizador do Nuca")
   internal_notes      String?  // observações internas
   status              String   @default("draft") // draft, generated, printed, signed, sent, received, archived, cancelled
 

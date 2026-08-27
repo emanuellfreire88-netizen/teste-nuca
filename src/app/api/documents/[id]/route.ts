@@ -84,8 +84,11 @@ export const PUT = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
     const updateData: Record<string, unknown> = {};
 
     const allowedFields = [
-      'recipient', 'recipient_title', 'institution', 'subject',
-      'body_text', 'internal_notes', 'date',
+      'recipient', 'recipient_title', 'recipient_treatment',
+      'institution', 'subject', 'vocative',
+      'body_text', 'closing', 'city',
+      'sender_name', 'sender_title',
+      'internal_notes', 'date',
       'signature1_name', 'signature1_title',
       'signature2_name', 'signature2_title',
       'signature3_name', 'signature3_title',

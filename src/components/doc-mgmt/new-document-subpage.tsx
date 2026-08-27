@@ -32,12 +32,18 @@ const emptyFormData = {
   document_type: "",
   recipient: "",
   recipient_title: "",
+  recipient_treatment: "",
   institution: "",
   subject: "",
+  vocative: "",
   date: format(new Date(), "yyyy-MM-dd"),
   internal_notes: "",
   template_id: "",
   body_text: "",
+  closing: "",
+  city: "",
+  sender_name: "",
+  sender_title: "",
   signature1_name: "",
   signature1_title: "",
   signature2_name: "",
@@ -58,12 +64,18 @@ export function NewDocumentSubpage({ editingDoc, formMode, onNavigate, onViewDoc
         document_type: editingDoc.document_type,
         recipient: editingDoc.recipient || "",
         recipient_title: editingDoc.recipient_title || "",
+        recipient_treatment: editingDoc.recipient_treatment || "",
         institution: editingDoc.institution || "",
         subject: editingDoc.subject || "",
+        vocative: editingDoc.vocative || "",
         date: editingDoc.date ? format(parseISO(editingDoc.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
         internal_notes: editingDoc.internal_notes || "",
         template_id: editingDoc.template_id || "",
         body_text: editingDoc.body_text || "",
+        closing: editingDoc.closing || "",
+        city: editingDoc.city || "",
+        sender_name: editingDoc.sender_name || "",
+        sender_title: editingDoc.sender_title || "",
         signature1_name: editingDoc.signature1_name || "",
         signature1_title: editingDoc.signature1_title || "",
         signature2_name: editingDoc.signature2_name || "",
@@ -123,8 +135,16 @@ export function NewDocumentSubpage({ editingDoc, formMode, onNavigate, onViewDoc
     try {
       const body: Record<string, unknown> = {
         document_type: formData.document_type, recipient: formData.recipient,
-        recipient_title: formData.recipient_title, institution: formData.institution,
-        subject: formData.subject, date: formData.date, internal_notes: formData.internal_notes,
+        recipient_title: formData.recipient_title,
+        recipient_treatment: formData.recipient_treatment || undefined,
+        institution: formData.institution,
+        subject: formData.subject,
+        vocative: formData.vocative || undefined,
+        closing: formData.closing || undefined,
+        city: formData.city || undefined,
+        sender_name: formData.sender_name || undefined,
+        sender_title: formData.sender_title || undefined,
+        date: formData.date, internal_notes: formData.internal_notes,
         body_text: formData.body_text, template_id: formData.template_id || undefined, status,
         signature1_name: formData.signature1_name, signature1_title: formData.signature1_title,
         signature2_name: showSig2 ? formData.signature2_name : null,
@@ -146,7 +166,14 @@ export function NewDocumentSubpage({ editingDoc, formMode, onNavigate, onViewDoc
     try {
       const body: Record<string, unknown> = {
         recipient: formData.recipient, recipient_title: formData.recipient_title,
-        institution: formData.institution, subject: formData.subject, date: formData.date,
+        recipient_treatment: formData.recipient_treatment || undefined,
+        institution: formData.institution, subject: formData.subject,
+        vocative: formData.vocative || undefined,
+        closing: formData.closing || undefined,
+        city: formData.city || undefined,
+        sender_name: formData.sender_name || undefined,
+        sender_title: formData.sender_title || undefined,
+        date: formData.date,
         internal_notes: formData.internal_notes, body_text: formData.body_text,
         template_id: formData.template_id || undefined,
         signature1_name: formData.signature1_name, signature1_title: formData.signature1_title,
@@ -201,15 +228,38 @@ export function NewDocumentSubpage({ editingDoc, formMode, onNavigate, onViewDoc
             </div>
           </CardContent></Card>
 
-          {/* Recipient */}
+          {/* Recipient & Sender */}
           <Card><CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2"><Label>Destinatário</Label><Input value={formData.recipient} onChange={(e) => setFormData((prev) => ({ ...prev, recipient: e.target.value }))} placeholder="Nome do destinatário" /></div>
+            <h3 className="text-sm font-semibold text-muted-foreground">Destinatário</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tratamento</Label>
+                <Input value={formData.recipient_treatment} onChange={(e) => setFormData((prev) => ({ ...prev, recipient_treatment: e.target.value }))} placeholder="Ex: Excelentíssima Senhora," />
+              </div>
+              <div className="space-y-2">
+                <Label>Nome do Destinatário</Label>
+                <Input value={formData.recipient} onChange={(e) => setFormData((prev) => ({ ...prev, recipient: e.target.value }))} placeholder="Nome do destinatário" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Cargo</Label><Input value={formData.recipient_title} onChange={(e) => setFormData((prev) => ({ ...prev, recipient_title: e.target.value }))} placeholder="Cargo/função" /></div>
               <div className="space-y-2"><Label>Instituição</Label><Input value={formData.institution} onChange={(e) => setFormData((prev) => ({ ...prev, institution: e.target.value }))} placeholder="Nome da instituição" /></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Assunto</Label><Input value={formData.subject} onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))} placeholder="Assunto" /></div>
+              <div className="space-y-2"><Label>Assunto</Label><Input value={formData.subject} onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))} placeholder="Assunto (aparece em negrito)" /></div>
+              <div className="space-y-2"><Label>Vocativo</Label><Input value={formData.vocative} onChange={(e) => setFormData((prev) => ({ ...prev, vocative: e.target.value }))} placeholder="Ex: Prezada Secretária," /></div>
+            </div>
+
+            <h3 className="text-sm font-semibold text-muted-foreground pt-2">Remetente & Local</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Nome do Remetente</Label><Input value={formData.sender_name} onChange={(e) => setFormData((prev) => ({ ...prev, sender_name: e.target.value }))} placeholder="Ex: JEFERSON SILVA SOUZA (aparece em maiúsculas)" /></div>
+              <div className="space-y-2"><Label>Cargo do Remetente</Label><Input value={formData.sender_title} onChange={(e) => setFormData((prev) => ({ ...prev, sender_title: e.target.value }))} placeholder="Ex: Mobilizador do Nuca" /></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Cidade (opcional)</Label><Input value={formData.city} onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))} placeholder="Ex: Limoeiro de Anadia (vazio = usa config global)" /></div>
+              <div className="space-y-2"><Label>Fechamento</Label><Input value={formData.closing} onChange={(e) => setFormData((prev) => ({ ...prev, closing: e.target.value }))} placeholder="Ex: Atenciosamente," /></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Data</Label><Input type="date" value={formData.date} onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))} /></div>
             </div>
             <div className="space-y-2"><Label>Observações Internas</Label><Textarea value={formData.internal_notes} onChange={(e) => setFormData((prev) => ({ ...prev, internal_notes: e.target.value }))} placeholder="Notas internas" rows={2} /></div>
