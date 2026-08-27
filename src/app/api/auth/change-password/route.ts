@@ -4,6 +4,35 @@ import { verifyToken, hashPassword, validatePasswordStrength, comparePassword } 
 import { isTokenRevoked } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 
+// In-memory rate limiter for password change attempts (max 5 per 15 min per user)
+const pwdChangeAttempts = new Map<string, { count: number; lastAttempt: number }>();
+const PWD_RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const PWD_MAX_ATTEMPTS = 5;
+
+function isPwdRateLimited(userId: string): boolean {
+  const entry = pwdChangeAttempts.get(userId);
+  if (!entry) return false;
+  if (Date.now() - entry.lastAttempt > PWD_RATE_LIMIT_WINDOW) {
+    pwdChangeAttempts.delete(userId);
+    return false;
+  }
+  return entry.count >= PWD_MAX_ATTEMPTS;
+}
+
+function recordPwdAttempt(userId: string): void {
+  const entry = pwdChangeAttempts.get(userId);
+  if (!entry || Date.now() - entry.lastAttempt > PWD_RATE_LIMIT_WINDOW) {
+    pwdChangeAttempts.set(userId, { count: 1, lastAttempt: Date.now() });
+  } else {
+    entry.count++;
+    entry.lastAttempt = Date.now();
+  }
+}
+
+function clearPwdAttempts(userId: string): void {
+  pwdChangeAttempts.delete(userId);
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Verify authentication
@@ -24,10 +53,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
 
+    // Rate limit password change attempts
+    if (isPwdRateLimited(payload.userId)) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas de alteração de senha. Tente novamente em 15 minutos.' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { currentPassword, newPassword } = body;
 
     if (!currentPassword || !newPassword) {
+      recordPwdAttempt(payload.userId);
       return NextResponse.json(
         { error: 'Senha atual e nova senha são obrigatórias' },
         { status: 400 }
@@ -37,6 +75,7 @@ export async function POST(req: NextRequest) {
     // Validate new password strength
     const passwordCheck = validatePasswordStrength(newPassword);
     if (!passwordCheck.valid) {
+      recordPwdAttempt(payload.userId);
       return NextResponse.json(
         { error: `Senha fraca. Requisitos: ${passwordCheck.errors.join(', ')}` },
         { status: 400 }
@@ -76,6 +115,9 @@ export async function POST(req: NextRequest) {
         must_change_password: false,
       },
     });
+
+    // Clear rate limit attempts on successful password change
+    clearPwdAttempts(user.id);
 
     await logAction(
       user.id,

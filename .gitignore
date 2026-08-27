@@ -9,3 +9,5 @@ db/*.db-journal
 mini-services/*/node_modules/
 tool-results/
 .dev-credentials
+.env.vercel
+.env.backup.*

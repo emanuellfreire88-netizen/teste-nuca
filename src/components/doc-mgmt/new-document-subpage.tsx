@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Save, FileDown } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import {
   Document, Template, DocConfig, DOCUMENT_TYPES,
   getTypeLabel, SubpageKey,
@@ -339,7 +340,7 @@ export function NewDocumentSubpage({ editingDoc, formMode, onNavigate, onViewDoc
                 </div>}
                 {formData.subject && <div className="mb-2 text-sm"><p><strong>Assunto:</strong> {formData.subject}</p></div>}
                 <div className="border-b my-4" />
-                {formData.body_text ? <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: formData.body_text }} /> : <p className="text-sm text-muted-foreground italic">Conteúdo do documento...</p>}
+                {formData.body_text ? <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeHtml(formData.body_text) }} /> : <p className="text-sm text-muted-foreground italic">Conteúdo do documento...</p>}
                 <div className="mt-8 grid grid-cols-2 gap-8">
                   {formData.signature1_name && <div className="text-center"><div className="border-t pt-2 mt-6"><p className="text-sm font-medium">{formData.signature1_name}</p>{formData.signature1_title && <p className="text-xs">{formData.signature1_title}</p>}</div></div>}
                   {showSig2 && formData.signature2_name && <div className="text-center"><div className="border-t pt-2 mt-6"><p className="text-sm font-medium">{formData.signature2_name}</p>{formData.signature2_title && <p className="text-xs">{formData.signature2_title}</p>}</div></div>}

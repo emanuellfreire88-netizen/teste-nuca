@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save } from "lucide-react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { DocConfig } from "./shared";
 
 export function SettingsSubpage() {
@@ -114,7 +115,7 @@ export function SettingsSubpage() {
             <Label className="text-sm font-semibold">Cabeçalho HTML</Label>
             <Textarea value={getConfigValue("header_html")} onChange={(e) => setConfigValue("header_html", e.target.value)} rows={4} placeholder="<div>...</div>" />
             <div className="mt-2 border rounded-md p-3 bg-white dark:bg-gray-950">
-              <div dangerouslySetInnerHTML={{ __html: getConfigValue("header_html") }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(getConfigValue("header_html")) }} />
             </div>
           </div>
 
@@ -123,7 +124,7 @@ export function SettingsSubpage() {
             <Label className="text-sm font-semibold">Rodapé HTML</Label>
             <Textarea value={getConfigValue("footer_html")} onChange={(e) => setConfigValue("footer_html", e.target.value)} rows={3} placeholder="<div>...</div>" />
             <div className="mt-2 border rounded-md p-3 bg-white dark:bg-gray-950">
-              <div dangerouslySetInnerHTML={{ __html: getConfigValue("footer_html") }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(getConfigValue("footer_html")) }} />
             </div>
           </div>
 

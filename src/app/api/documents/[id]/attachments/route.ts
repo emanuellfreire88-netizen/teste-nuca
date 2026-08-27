@@ -100,6 +100,55 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       );
     }
 
+    // ─── File size validation (max 10 MB) ───
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'Arquivo muito grande. Tamanho máximo: 10 MB.' },
+        { status: 413 }
+      );
+    }
+
+    // ─── File type validation (whitelist of allowed types) ───
+    const ALLOWED_MIME_TYPES = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/zip',
+      'text/plain',
+      'text/csv',
+    ];
+
+    // Validate MIME type if provided; also validate extension as fallback
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.txt', '.csv'];
+    const fileExt = '.' + (file.name.split('.').pop() || '').toLowerCase();
+
+    if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Tipo de arquivo não permitido. Use: PDF, imagens, documentos Office, ZIP, TXT ou CSV.' },
+        { status: 415 }
+      );
+    }
+
+    if (!allowedExtensions.includes(fileExt)) {
+      return NextResponse.json(
+        { error: 'Extensão de arquivo não permitida. Use: PDF, imagens, documentos Office, ZIP, TXT ou CSV.' },
+        { status: 415 }
+      );
+    }
+
+    // ─── Sanitize filename (prevent path traversal, remove dangerous chars) ───
+    const safeFileName = file.name
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') // remove dangerous chars
+      .replace(/\.\./g, '_')                   // prevent path traversal
+      .substring(0, 255);                      // limit length
+
     // Convert file to base64
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -109,7 +158,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     const attachment = await db.docManagementAttachment.create({
       data: {
         document_id: id,
-        file_name: file.name,
+        file_name: safeFileName,
         file_type: file.type,
         file_size: file.size,
         file_data: base64Data,
@@ -123,11 +172,11 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         document_id: id,
         user_id: userId,
         action: 'attachment_added',
-        description: `Anexo "${file.name}" adicionado (${(file.size / 1024).toFixed(1)} KB)`,
+        description: `Anexo "${safeFileName}" adicionado (${(file.size / 1024).toFixed(1)} KB)`,
       },
     });
 
-    await logAction(userId, 'add_attachment_doc_management', `Anexo "${file.name}" adicionado ao documento ${document.number_formatted}`);
+    await logAction(userId, 'add_attachment_doc_management', `Anexo "${safeFileName}" adicionado ao documento ${document.number_formatted}`);
 
     // Return metadata only (not the base64 data)
     return NextResponse.json({

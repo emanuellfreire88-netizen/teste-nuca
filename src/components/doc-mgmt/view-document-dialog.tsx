@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -115,7 +116,7 @@ export function ViewDocumentDialog({
           {/* Rendered Body */}
           <div className="bg-white dark:bg-gray-950 border rounded-md p-6">
             {displayDoc.body_text ? (
-              <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: displayDoc.body_text }} />
+              <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayDoc.body_text) }} />
             ) : <p className="text-muted-foreground italic">Documento sem conteúdo</p>}
           </div>
 
