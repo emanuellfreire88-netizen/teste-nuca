@@ -5,4 +5,5 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 773ms
+✓ Ready in 841ms
+○ Compiling / ...
