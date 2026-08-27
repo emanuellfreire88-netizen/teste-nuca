@@ -79,6 +79,16 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       );
     }
 
+    // Only allow uploading attachments if document status allows editing
+    // (must match the DELETE handler's guard for consistency)
+    const editableStatuses = ['draft', 'generated'];
+    if (!editableStatuses.includes(document.status)) {
+      return NextResponse.json(
+        { error: 'Anexos só podem ser adicionados a documentos em rascunho ou gerado' },
+        { status: 400 }
+      );
+    }
+
     // Parse FormData
     const formData = await req.formData();
     const file = formData.get('file') as File | null;

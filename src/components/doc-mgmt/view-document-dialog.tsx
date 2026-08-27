@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -40,6 +39,13 @@ export function ViewDocumentDialog({
 
   // Use localDoc if available (after attachment changes), otherwise viewingDoc
   const displayDoc = localDoc || viewingDoc;
+
+  // Reset localDoc whenever the parent switches to a different document,
+  // so stale attachment state from a previous document doesn't leak in.
+  useEffect(() => {
+    setLocalDoc(null);
+    setNewStatus("");
+  }, [viewingDoc?.id]);
 
   const handleUploadAttachment = async (docId: string, file: File) => {
     setUploadingAttachment(true);
@@ -145,7 +151,7 @@ export function ViewDocumentDialog({
                       <Paperclip className="h-4 w-4 text-muted-foreground" />
                       <div><p className="text-sm font-medium">{att.file_name}</p><p className="text-xs text-muted-foreground">{formatFileSize(att.file_size)} — {formatDateBR(att.uploaded_at)}</p></div>
                     </div>
-                    <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteAttachment(displayDoc.id, att.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteAttachment(displayDoc.id, att.id)} title="Remover anexo" aria-label={`Remover anexo ${att.file_name}`}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
               </div>

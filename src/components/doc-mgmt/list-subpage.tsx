@@ -31,7 +31,7 @@ interface ListSubpageProps {
   onEditDocument: (doc: Document) => void;
   onViewDocument: (docId: string) => void;
   onDownloadPdf: (docId: string, docNumber: string) => void;
-  onDuplicateDocument: (docId: string) => void;
+  onDuplicateDocument?: (docId: string) => void;
   onDeleteDocument: (docId: string) => void;
   onStatusChangeRequest: (docId: string) => void;
   onNavigate: (key: SubpageKey) => void;
@@ -86,7 +86,7 @@ export function ListSubpage({
       const result = await api.post<{ document: Document }>(`/documents/${docId}/duplicate`);
       toast.success(`Documento duplicado! ${result.document.number_formatted} — Protocolo: ${result.document.protocol}`);
       fetchDocuments(docPagination.page);
-      onDuplicateDocument(docId);
+      onDuplicateDocument?.(docId);
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : "Erro ao duplicar documento"); }
     setLoading(false);
   };
@@ -188,7 +188,7 @@ export function ListSubpage({
                     <ShadcnTableCell><StatusBadge status={doc.status} /></ShadcnTableCell>
                     <ShadcnTableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" title="Ações" aria-label={`Ações do documento ${doc.number_formatted || doc.protocol}`}><ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onViewDocument(doc.id)}><Eye className="h-4 w-4 mr-2" /> Visualizar</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => onEditDocument(doc)}><Pencil className="h-4 w-4 mr-2" /> Editar</DropdownMenuItem>

@@ -150,7 +150,7 @@ export function DocumentManagementPage() {
       <AnimatePresence mode="wait">
         {activeSubpage === "dashboard" && <DashboardSubpage onEditDocument={openEditDocument} onViewDocument={openViewDocument} onDownloadPdf={handleDownloadPdf} />}
         {activeSubpage === "new" && <NewDocumentSubpage editingDoc={editingDoc} formMode={formMode} onNavigate={setActiveSubpage} onViewDocument={openViewDocument} />}
-        {activeSubpage === "list" && <ListSubpage onEditDocument={openEditDocument} onViewDocument={openViewDocument} onDownloadPdf={handleDownloadPdf} onDuplicateDocument={() => {}} onDeleteDocument={onDeleteDocument} onStatusChangeRequest={(id) => onStatusChangeRequest(id)} onNavigate={setActiveSubpage} />}
+        {activeSubpage === "list" && <ListSubpage onEditDocument={openEditDocument} onViewDocument={openViewDocument} onDownloadPdf={handleDownloadPdf} onDeleteDocument={onDeleteDocument} onStatusChangeRequest={(id) => onStatusChangeRequest(id)} onNavigate={setActiveSubpage} />}
         {activeSubpage === "templates" && <TemplatesSubpage />}
         {activeSubpage === "protocols" && <ProtocolsSubpage onViewDocument={openViewDocument} />}
         {activeSubpage === "reports" && <ReportsSubpage onNavigate={setActiveSubpage} />}
@@ -161,7 +161,12 @@ export function DocumentManagementPage() {
       <ViewDocumentDialog
         viewingDoc={viewingDoc}
         open={viewDialogOpen}
-        onOpenChange={setViewDialogOpen}
+        onOpenChange={(isOpen) => {
+          setViewDialogOpen(isOpen);
+          // Clear viewingDoc when the dialog closes so we don't keep a
+          // stale document mounted (with its attachment data) in the background.
+          if (!isOpen) setViewingDoc(null);
+        }}
         onEditDocument={openEditDocument}
         onDownloadPdf={handleDownloadPdf}
         onStatusChangeRequest={(docId, status) => onStatusChangeRequest(docId, status)}

@@ -213,23 +213,19 @@ export const DELETE = withRole(['Admin', 'Operator'], async (req: AuthenticatedR
       );
     }
 
-    // Create history entry before delete
-    await db.docManagementHistory.create({
-      data: {
-        document_id: id,
-        user_id: userId,
-        action: 'cancelled',
-        description: `Documento ${existing.number_formatted} excluído`,
-        old_value: existing.status,
-      },
-    });
+    // NOTE: We intentionally do NOT create a DocManagementHistory entry here.
+    // The schema uses onDelete: Cascade on DocManagementHistory.document, so
+    // any history row created right before the delete would be immediately
+    // deleted by the cascade. The audit trail is preserved via logAction()
+    // below instead, which writes to the system-wide action log.
+    const docLabel = existing.number_formatted;
 
     // Delete the document (cascade will delete history and attachments)
     await db.docManagementDocument.delete({
       where: { id },
     });
 
-    await logAction(userId, 'delete_doc_management', `Documento ${existing.number_formatted} excluído`);
+    await logAction(userId, 'delete_doc_management', `Documento ${docLabel} excluído`);
 
     return NextResponse.json({ message: 'Documento excluído com sucesso' });
   } catch (error) {
