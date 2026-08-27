@@ -1,9 +1,0 @@
-{
-  "functions": {
-    "src/app/api/documents/[id]/pdf/route.ts": {
-      "maxDuration": 60,
-      "memory": 1024
-    }
-  },
-  "buildCommand": "bash build-vercel.sh"
-}
