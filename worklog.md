@@ -364,3 +364,27 @@ Stage Summary:
 - PDF is visually faithful to MODELO NOVO (9/10 VLM rating)
 - vercel.json configures the function with adequate memory and timeout
 - Committed (a8c87d2) and pushed to GitHub
+
+---
+Task ID: 16
+Agent: Main Coordinator
+Task: Reverter para pdf-lib (Puppeteer falhou na Vercel)
+
+Work Log:
+- User reported failure on Vercel with Puppeteer + @sparticuz/chromium approach
+- User asked: "pq nao deixa a geracao do jeito que ja estava so alterando o modelo?" — keep the working pdf-lib approach
+- Reverted src/app/api/documents/[id]/pdf/route.ts to the pdf-lib version (commit 92b2bbc)
+- Removed puppeteer-core and @sparticuz/chromium dependencies (too heavy for serverless)
+- Removed src/lib/doc-html-template.ts (Puppeteer HTML template, no longer needed)
+- Removed scripts/generate-doc-pdf.py (Python/LibreOffice script, no longer needed)
+- Removed templates/doc-templates/memorando-template.docx (not used by pdf-lib)
+- Removed vercel.json (no special config needed for pdf-lib)
+- Kept public/images/doc-templates/ with 6 images (used by pdf-lib)
+- Tested: HTTP 200, 1MB PDF generated successfully via pdf-lib
+- VLM confirmed: waves, logo NUCA, watermark, seals, and text all present
+
+Stage Summary:
+- Back to pdf-lib approach which works on Vercel (pure JS, no native deps)
+- PDF includes all template images (waves, logo, watermark, seals)
+- All 6 new document fields (treatment, vocative, closing, city, sender_name, sender_title) still work
+- Committed (d7c2a89) and pushed to GitHub
