@@ -124,9 +124,11 @@ export function TemplatesSubpage() {
 
       <div className="flex items-center justify-between">
         <Button onClick={() => { resetTemplateForm(); setTemplateFormOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Novo Modelo</Button>
-        <div className="bg-muted/50 border rounded-md p-3 max-w-md">
+        <div className="bg-muted/50 border rounded-md p-3 max-w-2xl">
           <p className="text-xs font-semibold mb-1">Variáveis disponíveis:</p>
-          <p className="text-xs text-muted-foreground">{"{{numero_documento}}, {{protocolo}}, {{data}}, {{ano}}, {{destinatário}}, {{cargo_destinatário}}, {{instituição}}, {{município}}"}</p>
+          <p className="text-xs text-muted-foreground font-mono break-all">
+            {"{{numero_documento}}, {{protocolo}}, {{data}}, {{ano}}, {{assunto}}, {{destinatario}}, {{cargo_destinatario}}, {{tratamento}}, {{vocativo}}, {{fechamento}}, {{instituicao}}, {{remetente_nome}}, {{remetente_cargo}}, {{cidade}}, {{municipio}}, {{uf}}, {{prefeitura}}, {{nuca}}"}
+          </p>
         </div>
       </div>
 

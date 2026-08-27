@@ -214,8 +214,18 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
           .replace(/\{\{ano\}\}/g, String(year))
           .replace(/\{\{destinatario\}\}/g, body.recipient || '')
           .replace(/\{\{cargo_destinatario\}\}/g, body.recipient_title || '')
+          .replace(/\{\{tratamento\}\}/g, body.recipient_treatment || '')
+          .replace(/\{\{vocativo\}\}/g, body.vocative || '')
+          .replace(/\{\{fechamento\}\}/g, body.closing || '')
+          .replace(/\{\{cidade\}\}/g, body.city || configMap.municipio || '')
+          .replace(/\{\{remetente_nome\}\}/g, body.sender_name || '')
+          .replace(/\{\{remetente_cargo\}\}/g, body.sender_title || '')
+          .replace(/\{\{assunto\}\}/g, body.subject || '')
           .replace(/\{\{instituicao\}\}/g, body.institution || '')
-          .replace(/\{\{municipio\}\}/g, configMap.municipio || '');
+          .replace(/\{\{municipio\}\}/g, configMap.municipio || '')
+          .replace(/\{\{uf\}\}/g, configMap.uf || 'AL')
+          .replace(/\{\{prefeitura\}\}/g, configMap.prefeitura_name || '')
+          .replace(/\{\{nuca\}\}/g, configMap.nuca_name || 'NUCA');
       }
     }
 
