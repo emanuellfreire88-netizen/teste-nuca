@@ -266,3 +266,40 @@ Stage Summary:
 - Navigation: "Gestão Documental" button confirmed in sidebar
 - Browser visual verification blocked by 4GB sandbox OOM (pre-existing limitation, not a code bug)
 - Committed (db8750a) and pushed to GitHub, Vercel auto-deploy triggered
+
+---
+Task ID: 13
+Agent: Main Coordinator
+Task: Gestao Documental - implementar template MODELO NOVO com campos para geracao automatica
+
+Work Log:
+- User uploaded 2 docx files: MODELO NOVO.docx (the model template, use as-is) and Memorando n005-2026.docx (analyze structure)
+- Extracted text from both via pandoc - both are Memorando templates with identical structure
+- Converted both to PDF + images, analyzed visually with VLM
+- Extracted 6 images from docx: wave-top, wave-bottom, logo-nuca, watermark-unicef, sele-unicef-municipio, seal-unicef-25years
+- Identified MISSING fields needed for automatic generation: recipient_treatment, vocative, closing, city, sender_name, sender_title
+- Added 6 new fields to Prisma schema DocManagementDocument model, pushed to Neon (db push successful)
+- Updated shared.tsx Document interface with new fields
+- Updated API POST (create) and PUT (update) to accept new fields
+- Completely rewrote PDF generation route to reproduce MODELO NOVO layout:
+  * Graphical header: wave image (top-left) + NUCA logo (top-right)
+  * Document number (left) + city/date (right) on same line
+  * Recipient section: "A" + treatment + name + title + institution
+  * Subject in bold
+  * Vocative
+  * Body text with bold support (**text** from HTML <strong>)
+  * Closing
+  * Sender name (UPPERCASE) + title
+  * Watermark (centered, 12% opacity)
+  * Footer: UNICEF seals (left) + wave (bottom-right)
+- Updated new-document-subpage.tsx form with new field sections (Destinatario + Remetente & Local)
+- Updated view-document-dialog.tsx to display all new fields
+- Backend tested: created Memorando with all fields (HTTP 201), generated PDF (HTTP 200, 1MB)
+- VLM confirmed PDF reproduces MODELO NOVO faithfully (header, watermark, footer, text all correct)
+
+Stage Summary:
+- 6 new database fields added and synced to Neon
+- PDF generation completely rewritten with graphical template matching MODELO NOVO
+- Frontend form updated with all new fields for automatic document generation
+- All images from original template extracted and saved to public/images/doc-templates/
+- Committed (92b2bbc) and pushed to GitHub, Vercel auto-deploy triggered
