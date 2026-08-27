@@ -3,6 +3,15 @@ import { db } from '@/lib/db';
 import { comparePassword, generateToken, validatePasswordStrength } from '@/lib/auth';
 import { logAction } from '@/lib/logger';
 import { getUserSchoolIdsList } from '@/lib/user-schools';
+import { validateBody, emailSchema } from '@/lib/validation';
+import { z } from 'zod';
+
+// Login schema
+const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, 'Senha é obrigatória').max(128),
+  remember: z.boolean().optional(),
+});
 
 // In-memory rate limiter for login attempts
 const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
@@ -70,26 +79,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const { email, password, remember } = body;
+    const rawBody = await req.json();
 
-    if (!email || !password) {
+    // Validate input with Zod
+    const result = validateBody(loginSchema, rawBody);
+    if (!result.success) {
       recordAttempt(clientIp);
-      return NextResponse.json(
-        { error: 'Email e senha são obrigatórios' },
-        { status: 400 }
-      );
+      return result.error;
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      recordAttempt(clientIp);
-      return NextResponse.json(
-        { error: 'Formato de email inválido' },
-        { status: 400 }
-      );
-    }
+    const { email, password, remember } = result.data;
 
     const user = await db.user.findUnique({ where: { email } });
 

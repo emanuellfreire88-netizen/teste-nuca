@@ -5,4 +5,7 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 759ms
+✓ Ready in 811ms
+○ Compiling / ...
+ POST /api/auth/login 200 in 4.1s (compile: 823ms, render: 3.3s)
+ GET /api/auth/me 200 in 1325ms (compile: 410ms, render: 916ms)

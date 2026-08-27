@@ -4,8 +4,21 @@ import { hashPassword, validatePasswordStrength, sanitizeInput } from '@/lib/aut
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 import { ciContains } from '@/lib/search';
+import { validateBody, paginationSchema, emailSchema, roleSchema } from '@/lib/validation';
+import { z } from 'zod';
 
 const validRoles = ['Admin', 'Operator', 'Viewer'];
+
+// Schema for creating a user
+const createUserSchema = z.object({
+  full_name: z.string().min(1, 'Nome é obrigatório').max(255),
+  email: emailSchema,
+  password: z.string().min(1, 'Senha é obrigatória'),
+  role: roleSchema.default('Viewer'),
+  status: z.enum(['active', 'inactive']).default('active'),
+  profile_photo: z.string().max(6 * 1024 * 1024).optional().nullable(),
+  school_ids: z.array(z.string().uuid()).optional(),
+});
 
 export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
   try {
@@ -77,34 +90,15 @@ export const GET = withRole(['Admin'], async (req: AuthenticatedRequest) => {
 
 export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
   try {
-    const body = await req.json();
-    const { full_name, email, password, role, status, profile_photo, school_ids } = body;
+    const rawBody = await req.json();
 
-    if (!full_name || !email || !password) {
-      return NextResponse.json(
-        { error: 'Nome, email e senha são obrigatórios' },
-        { status: 400 }
-      );
-    }
+    // Validate input with Zod
+    const result = validateBody(createUserSchema, rawBody);
+    if (!result.success) return result.error;
 
-    // Validate field lengths
-    if (full_name.length > 255 || email.length > 255) {
-      return NextResponse.json(
-        { error: 'Nome e email devem ter no máximo 255 caracteres' },
-        { status: 400 }
-      );
-    }
+    const { full_name, email, password, role, status, profile_photo, school_ids } = result.data;
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: 'Formato de email inválido' },
-        { status: 400 }
-      );
-    }
-
-    // Validate password strength
+    // Validate password strength (complex rules not expressible in Zod schema)
     const passwordCheck = validatePasswordStrength(password);
     if (!passwordCheck.valid) {
       return NextResponse.json(
@@ -113,11 +107,14 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       );
     }
 
-    if (!validRoles.includes(role || 'Viewer')) {
-      return NextResponse.json(
-        { error: 'Papel inválido. Use: Admin, Operator ou Viewer' },
-        { status: 400 }
-      );
+    // Validate profile_photo if provided (must be base64 image data URL)
+    if (profile_photo && profile_photo.length > 0) {
+      if (!profile_photo.startsWith('data:image/')) {
+        return NextResponse.json(
+          { error: 'Foto de perfil inválida' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if email already exists
