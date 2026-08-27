@@ -420,3 +420,27 @@ Stage Summary:
 - Layout (waves, logo, watermark, seals) still handled by pdf-lib code (works on Vercel)
 - 18 template variables now available for dynamic text replacement
 - Committed (bbe99d1) and pushed to GitHub
+
+---
+Task ID: 18
+Agent: Main Coordinator
+Task: Usar MODELO NOVO.pdf diretamente como template base na geracao de PDF
+
+Work Log:
+- User uploaded MODELO NOVO.pdf and asked to use it directly as the PDF template
+- Copied the PDF to templates/pdf-templates/memorando-base.pdf (238KB, A4)
+- Rewrote src/app/api/documents/[id]/pdf/route.ts:
+  * Loads the MODELO NOVO.pdf with pdf-lib (PDFDocument.load)
+  * Covers the original text area with a white rectangle (Y=8% to Y=90%)
+  * Redraws the watermark (Selo UNICEF) on top of the white, at 10% opacity
+  * Draws all dynamic text fields on top (number, date, recipient, subject, body, closing, sender)
+  * Uses Liberation Sans fonts (embedded, compatible with Vercel)
+  * Supports **bold** markers in body text
+- No LibreOffice, no Chromium, no Python — pure pdf-lib (works on Vercel)
+
+Stage Summary:
+- PDF generation now uses the actual MODELO NOVO.pdf as base template
+- VLM rating: 9/10 (identical layout, watermark visible, no old text showing through)
+- HTTP 200, 919KB PDF generated successfully
+- Works on Vercel (pdf-lib is pure JavaScript, no native dependencies)
+- Committed (b945384) and pushed to GitHub
