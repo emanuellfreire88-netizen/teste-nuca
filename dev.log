@@ -5,10 +5,6 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 812ms
-[CRON] Iniciando detecção automática de evasão...
-[CRON] Avaliando 59 alunos ativos...
-[CRON] Concluído: 0 avaliados, 0 em risco, 0 novos alertas
- POST /api/cron/detect-dropout 200 in 15.8s (compile: 379ms, render: 15.4s)
- POST /api/auth/login 200 in 1801ms (compile: 133ms, render: 1667ms)
- GET /api/notifications?limit=5 200 in 2.9s (compile: 241ms, render: 2.7s)
+✓ Ready in 860ms
+ POST /api/auth/login 200 in 3.5s (compile: 364ms, render: 3.1s)
+ GET /api/dashboard/pending 200 in 4.2s (compile: 288ms, render: 3.9s)
