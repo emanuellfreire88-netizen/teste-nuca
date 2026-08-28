@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, withRole, AuthenticatedRequest } from '@/lib/middleware';
 
-const VALID_TYPES = ['dropout_alert', 'long_absence', 'low_attendance', 'offline_sync', 'info'];
+const VALID_TYPES = ['dropout_alert', 'long_absence', 'low_attendance', 'offline_sync', 'info', 'document_pending', 'event_reminder', 'role_changed', 'security_alert'];
 
 /**
  * GET /api/notifications

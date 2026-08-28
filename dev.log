@@ -5,84 +5,10 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 804ms
- POST /api/auth/login 400 in 546ms (compile: 521ms, render: 26ms)
-prisma:error 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].user.findUnique()` invocation in
-/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__080dab5b._.js:556:154
-
-  553     return result.error;
-  554 }
-  555 const { email, password, remember } = result.data;
-→ 556 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].user.findUnique(
-Can't reach database server at `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech:5432`
-
-Please make sure your database server is running at `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech:5432`.
-Login error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].user.findUnique()` invocation in
-/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__080dab5b._.js:556:154
-
-  553     return result.error;
-  554 }
-  555 const { email, password, remember } = result.data;
-→ 556 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].user.findUnique(
-Can't reach database server at `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech:5432`
-
-Please make sure your database server is running at `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech:5432`.
-    at <unknown> (src/app/api/auth/login/route.ts:93:32)
-    at async POST (src/app/api/auth/login/route.ts:93:18)
-  91 |     const { email, password, remember } = result.data;
-  92 |
-> 93 |     const user = await db.user.findUnique({ where: { email } });
-     |                                ^
-  94 |
-  95 |     if (!user) {
-  96 |       recordAttempt(clientIp); {
-  clientVersion: '6.19.2',
-  errorCode: undefined,
-  retryable: undefined
-}
- POST /api/auth/login 500 in 4.2s (compile: 41ms, render: 4.2s)
-⚠️  JWT_SECRET not set. Using random fallback for development only. Set JWT_SECRET in production!
- GET /api/auth/me 401 in 239ms (compile: 233ms, render: 6ms)
- GET /api/students 401 in 48ms (compile: 44ms, render: 4ms)
- GET /api/documents/00000000-0000-0000-0000-000000000000 401 in 711ms (compile: 701ms, render: 10ms)
- PUT /api/auth/me 401 in 6ms (compile: 2ms, render: 4ms)
-prisma:error 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].user.findUnique()` invocation in
-/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__080dab5b._.js:556:154
-
-  553     return result.error;
-  554 }
-  555 const { email, password, remember } = result.data;
-→ 556 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].user.findUnique(
-Can't reach database server at `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech:5432`
-
-Please make sure your database server is running at `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech:5432`.
-Login error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].user.findUnique()` invocation in
-/home/z/my-project/.next/dev/server/chunks/[root-of-the-server]__080dab5b._.js:556:154
-
-  553     return result.error;
-  554 }
-  555 const { email, password, remember } = result.data;
-→ 556 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["db"].user.findUnique(
-Can't reach database server at `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech:5432`
-
-Please make sure your database server is running at `ep-orange-brook-apv361yg-pooler.c-7.us-east-1.aws.neon.tech:5432`.
-    at <unknown> (src/app/api/auth/login/route.ts:93:32)
-    at async POST (src/app/api/auth/login/route.ts:93:18)
-  91 |     const { email, password, remember } = result.data;
-  92 |
-> 93 |     const user = await db.user.findUnique({ where: { email } });
-     |                                ^
-  94 |
-  95 |     if (!user) {
-  96 |       recordAttempt(clientIp); {
-  clientVersion: '6.19.2',
-  errorCode: undefined,
-  retryable: undefined
-}
- POST /api/auth/login 500 in 4.2s (compile: 2ms, render: 4.2s)
- GET /api/health 503 in 3.1s (compile: 80ms, render: 3.0s)
- POST /api/documents/00000000-0000-0000-0000-000000000000/attachments 401 in 737ms (compile: 728ms, render: 9ms)
+✓ Ready in 812ms
+[CRON] Iniciando detecção automática de evasão...
+[CRON] Avaliando 59 alunos ativos...
+[CRON] Concluído: 0 avaliados, 0 em risco, 0 novos alertas
+ POST /api/cron/detect-dropout 200 in 15.8s (compile: 379ms, render: 15.4s)
+ POST /api/auth/login 200 in 1801ms (compile: 133ms, render: 1667ms)
+ GET /api/notifications?limit=5 200 in 2.9s (compile: 241ms, render: 2.7s)

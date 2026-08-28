@@ -237,6 +237,10 @@ export async function PUT(
           `Role alterado: ${existingUser.email} — ${existingUser.role} → ${role}`,
           _req
         );
+
+        // Notify the user that their role changed (ETAPA 5 — notifications)
+        const { notifyRoleChanged } = await import('@/lib/notification-triggers');
+        await notifyRoleChanged(id, existingUser.role, role);
       }
 
       await logAction(_req.user!.userId, 'update_user', `Usuário atualizado: ${user.email}`, _req);
