@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
 import { logExport } from '@/lib/export-audit';
+import { applyRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -15,6 +16,15 @@ const GRAY_TEXT = [120, 120, 120] as [number, number, number];
 
 export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequest) => {
   try {
+    // Rate limit exports (ETAPA 12 — prevent data exfiltration)
+    const rateLimitResult = applyRateLimit(req, 'export_reports', RATE_LIMITS.EXPORT);
+    if (rateLimitResult) {
+      return NextResponse.json(
+        { error: rateLimitResult.body.error },
+        { status: rateLimitResult.status, headers: { 'Retry-After': String(rateLimitResult.body.retryAfter) } }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const format = searchParams.get('format') || 'excel';
     const type = searchParams.get('type') || 'students';

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withAuth, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { applyRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 import { PDFDocument, PDFFont, PDFPage, rgb, StandardFonts } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
@@ -183,6 +184,15 @@ export const GET = withAuth(async (req: AuthenticatedRequest, context?: { params
     if (!context?.params) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 });
     const { id } = await context.params;
     const userId = req.user!.userId;
+
+    // Rate limit PDF generation (ETAPA 12 — prevent abuse)
+    const rateLimitResult = applyRateLimit(req, 'pdf_gen', RATE_LIMITS.PDF_GENERATION);
+    if (rateLimitResult) {
+      return NextResponse.json(
+        { error: rateLimitResult.body.error },
+        { status: rateLimitResult.status, headers: { 'Retry-After': String(rateLimitResult.body.retryAfter) } }
+      );
+    }
 
     // Fetch document
     const document = await db.docManagementDocument.findUnique({

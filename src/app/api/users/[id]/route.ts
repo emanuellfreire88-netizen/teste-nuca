@@ -229,6 +229,16 @@ export async function PUT(
         });
       }
 
+      // Log role change specifically if it changed (ETAPA 11 — security logs)
+      if (role && role !== existingUser.role) {
+        await logAction(
+          _req.user!.userId,
+          'role_changed',
+          `Role alterado: ${existingUser.email} — ${existingUser.role} → ${role}`,
+          _req
+        );
+      }
+
       await logAction(_req.user!.userId, 'update_user', `Usuário atualizado: ${user.email}`, _req);
 
       // Fetch existing school links to include in the response

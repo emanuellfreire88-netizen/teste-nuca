@@ -145,11 +145,24 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       );
     }
 
+    // Validate field lengths (ETAPA 2)
     if (title.length > 255) {
       return NextResponse.json(
         { error: 'Título deve ter no máximo 255 caracteres' },
         { status: 400 }
       );
+    }
+    if (description && typeof description === 'string' && description.length > 5000) {
+      return NextResponse.json({ error: 'Descrição muito longa (máx 5000 caracteres)' }, { status: 400 });
+    }
+    if (location && typeof location === 'string' && location.length > 500) {
+      return NextResponse.json({ error: 'Local muito longo (máx 500 caracteres)' }, { status: 400 });
+    }
+
+    // Validate date format
+    const eventDate = new Date(date);
+    if (isNaN(eventDate.getTime())) {
+      return NextResponse.json({ error: 'Data inválida' }, { status: 400 });
     }
 
     const validStatuses = ['upcoming', 'ongoing', 'completed', 'cancelled'];

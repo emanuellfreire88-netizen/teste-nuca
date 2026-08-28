@@ -145,6 +145,11 @@ export async function POST(req: NextRequest) {
       // Log failed attempt — do not reveal whether user exists
       await logAction(null, 'login_failed', 'Tentativa de login falhou: credenciais inválidas', req);
 
+      // Log account lock specifically (ETAPA 11 — security logs)
+      if (lockUntil) {
+        await logAction(user.id, 'account_locked', `Conta bloqueada após 5 tentativas falhas: ${user.email}`, req);
+      }
+
       // Always return the same generic message regardless of remaining attempts
       return NextResponse.json(
         { error: 'Credenciais inválidas' },

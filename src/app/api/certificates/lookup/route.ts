@@ -1,31 +1,21 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { applyRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-/**
- * GET /api/certificates/lookup?name=João[&event_id=abc]
- *
- * PUBLIC endpoint (no authentication required). Lets a student search for
- * their name and see which events they participated in that have
- * certificates available (i.e. events where the admin has published
- * `public_certificates = true` AND status is "completed").
- *
- * Optional `event_id` query param filters the results to a single event —
- * used by the public certificate page when a student selects a specific
- * event from the dropdown.
- *
- * Returns a list of students matching the name, each with their completed
- * events. Only exposes the minimum data needed for the public certificate
- * page: student full_name, event title/date/location, and a composite key
- * to download the certificate PDF.
- *
- * Privacy: we do NOT expose email, CPF, phone, or any sensitive field.
- * Only the student's full name + event info is returned.
- */
 export async function GET(req: Request) {
   try {
+    // Rate limit public certificate lookup (ETAPA 12 — prevent enumeration)
+    const rateLimitResult = applyRateLimit(req, 'cert_lookup', RATE_LIMITS.CERTIFICATE_LOOKUP);
+    if (rateLimitResult) {
+      return NextResponse.json(
+        { error: rateLimitResult.body.error },
+        { status: rateLimitResult.status, headers: { 'Retry-After': String(rateLimitResult.body.retryAfter) } }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const name = (searchParams.get('name') || '').trim();
     const eventId = (searchParams.get('event_id') || '').trim();

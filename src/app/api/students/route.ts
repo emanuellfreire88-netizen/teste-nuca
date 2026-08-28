@@ -126,12 +126,44 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
       );
     }
 
-    // Validate field lengths
-    if (full_name.length > 255) {
-      return NextResponse.json(
-        { error: 'Nome deve ter no máximo 255 caracteres' },
-        { status: 400 }
-      );
+    // Validate field lengths (ETAPA 2 — input validation)
+    const MAX_FIELD = 255;
+    const MAX_LONG = 2000;
+    for (const [field, max] of [
+      ['full_name', MAX_FIELD], ['cpf', MAX_FIELD], ['rg', MAX_FIELD],
+      ['blood_type', MAX_FIELD], ['class', MAX_FIELD], ['grade', MAX_FIELD],
+      ['phone', MAX_FIELD], ['guardian_name', MAX_FIELD], ['guardian_phone', MAX_FIELD],
+      ['guardian_email', MAX_FIELD], ['emergency_contact', MAX_FIELD],
+      ['special_needs', MAX_LONG], ['medications', MAX_LONG], ['address', MAX_LONG],
+    ]) {
+      if (body[field] !== undefined && body[field] !== null && typeof body[field] === 'string' && body[field].length > max) {
+        return NextResponse.json(
+          { error: `Campo ${field} muito longo (máximo ${max} caracteres)` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate email format if guardian_email provided
+    if (guardian_email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(guardian_email)) {
+        return NextResponse.json(
+          { error: 'Email do responsável inválido' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate enum fields
+    if (status && !['active', 'inactive'].includes(status)) {
+      return NextResponse.json({ error: 'Status inválido' }, { status: 400 });
+    }
+    if (image_authorization && !['authorized', 'not_authorized', 'pending'].includes(image_authorization)) {
+      return NextResponse.json({ error: 'Autorização de imagem inválida' }, { status: 400 });
+    }
+    if (participation_authorization && !['authorized', 'not_authorized', 'pending'].includes(participation_authorization)) {
+      return NextResponse.json({ error: 'Autorização de participação inválida' }, { status: 400 });
     }
 
     // Validate CPF format if provided (XXX.XXX.XXX-XX or just digits)
