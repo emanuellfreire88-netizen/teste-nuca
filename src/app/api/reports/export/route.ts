@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withRole, AuthenticatedRequest } from '@/lib/middleware';
 import { logAction } from '@/lib/logger';
+import { logExport } from '@/lib/export-audit';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -18,7 +19,13 @@ export const GET = withRole(['Admin', 'Operator'], async (req: AuthenticatedRequ
     const format = searchParams.get('format') || 'excel';
     const type = searchParams.get('type') || 'students';
 
-    await logAction(req.user!.userId, 'export_report', `Exportação de relatório (${type}, ${format})`, req);
+    // Audit log with filters (ETAPA 7 — export audit)
+    const filters: Record<string, string> = {};
+    for (const key of ['type', 'format', 'school_id', 'status', 'date_from', 'date_to', 'category']) {
+      const val = searchParams.get(key);
+      if (val) filters[key] = val;
+    }
+    await logExport(req, `reports_${format}` as 'reports_excel' | 'reports_pdf', filters);
 
     if (type === 'students') {
       return await exportStudentsGrouped(format, searchParams);

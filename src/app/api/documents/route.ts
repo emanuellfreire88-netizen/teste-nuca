@@ -129,7 +129,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
     const body = await req.json();
     const userId = req.user!.userId;
 
-    // Validate required fields
+    // Validate document_type with Zod-style enum check
     const document_type = body.document_type;
     if (!document_type || !VALID_DOCUMENT_TYPES.includes(document_type)) {
       return NextResponse.json(
@@ -138,10 +138,7 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
       );
     }
 
-    const documentDate = body.date ? new Date(body.date) : new Date();
-    const year = documentDate.getFullYear();
-
-    // Validate optional fields
+    // Validate status enum
     const status = body.status || 'draft';
     if (!VALID_STATUSES.includes(status)) {
       return NextResponse.json(
@@ -149,6 +146,27 @@ export const POST = withRole(['Admin', 'Operator'], async (req: AuthenticatedReq
         { status: 400 }
       );
     }
+
+    // Validate string field lengths to prevent abuse
+    const MAX_STR = 1000;
+    for (const field of ['recipient', 'recipient_title', 'recipient_treatment', 'institution', 'subject', 'vocative', 'closing', 'city', 'sender_name', 'sender_title', 'internal_notes']) {
+      if (body[field] !== undefined && body[field] !== null && typeof body[field] === 'string' && body[field].length > MAX_STR) {
+        return NextResponse.json(
+          { error: `Campo ${field} muito longo (máximo ${MAX_STR} caracteres)` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate date if provided
+    const documentDate = body.date ? new Date(body.date) : new Date();
+    if (body.date && isNaN(documentDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Data inválida' },
+        { status: 400 }
+      );
+    }
+    const year = documentDate.getFullYear();
 
     // ─── Auto-generate sequential number ───
     // Find the max number for this document_type + year combination

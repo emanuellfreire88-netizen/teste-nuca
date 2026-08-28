@@ -22,8 +22,8 @@ function getJwtSecret(): string {
   return globalForAuth.__jwtSecret;
 }
 
-const JWT_EXPIRES_IN = '24h';
-export const JWT_EXPIRES_IN_SECONDS = 24 * 60 * 60; // 86400 seconds
+const JWT_EXPIRES_IN = '8h';
+export const JWT_EXPIRES_IN_SECONDS = 8 * 60 * 60; // 28800 seconds (reduced from 24h for security)
 const JWT_ISSUER = 'nuca-plataforma';
 const JWT_AUDIENCE = 'nuca-plataforma-users';
 
