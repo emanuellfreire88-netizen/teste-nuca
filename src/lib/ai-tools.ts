@@ -371,6 +371,18 @@ export const AI_TOOLS: Record<string, AITool> = {
     parameters: [],
     execute: (ctx) => getEventsSummary(ctx),
   },
+  getAttendanceTrend: {
+    name: 'getAttendanceTrend',
+    description: 'Obter tendência de frequência: comparar período atual vs anterior, variação percentual',
+    parameters: [],
+    execute: (ctx) => getAttendanceTrend(ctx),
+  },
+  getDocumentStats: {
+    name: 'getDocumentStats',
+    description: 'Obter estatísticas de documentos: total por status, por tipo',
+    parameters: [],
+    execute: (ctx) => getDocumentStats(ctx),
+  },
   getNotificationsSummary: {
     name: 'getNotificationsSummary',
     description: 'Obter resumo de notificações do usuário: não lidas, por tipo',
@@ -411,4 +423,83 @@ export function getToolsDescription(): string {
   return Object.values(AI_TOOLS)
     .map(t => `- ${t.name}: ${t.description}`)
     .join('\n');
+}
+
+// ─── Tool: getAttendanceTrend ──────────────────────────────────────────────
+/**
+ * Retorna tendência de frequência (comparação períodos).
+ */
+export async function getAttendanceTrend(ctx: AIToolContext): Promise<AIToolResult> {
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const sixtyDaysAgo = new Date(); sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const ninetyDaysAgo = new Date(); ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const recordWhere: Record<string, unknown> = {};
+    if (ctx.allowedSchoolIds !== null) {
+      recordWhere.student = { school_id: { in: ctx.allowedSchoolIds } };
+    }
+
+    const [current, previous] = await Promise.all([
+      db.attendanceRecord.findMany({
+        where: { ...recordWhere, date: { gte: thirtyDaysAgo } },
+        select: { status: true },
+      }),
+      db.attendanceRecord.findMany({
+        where: { ...recordWhere, date: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
+        select: { status: true },
+      }),
+    ]);
+
+    const currentPresent = current.filter(r => r.status === 'present').length;
+    const currentTotal = current.length;
+    const previousPresent = previous.filter(r => r.status === 'present').length;
+    const previousTotal = previous.length;
+
+    const currentRate = currentTotal > 0 ? Math.round((currentPresent / currentTotal) * 100) : 0;
+    const previousRate = previousTotal > 0 ? Math.round((previousPresent / previousTotal) * 100) : 0;
+    const variation = currentRate - previousRate;
+
+    return {
+      success: true,
+      data: {
+        currentPeriod: { days: 30, attendanceRate: currentRate, totalRecords: currentTotal },
+        previousPeriod: { days: 30, attendanceRate: previousRate, totalRecords: previousTotal },
+        variation: variation > 0 ? `+${variation}%` : `${variation}%`,
+        trend: variation > 5 ? 'melhora' : variation < -5 ? 'queda' : 'estável',
+      },
+    };
+  } catch {
+    return { success: false, error: 'Erro ao buscar tendência de frequência' };
+  }
+}
+
+// ─── Tool: getDocumentStats ─────────────────────────────────────────────────
+/**
+ * Retorna estatísticas de documentos (gestão documental).
+ */
+export async function getDocumentStats(ctx: AIToolContext): Promise<AIToolResult> {
+  try {
+    const [total, byStatus, byType] = await Promise.all([
+      db.docManagementDocument.count(),
+      db.docManagementDocument.groupBy({ by: ['status'], _count: true }),
+      db.docManagementDocument.groupBy({ by: ['document_type'], _count: true }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        totalDocuments: total,
+        statusBreakdown: byStatus.reduce((acc, s) => {
+          acc[s.status] = s._count; return acc;
+        }, {} as Record<string, number>),
+        typeBreakdown: byType.reduce((acc, t) => {
+          acc[t.document_type] = t._count; return acc;
+        }, {} as Record<string, number>),
+      },
+    };
+  } catch {
+    return { success: false, error: 'Erro ao buscar estatísticas de documentos' };
+  }
 }
