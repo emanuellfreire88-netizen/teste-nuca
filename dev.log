@@ -5,7 +5,4 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 820ms
- POST /api/auth/login 200 in 3.6s (compile: 315ms, render: 3.2s)
- POST /api/ai/assistant 200 in 28.1s (compile: 307ms, render: 27.8s)
- POST /api/ai/assistant 200 in 233ms (compile: 4ms, render: 229ms)
+✓ Ready in 835ms
