@@ -129,14 +129,16 @@ export const POST = withRole(['Admin'], async (req: AuthenticatedRequest) => {
     // Validate field lengths (ETAPA 2 — input validation)
     const MAX_FIELD = 255;
     const MAX_LONG = 2000;
-    for (const [field, max] of [
+    const fieldLimits: Array<[string, number]> = [
       ['full_name', MAX_FIELD], ['cpf', MAX_FIELD], ['rg', MAX_FIELD],
       ['blood_type', MAX_FIELD], ['class', MAX_FIELD], ['grade', MAX_FIELD],
       ['phone', MAX_FIELD], ['guardian_name', MAX_FIELD], ['guardian_phone', MAX_FIELD],
       ['guardian_email', MAX_FIELD], ['emergency_contact', MAX_FIELD],
       ['special_needs', MAX_LONG], ['medications', MAX_LONG], ['address', MAX_LONG],
-    ]) {
-      if (body[field] !== undefined && body[field] !== null && typeof body[field] === 'string' && body[field].length > max) {
+    ];
+    for (const [field, max] of fieldLimits) {
+      const val = body[field];
+      if (typeof val === 'string' && val.length > max) {
         return NextResponse.json(
           { error: `Campo ${field} muito longo (máximo ${max} caracteres)` },
           { status: 400 }
