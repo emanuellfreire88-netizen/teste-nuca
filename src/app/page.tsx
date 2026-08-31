@@ -17,6 +17,7 @@ const LogsPage = dynamic(() => import("@/components/logs-page").then(m => ({ def
 const ReportsPage = dynamic(() => import("@/components/reports-page").then(m => ({ default: m.ReportsPage })), { ssr: false });
 const EventsPage = dynamic(() => import("@/components/events-page").then(m => ({ default: m.EventsPage })), { ssr: false });
 const SupportPage = dynamic(() => import("@/components/support-page").then(m => ({ default: m.SupportPage })), { ssr: false });
+const TasksPage = dynamic(() => import("@/components/tasks-page").then(m => ({ default: m.TasksPage })), { ssr: false });
 const CalendarPage = dynamic(() => import("@/components/calendar-page").then(m => ({ default: m.CalendarPage })), { ssr: false });
 const DropoutPage = dynamic(() => import("@/components/dropout-page").then(m => ({ default: m.DropoutPage })), { ssr: false });
 const DocumentManagementPage = dynamic(() => import("@/components/document-management-page").then(m => ({ default: m.DocumentManagementPage })), { ssr: false });
@@ -118,6 +119,8 @@ export default function Home() {
         return <DocumentManagementPage />;
       case "support":
         return <SupportPage />;
+      case "tasks":
+        return <TasksPage />;
       default:
         return <DashboardPage />;
     }

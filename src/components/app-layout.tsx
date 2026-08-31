@@ -57,6 +57,7 @@ import {
   Loader2,
   AlertTriangle,
   FolderOpen,
+  CheckSquare,
 } from "lucide-react";
 
 export type PageKey =
@@ -71,7 +72,8 @@ export type PageKey =
   | "dropout"
   | "document-management"
   | "logs"
-  | "support";
+  | "support"
+  | "tasks";
 
 interface NavItem {
   key: PageKey;
@@ -93,6 +95,7 @@ const navItems: NavItem[] = [
   { key: "reports", label: "Relatórios", icon: BarChart3 },
   { key: "logs", label: "Logs", icon: FileText, adminOnly: true },
   { key: "support", label: "Suporte", icon: MessageSquare, adminOnly: true },
+  { key: "tasks", label: "Tarefas", icon: CheckSquare },
 ];
 
 function UserAvatar({ user }: { user: { full_name: string; profile_photo: string | null } }) {

@@ -47,6 +47,8 @@ model User {
   doc_management_attachments DocManagementAttachment[] @relation("DocAttachmentUploader")
   doc_management_templates  DocManagementTemplate[]  @relation("DocTemplateCreator")
   doc_management_config_updates DocManagementConfig[] @relation("DocConfigUpdater")
+  created_tasks      Task[] @relation("TaskCreator")
+  assigned_tasks     Task[] @relation("TaskAssignee")
 
   @@map("users")
 }
@@ -547,4 +549,31 @@ model DocManagementConfig {
   updater         User?    @relation("DocConfigUpdater", fields: [updated_by], references: [id])
 
   @@map("doc_management_config")
+}
+
+// ─── Task System ───
+
+model Task {
+  id              String    @id @default(uuid())
+  title           String
+  description     String?
+  priority        String    @default("normal") // baixa, normal, alta, critica
+  status          String    @default("pending") // pending, in_progress, blocked, completed, cancelled
+  due_date        DateTime?
+  completed_at    DateTime?
+  created_by      String
+  assigned_to     String?
+  related_type    String?   // student, event, document, dropout, general
+  related_id      String?   // ID of related resource
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  creator         User      @relation("TaskCreator", fields: [created_by], references: [id])
+  assignee        User?     @relation("TaskAssignee", fields: [assigned_to], references: [id])
+
+  @@index([assigned_to, status])
+  @@index([status])
+  @@index([due_date])
+  @@index([created_by])
+  @@map("tasks")
 }
