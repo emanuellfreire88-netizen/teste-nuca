@@ -592,3 +592,32 @@ Stage Summary:
 - Segurança: prompt injection, rate limit, auditoria, minimização
 - Interface integrada no dashboard
 - Commits: f52c665, bd24f22, 7ec6acd
+
+---
+Task ID: FASE-D
+Agent: Main Coordinator
+Task: FASE D — Gestão, Documentos, Relatórios e Produtividade
+
+Work Log:
+- Etapa 1: Auditoria completa — 13 módulos funcionando, 3 sem interface, 1 inexistente (tarefas)
+- Etapa 6: Sistema de Tarefas criado do zero:
+  - Modelo Task no Prisma (tabela: tasks)
+  - APIs: /api/tasks (GET, POST) + /api/tasks/[id] (PUT, DELETE)
+  - Componente TasksPage com filtros, criar, alterar status, excluir
+  - Integração na navegação (sidebar + page.tsx)
+  - Permissões: non-admin vê só suas tarefas
+- Etapa 14: Busca Global criada:
+  - API /api/search busca em alunos, escolas, eventos, documentos, tarefas, alertas
+  - Respeita permissões e school scoping
+  - Não retorna dados sensíveis
+- Etapa 13: Dashboard Executivo melhorado:
+  - Tarefas atrasadas integradas no /api/dashboard/pending
+  - Pendências priorizadas com ações
+- Etapa 7: Prazos e alertas:
+  - Tarefas atrasadas aparecem como pendência ALTA no dashboard
+
+Stage Summary:
+- Sistema de Tarefas: completo (tabela + API + frontend + navegação)
+- Busca Global: completa (API com 6 tipos de busca, respeita permissões)
+- Dashboard: integrado com tarefas atrasadas
+- Commits: 4a03c32, 3bb088b
