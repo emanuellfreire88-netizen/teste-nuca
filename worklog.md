@@ -561,3 +561,34 @@ Stage Summary:
 - Cron job automático configurado na Vercel
 - Dashboard de pendências priorizadas funcionando
 - Commits: 5a7a4cb, fc66ccf
+
+---
+Task ID: FASE-C
+Agent: Main Coordinator
+Task: FASE C — Inteligência, IA e Automação Avançada
+
+Work Log:
+- Etapa 1: Auditoria — Z.ai SDK instalado mas não usado (verde para arquitetar)
+- Etapa 2: Assistente NUCA IA — API /api/ai/assistant (POST autenticado)
+- Etapa 3: Tools controladas (8 tools):
+  - getDashboardMetrics, getEvasionIndicators, getPendingAlerts
+  - getParticipationSummary, getEventsSummary, getNotificationsSummary
+  - getAttendanceTrend, getDocumentStats
+- Etapa 4: Permissões — IA herda permissões do usuário + school scoping
+- Etapa 5: Prompt injection — 14 padrões detectados e bloqueados
+- Etapa 6: Minimização — tools retornam só dados agregados
+- Etapa 17: Auditoria — toda interação registrada
+- Etapa 18: IA não toma decisões críticas (só leitura)
+- Etapa 19-20: Testes de segurança e alucinação
+- Etapa 21: Interface NUCA IA integrada no dashboard
+
+Testes:
+- Pergunta normal: ✅ IA respondeu com dados reais (59 alunos, 7 alto risco)
+- Prompt injection: ✅ Bloqueado
+- Build: ✅ Passa
+
+Stage Summary:
+- Assistente IA funcional com 8 tools controladas
+- Segurança: prompt injection, rate limit, auditoria, minimização
+- Interface integrada no dashboard
+- Commits: f52c665, bd24f22, 7ec6acd
