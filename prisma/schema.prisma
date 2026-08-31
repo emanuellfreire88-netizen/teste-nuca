@@ -577,3 +577,23 @@ model Task {
   @@index([created_by])
   @@map("tasks")
 }
+
+// ─── Digital Signature Preparation (ETAPA 10 — architecture only, not active) ───
+// This model prepares the structure for future digital signature integration.
+// It is NOT active and does NOT provide any signature validation.
+// Future implementation should use a proper e-signature provider.
+
+model DocumentSignature {
+  id              String    @id @default(uuid())
+  document_id     String   // References DocManagementDocument.id
+  signatory_name  String   // Name of the person signing
+  signatory_role  String?  // Role/title of the signatory
+  signature_type  String   @default("manual") // manual, electronic, digital (future)
+  signature_hash  String?  // Hash of signed content (future use)
+  signed_at       DateTime @default(now())
+  ip_address      String?
+  user_agent      String?
+
+  @@index([document_id])
+  @@map("document_signatures")
+}
