@@ -156,6 +156,28 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       }
     }
 
+    // 6. Overdue tasks
+    const overdueTasks = await db.task.count({
+      where: {
+        due_date: { lt: now },
+        status: { in: ['pending', 'in_progress', 'blocked'] },
+        ...(userRole !== 'Admin' ? {
+          OR: [{ assigned_to: userId }, { created_by: userId }],
+        } : {}),
+      },
+    });
+
+    if (overdueTasks > 0) {
+      pending.push({
+        title: 'Tarefas atrasadas',
+        description: `${overdueTasks} tarefa(s) com prazo vencido.`,
+        priority: 'HIGH',
+        action_label: 'Ver tarefas',
+        action_url: 'tasks',
+        count: overdueTasks,
+      });
+    }
+
     // Sort by priority
     const order = { CRITICAL: 0, HIGH: 1, ATTENTION: 2, INFO: 3 };
     pending.sort((a, b) => order[a.priority] - order[b.priority]);
