@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 import { useTheme } from "next-themes";
+import { GlobalSearch } from "@/components/global-search";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -58,6 +59,7 @@ import {
   AlertTriangle,
   FolderOpen,
   CheckSquare,
+  Search,
 } from "lucide-react";
 
 export type PageKey =
@@ -515,6 +517,19 @@ export function AppLayout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Keyboard shortcut: Ctrl+K / Cmd+K to open global search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   if (!user) return null;
 
@@ -599,6 +614,21 @@ export function AppLayout({
           {/* Offline Sync Indicator */}
           <OfflineSyncIndicator />
 
+          {/* Global Search trigger (Ctrl+K) */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden sm:flex items-center gap-2 text-muted-foreground"
+            onClick={() => setSearchOpen(true)}
+            title="Buscar (Ctrl+K)"
+          >
+            <Search className="h-4 w-4" />
+            <span className="text-xs">Buscar</span>
+            <kbd className="ml-2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+              Ctrl K
+            </kbd>
+          </Button>
+
           {/* Notification Bell */}
           <NotificationBell />
 
@@ -648,6 +678,9 @@ export function AppLayout({
 
       {/* Self-service Profile Photo dialog (available to ALL roles) */}
       <ProfilePhotoDialog open={profileOpen} onOpenChange={setProfileOpen} />
+
+      {/* Global Search (Ctrl+K) */}
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
     </OfflineSyncProvider>
   );
