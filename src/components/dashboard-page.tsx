@@ -25,6 +25,7 @@ import {
   WifiOff,
   ArrowRight,
 } from "lucide-react";
+import { NUCAAssistant } from "@/components/nuca-ai-assistant";
 import {
   ResponsiveContainer,
   PieChart,
@@ -767,6 +768,9 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ===== NUCA IA Assistant ===== */}
+      <NUCAAssistant />
     </div>
   );
 }
