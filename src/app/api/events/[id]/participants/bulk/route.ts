@@ -49,11 +49,24 @@ export async function PATCH(
       let updatedCount = 0;
 
       if (action === 'present_all') {
+        // Get student IDs before updating (for badge check)
+        const studentsToBadge = await db.eventParticipant.findMany({
+          where: { event_id: id, attended: { not: true } },
+          select: { student_id: true },
+        });
+
         const result = await db.eventParticipant.updateMany({
           where: { event_id: id, attended: { not: true } },
           data: { attended: true },
         });
         updatedCount = result.count;
+
+        // Award badges for all newly-present students (Etapa 3)
+        const { checkAndAwardBadges } = await import('@/lib/badge-engine');
+        const badgeUserId = _req.user!.userId;
+        for (const p of studentsToBadge) {
+          await checkAndAwardBadges(p.student_id, badgeUserId);
+        }
       } else if (action === 'absent_all') {
         const result = await db.eventParticipant.updateMany({
           where: { event_id: id, attended: true },

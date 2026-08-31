@@ -201,6 +201,12 @@ export async function PUT(
         data: updateData,
       });
 
+      // Award badges automatically if attendance was marked as present (Etapa 3)
+      if (attended === true) {
+        const { checkAndAwardBadges } = await import('@/lib/badge-engine');
+        await checkAndAwardBadges(student_id, _req.user!.userId);
+      }
+
       return NextResponse.json({ participant: updated });
     } catch (error) {
       console.error('Update participant error:', error);
