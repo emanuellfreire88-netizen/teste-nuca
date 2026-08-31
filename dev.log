@@ -5,6 +5,7 @@ $ next dev -p 3000 -H 0.0.0.0
 - Environments: .env
 
 ✓ Starting...
-✓ Ready in 860ms
- POST /api/auth/login 200 in 3.5s (compile: 364ms, render: 3.1s)
- GET /api/dashboard/pending 200 in 4.2s (compile: 288ms, render: 3.9s)
+✓ Ready in 820ms
+ POST /api/auth/login 200 in 3.6s (compile: 315ms, render: 3.2s)
+ POST /api/ai/assistant 200 in 28.1s (compile: 307ms, render: 27.8s)
+ POST /api/ai/assistant 200 in 233ms (compile: 4ms, render: 229ms)
