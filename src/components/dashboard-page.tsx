@@ -26,6 +26,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { NUCAAssistant } from "@/components/nuca-ai-assistant";
+import { DashboardComparison } from "@/components/dashboard-comparison";
 import {
   ResponsiveContainer,
   PieChart,
@@ -303,6 +304,9 @@ export function DashboardPage() {
           );
         })}
       </div>
+
+      {/* ===== Temporal Comparison ===== */}
+      <DashboardComparison />
 
       {/* ===== Dropout Risk Summary Row ===== */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
